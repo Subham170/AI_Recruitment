@@ -2,10 +2,11 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import connectDB from "./config/database.js";
-import applicationRoutes from "./routes/application.routes.js";
-import authRoutes from "./routes/auth.routes.js";
-import jobRoutes from "./routes/job.routes.js";
-import userRoutes from "./routes/user.routes.js";
+import userRoutes from "./user/routes.js";
+
+// TODO: Uncomment when these route files are created
+// import applicationRoutes from "./routes/application.routes.js";
+// import jobRoutes from "./routes/job.routes.js";
 
 // Load environment variables
 dotenv.config();
@@ -30,10 +31,15 @@ app.get("/", (req, res) => {
   });
 });
 
-app.use("/api/auth", authRoutes);
+// User routes (includes auth: /api/users/login, /api/users/profile, and CRUD: /api/users/*)
 app.use("/api/users", userRoutes);
-app.use("/api/jobs", jobRoutes);
-app.use("/api/applications", applicationRoutes);
+
+// Auth routes alias (for backward compatibility)
+app.use("/api/auth", userRoutes);
+
+// TODO: Uncomment when these route files are created
+// app.use("/api/jobs", jobRoutes);
+// app.use("/api/applications", applicationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

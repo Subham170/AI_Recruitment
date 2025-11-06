@@ -1,5 +1,6 @@
 "use client";
 
+import { authAPI, userAPI } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 
@@ -12,68 +13,68 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Check if user is logged in on mount
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const storedUser = localStorage.getItem("user");
+
+        if (token && storedUser) {
+          // Verify token is still valid by fetching user profile
+          try {
+            const userData = await userAPI.getCurrentUser();
+            setUser(userData);
+          } catch (error) {
+            // Token is invalid, clear storage
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error("Auth check failed:", error);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
   }, []);
 
   const login = async (email, password) => {
     try {
-      // TODO: Replace with actual API call when backend is ready
-      // This is a placeholder for DB credential checking
-      // Example API call structure:
-      // const response = await fetch('http://localhost:5000/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email, password })
-      // });
-      // const data = await response.json();
-      // if (!response.ok) throw new Error(data.message);
+      // Call the backend login API
+      const response = await authAPI.login(email, password);
 
-      // Placeholder: Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Store token and user data
+      localStorage.setItem("token", response.token);
+      localStorage.setItem("user", JSON.stringify(response.user));
 
-      // Placeholder: Check credentials in DB
-      // For now, this is a dummy check - replace with actual DB query
-      // const user = await checkCredentialsInDB(email, password);
-      // if (!user) throw new Error('Invalid credentials');
+      // Update state
+      setUser(response.user);
 
-      // Temporary: For demo purposes, accept any credentials
-      // Remove this when backend is ready
-      const userData = {
-        email,
-        role: "recruiter", // This should come from DB (options: recruiter, manager, admin)
-        name: email.split("@")[0], // This should come from DB
-        id: Date.now().toString(), // This should come from DB
-      };
-
-      setUser(userData);
-      localStorage.setItem("user", JSON.stringify(userData));
+      // Redirect to dashboard
       router.push("/dashboard");
     } catch (error) {
       throw error;
     }
   };
 
-  const signup = (name, email, password, role) => {
-    // In a real app, this would be an API call
-    // For demo purposes, we'll simulate signup
-    const userData = {
-      email,
-      role,
-      name,
-      id: Date.now().toString(),
-    };
-
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-    router.push("/dashboard");
+  const signup = async (name, email, password, role) => {
+    try {
+      // Note: Signup is handled by admin creating users via /api/users
+      // This function is kept for compatibility but should redirect to contact admin
+      throw new Error("Please contact administrator to create an account");
+    } catch (error) {
+      throw error;
+    }
   };
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem("token");
     localStorage.removeItem("user");
     router.push("/login");
   };
