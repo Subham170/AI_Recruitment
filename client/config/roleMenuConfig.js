@@ -1,10 +1,7 @@
 import {
   BarChart3,
-  Bell,
-  BookOpen,
   Briefcase,
   Calendar,
-  CheckCircle,
   ClipboardList,
   Database,
   FileText,
@@ -14,69 +11,10 @@ import {
   Settings,
   Shield,
   TrendingUp,
-  User,
   Users,
 } from "lucide-react";
 
 export const roleMenuConfig = {
-  candidate: [
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: Home,
-      path: "/dashboard",
-      description: "Overview of your activity",
-    },
-    {
-      id: "job-postings",
-      label: "Recent Job Postings",
-      icon: Briefcase,
-      path: "/dashboard/jobs",
-      description: "Browse available positions",
-    },
-    {
-      id: "my-applications",
-      label: "My Applications",
-      icon: FileText,
-      path: "/dashboard/applications",
-      description: "Track your applications",
-    },
-    {
-      id: "application-status",
-      label: "Application Status",
-      icon: CheckCircle,
-      path: "/dashboard/status",
-      description: "View application status",
-    },
-    {
-      id: "upcoming-interviews",
-      label: "Upcoming Interviews",
-      icon: Calendar,
-      path: "/dashboard/interviews",
-      description: "View scheduled interviews",
-    },
-    {
-      id: "saved-jobs",
-      label: "Saved Jobs",
-      icon: BookOpen,
-      path: "/dashboard/saved",
-      description: "Jobs you've saved",
-    },
-    {
-      id: "profile",
-      label: "My Profile",
-      icon: User,
-      path: "/dashboard/profile",
-      description: "Update your profile",
-    },
-    {
-      id: "notifications",
-      label: "Notifications",
-      icon: Bell,
-      path: "/dashboard/notifications",
-      description: "View your notifications",
-    },
-  ],
   recruiter: [
     {
       id: "dashboard",
@@ -140,6 +78,71 @@ export const roleMenuConfig = {
       icon: Settings,
       path: "/dashboard/settings",
       description: "Account settings",
+    },
+  ],
+  manager: [
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: Home,
+      path: "/dashboard",
+      description: "Overview of recruitment operations",
+    },
+    {
+      id: "recruiters",
+      label: "Recruiters",
+      icon: Users,
+      path: "/dashboard/recruiters",
+      description: "Manage recruiter team",
+    },
+    {
+      id: "job-postings",
+      label: "Job Postings",
+      icon: Briefcase,
+      path: "/dashboard/jobs",
+      description: "Manage all job listings",
+    },
+    {
+      id: "applications",
+      label: "Applications",
+      icon: ClipboardList,
+      path: "/dashboard/applications",
+      description: "Review all applications",
+    },
+    {
+      id: "candidates",
+      label: "Candidates",
+      icon: Users,
+      path: "/dashboard/candidates",
+      description: "Browse candidate pool",
+    },
+    {
+      id: "interviews",
+      label: "Interview Schedule",
+      icon: Calendar,
+      path: "/dashboard/interviews",
+      description: "Manage interviews",
+    },
+    {
+      id: "analytics",
+      label: "Analytics & Reports",
+      icon: BarChart3,
+      path: "/dashboard/analytics",
+      description: "View recruitment metrics",
+    },
+    {
+      id: "reports",
+      label: "Reports",
+      icon: FileText,
+      path: "/dashboard/reports",
+      description: "Generate reports",
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: Settings,
+      path: "/dashboard/settings",
+      description: "Team settings",
     },
   ],
   admin: [
@@ -211,7 +214,7 @@ export const roleMenuConfig = {
 
 // Helper function to get menu items for a role
 export const getMenuItemsForRole = (role) => {
-  return roleMenuConfig[role] || roleMenuConfig.candidate;
+  return roleMenuConfig[role] || roleMenuConfig.recruiter;
 };
 
 // Helper function to get menu item by id
