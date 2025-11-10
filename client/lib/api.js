@@ -52,4 +52,18 @@ export const userAPI = {
       method: "GET",
     });
   },
+
+  createUser: async (userData) => {
+    return apiRequest("/users", {
+      method: "POST",
+      body: userData,
+    });
+  },
+
+  getUsers: async (filterRole = null) => {
+    const endpoint = filterRole ? `/users?role=${filterRole}` : "/users";
+    return apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
 };

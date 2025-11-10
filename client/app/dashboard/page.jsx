@@ -23,6 +23,9 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
+    } else if (user && user.role) {
+      // Redirect to role-specific dashboard
+      router.push(`/dashboard/${user.role}`);
     }
   }, [user, loading, router]);
 
