@@ -158,7 +158,7 @@ export const roleMenuConfig = {
       id: "add-people",
       label: "Add People",
       icon: UserPlus,
-      path: "/addPeople",
+      path: "/dashboard/admin/add-people",
       description: "Add new managers and recruiters",
     },
     {
