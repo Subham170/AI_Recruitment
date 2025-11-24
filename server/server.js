@@ -1,8 +1,9 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import candidateRoutes from "./candidates/route.js";
 import connectDB from "./config/database.js";
-import userRoutes from "./user/routes.js";
+import userRoutes from "./user/route.js";
 
 // TODO: Uncomment when these route files are created
 // import applicationRoutes from "./routes/application.routes.js";
@@ -36,6 +37,9 @@ app.use("/api/users", userRoutes);
 
 // Auth routes alias (for backward compatibility)
 app.use("/api/auth", userRoutes);
+
+// Candidate routes
+app.use("/api/candidates", candidateRoutes);
 
 // TODO: Uncomment when these route files are created
 // app.use("/api/jobs", jobRoutes);
