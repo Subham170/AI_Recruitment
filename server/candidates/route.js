@@ -25,3 +25,4 @@ router.get("/role/:role", getCandidatesByRole);
 router.get("/:identifier", getCandidateByIdOrEmail);
 
 export default router;
+

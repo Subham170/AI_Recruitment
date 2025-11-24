@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import express from "express";
 import candidateRoutes from "./candidates/route.js";
 import connectDB from "./config/database.js";
+import jobPostingRoutes from "./job_posting/route.js";
 import userRoutes from "./user/route.js";
 
 // TODO: Uncomment when these route files are created
@@ -41,8 +42,10 @@ app.use("/api/auth", userRoutes);
 // Candidate routes
 app.use("/api/candidates", candidateRoutes);
 
+// Job posting routes
+app.use("/api/job-postings", jobPostingRoutes);
+
 // TODO: Uncomment when these route files are created
-// app.use("/api/jobs", jobRoutes);
 // app.use("/api/applications", applicationRoutes);
 
 // Error handling middleware
