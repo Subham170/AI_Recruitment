@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-, "app/dashboard/admin/addPeople/page.jsx"  ],
+, "app/dashboard/admin/add-people/page.jsx"  ],
   "exclude": ["node_modules"]
 }
