@@ -60,10 +60,31 @@ export const userAPI = {
     });
   },
 
-  getUsers: async (filterRole = null) => {
-    const endpoint = filterRole ? `/users?role=${filterRole}` : "/users";
+  getUsers: async (options = {}) => {
+    const { filterRole = null, search = "", page = 1, pageSize = 7 } = options;
+    const params = new URLSearchParams();
+    
+    if (filterRole) params.append("role", filterRole);
+    if (search) params.append("search", search);
+    params.append("page", page.toString());
+    params.append("pageSize", pageSize.toString());
+    
+    const endpoint = `/users?${params.toString()}`;
     return apiRequest(endpoint, {
       method: "GET",
+    });
+  },
+
+  updateUser: async (userId, userData) => {
+    return apiRequest(`/users/${userId}`, {
+      method: "PUT",
+      body: userData,
+    });
+  },
+
+  deleteUser: async (userId) => {
+    return apiRequest(`/users/${userId}`, {
+      method: "DELETE",
     });
   },
 };

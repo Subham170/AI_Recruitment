@@ -9,31 +9,33 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  TrendingUp,
+  Users,
   User,
   Mail,
+  Phone,
   MapPin,
   Briefcase,
-  Star,
+  GraduationCap,
   Search,
   Eye,
-  Phone,
   Download,
+  Star,
   Calendar,
+  FileText,
 } from "lucide-react";
 import { Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export default function TopApplicantsPage() {
+export default function CandidatesPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedApplicant, setSelectedApplicant] = useState(null);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -53,8 +55,8 @@ export default function TopApplicantsPage() {
     return null;
   }
 
-  // Mock top applicants data - in real app, this would come from an API
-  const topApplicants = [
+  // Mock candidates data
+  const candidates = [
     {
       id: 1,
       name: "John Smith",
@@ -64,12 +66,12 @@ export default function TopApplicantsPage() {
       currentRole: "Senior Software Engineer",
       experience: "5 years",
       skills: ["React", "Node.js", "TypeScript", "AWS", "MongoDB"],
-      matchScore: 95,
-      applications: 3,
-      status: "Available",
+      education: "BS Computer Science, MIT",
+      availability: "Available",
       lastActive: "2 days ago",
       resume: "john_smith_resume.pdf",
-      education: "BS Computer Science, MIT",
+      applicationsCount: 3,
+      matchScore: 95,
     },
     {
       id: 2,
@@ -80,12 +82,12 @@ export default function TopApplicantsPage() {
       currentRole: "Full Stack Developer",
       experience: "4 years",
       skills: ["JavaScript", "Python", "Django", "PostgreSQL", "Docker"],
-      matchScore: 92,
-      applications: 2,
-      status: "Available",
+      education: "BS Software Engineering, Stanford",
+      availability: "Available",
       lastActive: "1 day ago",
       resume: "sarah_johnson_resume.pdf",
-      education: "BS Software Engineering, Stanford",
+      applicationsCount: 2,
+      matchScore: 92,
     },
     {
       id: 3,
@@ -96,12 +98,12 @@ export default function TopApplicantsPage() {
       currentRole: "Frontend Developer",
       experience: "3 years",
       skills: ["React", "Vue.js", "CSS", "Figma", "GraphQL"],
-      matchScore: 90,
-      applications: 4,
-      status: "Interviewing",
+      education: "BS Computer Science, UC Berkeley",
+      availability: "Interviewing",
       lastActive: "3 hours ago",
       resume: "michael_chen_resume.pdf",
-      education: "BS Computer Science, UC Berkeley",
+      applicationsCount: 4,
+      matchScore: 90,
     },
     {
       id: 4,
@@ -112,12 +114,12 @@ export default function TopApplicantsPage() {
       currentRole: "Backend Developer",
       experience: "6 years",
       skills: ["Java", "Spring Boot", "Microservices", "Kafka", "Redis"],
-      matchScore: 88,
-      applications: 2,
-      status: "Available",
+      education: "MS Computer Science, UT Austin",
+      availability: "Available",
       lastActive: "5 days ago",
       resume: "emily_davis_resume.pdf",
-      education: "MS Computer Science, UT Austin",
+      applicationsCount: 2,
+      matchScore: 88,
     },
     {
       id: 5,
@@ -128,12 +130,12 @@ export default function TopApplicantsPage() {
       currentRole: "DevOps Engineer",
       experience: "4 years",
       skills: ["Kubernetes", "Terraform", "CI/CD", "Linux", "AWS"],
-      matchScore: 87,
-      applications: 1,
-      status: "Available",
+      education: "BS Information Systems, Carnegie Mellon",
+      availability: "Available",
       lastActive: "1 week ago",
       resume: "david_lee_resume.pdf",
-      education: "BS Information Systems, Carnegie Mellon",
+      applicationsCount: 1,
+      matchScore: 87,
     },
     {
       id: 6,
@@ -144,21 +146,21 @@ export default function TopApplicantsPage() {
       currentRole: "UI/UX Designer",
       experience: "5 years",
       skills: ["Figma", "Sketch", "Adobe XD", "Prototyping", "User Research"],
-      matchScore: 85,
-      applications: 3,
-      status: "Available",
+      education: "BFA Design, RISD",
+      availability: "Available",
       lastActive: "4 days ago",
       resume: "lisa_wang_resume.pdf",
-      education: "BFA Design, RISD",
+      applicationsCount: 3,
+      matchScore: 85,
     },
   ];
 
-  const filteredApplicants = topApplicants.filter(
-    (applicant) =>
-      applicant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      applicant.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      applicant.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      applicant.skills.some((skill) =>
+  const filteredCandidates = candidates.filter(
+    (candidate) =>
+      candidate.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      candidate.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      candidate.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      candidate.skills.some((skill) =>
         skill.toLowerCase().includes(searchQuery.toLowerCase())
       )
   );
@@ -179,6 +181,7 @@ export default function TopApplicantsPage() {
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="w-64 p-0">
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <DashboardSidebar />
         </SheetContent>
       </Sheet>
@@ -220,11 +223,11 @@ export default function TopApplicantsPage() {
           <Card className="bg-green-500 border-0 text-white mb-8">
             <CardHeader>
               <CardTitle className="text-4xl mb-2 flex items-center gap-3">
-                <TrendingUp className="h-10 w-10" />
-                Top Applicants
+                <Users className="h-10 w-10" />
+                Candidates
               </CardTitle>
               <CardDescription className="text-xl opacity-90 text-white">
-                Discover and review the best candidates for your job postings
+                Browse and explore the candidate pool
               </CardDescription>
             </CardHeader>
           </Card>
@@ -233,22 +236,22 @@ export default function TopApplicantsPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardContent className="pt-6">
-                <div className="text-2xl font-bold">{topApplicants.length}</div>
+                <div className="text-2xl font-bold">{candidates.length}</div>
                 <p className="text-xs text-muted-foreground">Total Candidates</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold text-green-600">
-                  {topApplicants.filter((a) => a.matchScore >= 90).length}
+                  {candidates.filter((c) => c.matchScore >= 90).length}
                 </div>
-                <p className="text-xs text-muted-foreground">High Match (90+)</p>
+                <p className="text-xs text-muted-foreground">Top Matches (90+)</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold text-blue-600">
-                  {topApplicants.filter((a) => a.status === "Available").length}
+                  {candidates.filter((c) => c.availability === "Available").length}
                 </div>
                 <p className="text-xs text-muted-foreground">Available Now</p>
               </CardContent>
@@ -256,7 +259,7 @@ export default function TopApplicantsPage() {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold">
-                  {topApplicants.reduce((sum, a) => sum + a.applications, 0)}
+                  {candidates.reduce((sum, c) => sum + c.applicationsCount, 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">Total Applications</p>
               </CardContent>
@@ -279,11 +282,11 @@ export default function TopApplicantsPage() {
             </CardContent>
           </Card>
 
-          {/* Applicants List */}
+          {/* Candidates Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredApplicants.map((applicant) => (
+            {filteredCandidates.map((candidate) => (
               <Card
-                key={applicant.id}
+                key={candidate.id}
                 className="hover:shadow-lg transition-shadow"
               >
                 <CardHeader>
@@ -291,7 +294,7 @@ export default function TopApplicantsPage() {
                     <div className="flex items-center gap-3 flex-1">
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
                         <span className="text-lg font-semibold text-green-700 dark:text-green-300">
-                          {applicant.name
+                          {candidate.name
                             .split(" ")
                             .map((n) => n[0])
                             .join("")}
@@ -299,19 +302,19 @@ export default function TopApplicantsPage() {
                       </div>
                       <div className="flex-1">
                         <CardTitle className="text-xl mb-1">
-                          {applicant.name}
+                          {candidate.name}
                         </CardTitle>
                         <CardDescription className="text-base">
-                          {applicant.currentRole}
+                          {candidate.currentRole}
                         </CardDescription>
                       </div>
                     </div>
                     <div
                       className={`px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                        applicant.matchScore
+                        candidate.matchScore
                       )}`}
                     >
-                      {applicant.matchScore}%
+                      {candidate.matchScore}%
                     </div>
                   </div>
                 </CardHeader>
@@ -320,33 +323,31 @@ export default function TopApplicantsPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Mail className="h-4 w-4" />
-                      <span>{applicant.email}</span>
+                      <span>{candidate.email}</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Phone className="h-4 w-4" />
-                      <span>{applicant.phone}</span>
+                      <span>{candidate.phone}</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <MapPin className="h-4 w-4" />
-                      <span>{applicant.location}</span>
+                      <span>{candidate.location}</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Briefcase className="h-4 w-4" />
-                      <span>{applicant.experience} experience</span>
+                      <span>{candidate.experience} experience</span>
                     </div>
-                  </div>
-
-                  {/* Education */}
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Education</p>
-                    <p className="text-sm">{applicant.education}</p>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <GraduationCap className="h-4 w-4" />
+                      <span className="text-xs">{candidate.education}</span>
+                    </div>
                   </div>
 
                   {/* Skills */}
                   <div>
                     <p className="text-xs text-muted-foreground mb-2">Skills</p>
                     <div className="flex flex-wrap gap-2">
-                      {applicant.skills.map((skill, index) => (
+                      {candidate.skills.map((skill, index) => (
                         <span
                           key={index}
                           className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 rounded-md"
@@ -362,19 +363,19 @@ export default function TopApplicantsPage() {
                     <div className="flex items-center gap-2">
                       <div
                         className={`h-2 w-2 rounded-full ${
-                          applicant.status === "Available"
+                          candidate.availability === "Available"
                             ? "bg-green-500"
                             : "bg-yellow-500"
                         }`}
                       />
                       <span className="text-xs text-muted-foreground">
-                        {applicant.status} • {applicant.lastActive}
+                        {candidate.availability} • {candidate.lastActive}
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                       <span className="text-xs text-muted-foreground">
-                        {applicant.applications} applications
+                        {candidate.applicationsCount} applications
                       </span>
                     </div>
                   </div>
@@ -384,7 +385,7 @@ export default function TopApplicantsPage() {
                     <Button
                       variant="outline"
                       className="flex-1"
-                      onClick={() => setSelectedApplicant(applicant)}
+                      onClick={() => setSelectedCandidate(candidate)}
                     >
                       <Eye className="mr-2 h-4 w-4" />
                       View Profile
@@ -401,7 +402,7 @@ export default function TopApplicantsPage() {
                       }}
                     >
                       <Calendar className="mr-2 h-4 w-4" />
-                      Interview
+                      Contact
                     </Button>
                   </div>
                 </CardContent>
@@ -409,12 +410,12 @@ export default function TopApplicantsPage() {
             ))}
           </div>
 
-          {filteredApplicants.length === 0 && (
+          {filteredCandidates.length === 0 && (
             <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 border-2">
               <CardContent className="pt-6 text-center">
                 <User className="h-12 w-12 mx-auto mb-4 text-green-500" />
                 <p className="text-green-900 dark:text-green-100">
-                  No applicants found matching your search criteria.
+                  No candidates found matching your search criteria.
                 </p>
               </CardContent>
             </Card>

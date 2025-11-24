@@ -9,33 +9,31 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  Users,
+  TrendingUp,
   User,
   Mail,
-  Phone,
   MapPin,
   Briefcase,
-  GraduationCap,
+  Star,
   Search,
   Eye,
+  Phone,
   Download,
-  Star,
   Calendar,
-  FileText,
 } from "lucide-react";
 import { Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export default function CandidatesPage() {
+export default function TopApplicantsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [selectedApplicant, setSelectedApplicant] = useState(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -55,8 +53,8 @@ export default function CandidatesPage() {
     return null;
   }
 
-  // Mock candidates data
-  const candidates = [
+  // Mock top applicants data - in real app, this would come from an API
+  const topApplicants = [
     {
       id: 1,
       name: "John Smith",
@@ -66,12 +64,12 @@ export default function CandidatesPage() {
       currentRole: "Senior Software Engineer",
       experience: "5 years",
       skills: ["React", "Node.js", "TypeScript", "AWS", "MongoDB"],
-      education: "BS Computer Science, MIT",
-      availability: "Available",
+      matchScore: 95,
+      applications: 3,
+      status: "Available",
       lastActive: "2 days ago",
       resume: "john_smith_resume.pdf",
-      applicationsCount: 3,
-      matchScore: 95,
+      education: "BS Computer Science, MIT",
     },
     {
       id: 2,
@@ -82,12 +80,12 @@ export default function CandidatesPage() {
       currentRole: "Full Stack Developer",
       experience: "4 years",
       skills: ["JavaScript", "Python", "Django", "PostgreSQL", "Docker"],
-      education: "BS Software Engineering, Stanford",
-      availability: "Available",
+      matchScore: 92,
+      applications: 2,
+      status: "Available",
       lastActive: "1 day ago",
       resume: "sarah_johnson_resume.pdf",
-      applicationsCount: 2,
-      matchScore: 92,
+      education: "BS Software Engineering, Stanford",
     },
     {
       id: 3,
@@ -98,12 +96,12 @@ export default function CandidatesPage() {
       currentRole: "Frontend Developer",
       experience: "3 years",
       skills: ["React", "Vue.js", "CSS", "Figma", "GraphQL"],
-      education: "BS Computer Science, UC Berkeley",
-      availability: "Interviewing",
+      matchScore: 90,
+      applications: 4,
+      status: "Interviewing",
       lastActive: "3 hours ago",
       resume: "michael_chen_resume.pdf",
-      applicationsCount: 4,
-      matchScore: 90,
+      education: "BS Computer Science, UC Berkeley",
     },
     {
       id: 4,
@@ -114,12 +112,12 @@ export default function CandidatesPage() {
       currentRole: "Backend Developer",
       experience: "6 years",
       skills: ["Java", "Spring Boot", "Microservices", "Kafka", "Redis"],
-      education: "MS Computer Science, UT Austin",
-      availability: "Available",
+      matchScore: 88,
+      applications: 2,
+      status: "Available",
       lastActive: "5 days ago",
       resume: "emily_davis_resume.pdf",
-      applicationsCount: 2,
-      matchScore: 88,
+      education: "MS Computer Science, UT Austin",
     },
     {
       id: 5,
@@ -130,12 +128,12 @@ export default function CandidatesPage() {
       currentRole: "DevOps Engineer",
       experience: "4 years",
       skills: ["Kubernetes", "Terraform", "CI/CD", "Linux", "AWS"],
-      education: "BS Information Systems, Carnegie Mellon",
-      availability: "Available",
+      matchScore: 87,
+      applications: 1,
+      status: "Available",
       lastActive: "1 week ago",
       resume: "david_lee_resume.pdf",
-      applicationsCount: 1,
-      matchScore: 87,
+      education: "BS Information Systems, Carnegie Mellon",
     },
     {
       id: 6,
@@ -146,21 +144,21 @@ export default function CandidatesPage() {
       currentRole: "UI/UX Designer",
       experience: "5 years",
       skills: ["Figma", "Sketch", "Adobe XD", "Prototyping", "User Research"],
-      education: "BFA Design, RISD",
-      availability: "Available",
+      matchScore: 85,
+      applications: 3,
+      status: "Available",
       lastActive: "4 days ago",
       resume: "lisa_wang_resume.pdf",
-      applicationsCount: 3,
-      matchScore: 85,
+      education: "BFA Design, RISD",
     },
   ];
 
-  const filteredCandidates = candidates.filter(
-    (candidate) =>
-      candidate.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      candidate.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      candidate.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      candidate.skills.some((skill) =>
+  const filteredApplicants = topApplicants.filter(
+    (applicant) =>
+      applicant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      applicant.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      applicant.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      applicant.skills.some((skill) =>
         skill.toLowerCase().includes(searchQuery.toLowerCase())
       )
   );
@@ -181,6 +179,7 @@ export default function CandidatesPage() {
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="w-64 p-0">
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <DashboardSidebar />
         </SheetContent>
       </Sheet>
@@ -222,11 +221,11 @@ export default function CandidatesPage() {
           <Card className="bg-green-500 border-0 text-white mb-8">
             <CardHeader>
               <CardTitle className="text-4xl mb-2 flex items-center gap-3">
-                <Users className="h-10 w-10" />
-                Candidates
+                <TrendingUp className="h-10 w-10" />
+                Top Applicants
               </CardTitle>
               <CardDescription className="text-xl opacity-90 text-white">
-                Browse and explore the candidate pool
+                Discover and review the best candidates for your job postings
               </CardDescription>
             </CardHeader>
           </Card>
@@ -235,22 +234,22 @@ export default function CandidatesPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardContent className="pt-6">
-                <div className="text-2xl font-bold">{candidates.length}</div>
+                <div className="text-2xl font-bold">{topApplicants.length}</div>
                 <p className="text-xs text-muted-foreground">Total Candidates</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold text-green-600">
-                  {candidates.filter((c) => c.matchScore >= 90).length}
+                  {topApplicants.filter((a) => a.matchScore >= 90).length}
                 </div>
-                <p className="text-xs text-muted-foreground">Top Matches (90+)</p>
+                <p className="text-xs text-muted-foreground">High Match (90+)</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold text-blue-600">
-                  {candidates.filter((c) => c.availability === "Available").length}
+                  {topApplicants.filter((a) => a.status === "Available").length}
                 </div>
                 <p className="text-xs text-muted-foreground">Available Now</p>
               </CardContent>
@@ -258,7 +257,7 @@ export default function CandidatesPage() {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold">
-                  {candidates.reduce((sum, c) => sum + c.applicationsCount, 0)}
+                  {topApplicants.reduce((sum, a) => sum + a.applications, 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">Total Applications</p>
               </CardContent>
@@ -281,11 +280,11 @@ export default function CandidatesPage() {
             </CardContent>
           </Card>
 
-          {/* Candidates Grid */}
+          {/* Applicants List */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredCandidates.map((candidate) => (
+            {filteredApplicants.map((applicant) => (
               <Card
-                key={candidate.id}
+                key={applicant.id}
                 className="hover:shadow-lg transition-shadow"
               >
                 <CardHeader>
@@ -293,7 +292,7 @@ export default function CandidatesPage() {
                     <div className="flex items-center gap-3 flex-1">
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
                         <span className="text-lg font-semibold text-green-700 dark:text-green-300">
-                          {candidate.name
+                          {applicant.name
                             .split(" ")
                             .map((n) => n[0])
                             .join("")}
@@ -301,19 +300,19 @@ export default function CandidatesPage() {
                       </div>
                       <div className="flex-1">
                         <CardTitle className="text-xl mb-1">
-                          {candidate.name}
+                          {applicant.name}
                         </CardTitle>
                         <CardDescription className="text-base">
-                          {candidate.currentRole}
+                          {applicant.currentRole}
                         </CardDescription>
                       </div>
                     </div>
                     <div
                       className={`px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                        candidate.matchScore
+                        applicant.matchScore
                       )}`}
                     >
-                      {candidate.matchScore}%
+                      {applicant.matchScore}%
                     </div>
                   </div>
                 </CardHeader>
@@ -322,31 +321,33 @@ export default function CandidatesPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Mail className="h-4 w-4" />
-                      <span>{candidate.email}</span>
+                      <span>{applicant.email}</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Phone className="h-4 w-4" />
-                      <span>{candidate.phone}</span>
+                      <span>{applicant.phone}</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <MapPin className="h-4 w-4" />
-                      <span>{candidate.location}</span>
+                      <span>{applicant.location}</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Briefcase className="h-4 w-4" />
-                      <span>{candidate.experience} experience</span>
+                      <span>{applicant.experience} experience</span>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <GraduationCap className="h-4 w-4" />
-                      <span className="text-xs">{candidate.education}</span>
-                    </div>
+                  </div>
+
+                  {/* Education */}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Education</p>
+                    <p className="text-sm">{applicant.education}</p>
                   </div>
 
                   {/* Skills */}
                   <div>
                     <p className="text-xs text-muted-foreground mb-2">Skills</p>
                     <div className="flex flex-wrap gap-2">
-                      {candidate.skills.map((skill, index) => (
+                      {applicant.skills.map((skill, index) => (
                         <span
                           key={index}
                           className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 rounded-md"
@@ -362,19 +363,19 @@ export default function CandidatesPage() {
                     <div className="flex items-center gap-2">
                       <div
                         className={`h-2 w-2 rounded-full ${
-                          candidate.availability === "Available"
+                          applicant.status === "Available"
                             ? "bg-green-500"
                             : "bg-yellow-500"
                         }`}
                       />
                       <span className="text-xs text-muted-foreground">
-                        {candidate.availability} • {candidate.lastActive}
+                        {applicant.status} • {applicant.lastActive}
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                       <span className="text-xs text-muted-foreground">
-                        {candidate.applicationsCount} applications
+                        {applicant.applications} applications
                       </span>
                     </div>
                   </div>
@@ -384,7 +385,7 @@ export default function CandidatesPage() {
                     <Button
                       variant="outline"
                       className="flex-1"
-                      onClick={() => setSelectedCandidate(candidate)}
+                      onClick={() => setSelectedApplicant(applicant)}
                     >
                       <Eye className="mr-2 h-4 w-4" />
                       View Profile
@@ -401,7 +402,7 @@ export default function CandidatesPage() {
                       }}
                     >
                       <Calendar className="mr-2 h-4 w-4" />
-                      Contact
+                      Interview
                     </Button>
                   </div>
                 </CardContent>
@@ -409,12 +410,12 @@ export default function CandidatesPage() {
             ))}
           </div>
 
-          {filteredCandidates.length === 0 && (
+          {filteredApplicants.length === 0 && (
             <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 border-2">
               <CardContent className="pt-6 text-center">
                 <User className="h-12 w-12 mx-auto mb-4 text-green-500" />
                 <p className="text-green-900 dark:text-green-100">
-                  No candidates found matching your search criteria.
+                  No applicants found matching your search criteria.
                 </p>
               </CardContent>
             </Card>

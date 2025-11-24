@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { FileText, MapPin, Clock, Calendar, CheckCircle, Clock as ClockIcon, XCircle, Search, User, Mail, Phone, Download, Eye } from "lucide-react";
 import { Menu } from "lucide-react";
@@ -271,6 +271,7 @@ export default function ApplicationsPage() {
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="w-64 p-0">
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <DashboardSidebar />
         </SheetContent>
       </Sheet>

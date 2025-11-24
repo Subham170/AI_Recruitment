@@ -81,16 +81,45 @@ export const createUser = async (req, res) => {
 // Get all users (Admin and Manager only)
 export const getUsers = async (req, res) => {
   try {
-    const { role: filterRole } = req.query;
+    const { role: filterRole, search, page = 1, pageSize = 7 } = req.query;
 
     let query = {};
+    
+    // Role filter
     if (filterRole) {
       query.role = filterRole;
     }
 
-    const users = await User.find(query).select("-password");
+    // Search filter (name or email)
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limit = parseInt(pageSize);
+    const skip = (pageNum - 1) * limit;
+
+    // Get total count for pagination
+    const totalCount = await User.countDocuments(query);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Get users with pagination
+    const users = await User.find(query)
+      .select("-password")
+      .skip(skip)
+      .limit(limit)
+      .sort({ name: 1 }); // Sort by name ascending
+
     res.status(200).json({
       count: users.length,
+      totalCount,
+      totalPages,
+      currentPage: pageNum,
+      pageSize: limit,
       users,
     });
   } catch (error) {
