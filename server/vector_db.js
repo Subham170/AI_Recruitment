@@ -2,8 +2,7 @@ import { pipeline } from "@xenova/transformers";
 import { MongoClient } from "mongodb";
 
 const uri =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://Subham_DB:iliboned@subhamdb.ubqol0o.mongodb.net/?retryWrites=true&w=majority&appName=SubhamDB";
+  process.env.MONGODB_URI ;
 if (!uri) throw new Error("MONGODB_URI is not set");
 const client = new MongoClient(uri);
 let extractor = null;
