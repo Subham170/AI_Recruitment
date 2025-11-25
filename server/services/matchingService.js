@@ -6,9 +6,9 @@ import { CandidateMatches, JobMatches } from "../matching/model.js";
 // Configuration for vector search
 const VECTOR_SEARCH_INDEX_CANDIDATE = "candidate_job_posting_index";
 const VECTOR_SEARCH_INDEX_JOB = "vector_index";
-const VECTOR_SEARCH_LIMIT = 50; // Get top 50 matches
+const VECTOR_SEARCH_LIMIT = 10; // Get top 10 matches
 const MIN_MATCH_SCORE = 0.3; // Minimum similarity score to consider a match
-const MAX_MATCHES_TO_STORE = 20; // Maximum matches to store per job/candidate
+const MAX_MATCHES_TO_STORE = 10; // Maximum matches to store per job/candidate (should match VECTOR_SEARCH_LIMIT)
 
 /**
  * Find matching candidates for a job posting using vector search
@@ -70,14 +70,15 @@ export async function findMatchingCandidates(jobPostingId, filters = {}) {
           },
         },
         {
-          $limit: MAX_MATCHES_TO_STORE,
+          $limit: VECTOR_SEARCH_LIMIT,
         },
       ])
       .toArray();
 
-    // Format results
+    // Format results and limit to top 10
     return results
       .filter((result) => result.score >= MIN_MATCH_SCORE)
+      .slice(0, VECTOR_SEARCH_LIMIT) // Ensure we only return top 10
       .map((result) => ({
         candidateId: result._id,
         matchScore: result.score,
@@ -144,14 +145,15 @@ export async function findMatchingJobs(candidateId, filters = {}) {
           },
         },
         {
-          $limit: MAX_MATCHES_TO_STORE,
+          $limit: VECTOR_SEARCH_LIMIT,
         },
       ])
       .toArray();
 
-    // Format results
+    // Format results and limit to top 10
     return results
       .filter((result) => result.score >= MIN_MATCH_SCORE)
+      .slice(0, VECTOR_SEARCH_LIMIT) // Ensure we only return top 10
       .map((result) => ({
         jobId: result._id,
         matchScore: result.score,
@@ -173,12 +175,14 @@ export async function updateJobMatches(jobPostingId, filters = {}) {
     // Find matching candidates
     const matches = await findMatchingCandidates(jobPostingId, filters);
 
-    // Format matches for storage
-    const matchesToStore = matches.map((match) => ({
-      candidateId: new mongoose.Types.ObjectId(match.candidateId),
-      matchScore: match.matchScore,
-      matchedAt: new Date(),
-    }));
+    // Format matches for storage and limit to top 10
+    const matchesToStore = matches
+      .slice(0, VECTOR_SEARCH_LIMIT) // Ensure only top 10 candidates
+      .map((match) => ({
+        candidateId: new mongoose.Types.ObjectId(match.candidateId),
+        matchScore: match.matchScore,
+        matchedAt: new Date(),
+      }));
 
     // Update or create job_matches document
     const jobMatches = await JobMatches.findOneAndUpdate(
@@ -304,9 +308,9 @@ export async function updateCandidateMatches(candidateId, filters = {}) {
         jobMatches.matches.push(candidateMatch);
       }
 
-      // Sort by score and limit
+      // Sort by score and limit to top 10
       jobMatches.matches.sort((a, b) => b.matchScore - a.matchScore);
-      jobMatches.matches = jobMatches.matches.slice(0, MAX_MATCHES_TO_STORE);
+      jobMatches.matches = jobMatches.matches.slice(0, VECTOR_SEARCH_LIMIT);
       jobMatches.lastUpdated = new Date();
 
       await jobMatches.save();
