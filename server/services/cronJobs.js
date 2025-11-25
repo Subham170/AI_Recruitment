@@ -1,13 +1,19 @@
 import cron from "node-cron";
-import BolnaCall from "../bolna/model.js";
-import { sendEmail, verifyEmailConfig } from "./emailService.js";
-import Candidate from "../candidates/model.js";
 import { syncBolnaCall } from "../bolna/controller.js";
+import BolnaCall from "../bolna/model.js";
+import Candidate from "../candidates/model.js";
+import { sendEmail, verifyEmailConfig } from "./emailService.js";
 
 const SENDER_EMAIL = process.env.SENDER_EMAIL || "admin@gmail.com";
 const CRON_INTERVAL = process.env.EMAIL_CRON_INTERVAL || "*/1 * * * *"; // Every minute by default
-const EMAIL_WINDOW_MINUTES = parseInt(process.env.EMAIL_WINDOW_MINUTES || "2", 10); // 2 minute window by default
-const MAX_RETRY_ATTEMPTS = parseInt(process.env.MAX_EMAIL_RETRY_ATTEMPTS || "3", 10);
+const EMAIL_WINDOW_MINUTES = parseInt(
+  process.env.EMAIL_WINDOW_MINUTES || "2",
+  10
+); // 2 minute window by default
+const MAX_RETRY_ATTEMPTS = parseInt(
+  process.env.MAX_EMAIL_RETRY_ATTEMPTS || "3",
+  10
+);
 // Note: PROCESSING_LOCK_TIMEOUT removed - using fresh DB check instead
 
 /**
@@ -17,21 +23,26 @@ const MAX_RETRY_ATTEMPTS = parseInt(process.env.MAX_EMAIL_RETRY_ATTEMPTS || "3",
  */
 async function processSingleCall(call) {
   const callId = call._id.toString();
-  
+
   try {
     // Validate required fields
     const { candidateId, jobId, executionId } = call;
-    
+
     if (!candidateId || !jobId || !executionId) {
       const missingFields = [];
       if (!candidateId) missingFields.push("candidateId");
       if (!jobId) missingFields.push("jobId");
       if (!executionId) missingFields.push("executionId");
-      
+
       console.error(
-        `❌ [Call ${callId}] Missing required fields: ${missingFields.join(", ")}`
+        `❌ [Call ${callId}] Missing required fields: ${missingFields.join(
+          ", "
+        )}`
       );
-      return { success: false, error: `Missing fields: ${missingFields.join(", ")}` };
+      return {
+        success: false,
+        error: `Missing fields: ${missingFields.join(", ")}`,
+      };
     }
 
     // Fetch candidate with error handling
@@ -51,7 +62,7 @@ async function processSingleCall(call) {
     try {
       const syncResult = await syncBolnaCall(executionId);
       userScheduledAt = syncResult?.storedRecord?.userScheduledAt;
-      
+
       if (!userScheduledAt) {
         console.warn(
           `⚠️ [Call ${callId}] userScheduledAt not found in transcript. Will retry on next run.`
@@ -69,7 +80,7 @@ async function processSingleCall(call) {
     // Send email
     try {
       await sendEmail(candidate.email, SENDER_EMAIL, userScheduledAt);
-      
+
       // Mark email as sent atomically
       await BolnaCall.findByIdAndUpdate(callId, {
         emailSent: true,
@@ -94,7 +105,7 @@ async function processSingleCall(call) {
         `❌ [Call ${callId}] Failed to send email (attempt ${retryCount}/${MAX_RETRY_ATTEMPTS}):`,
         emailError.message
       );
-      
+
       // If max retries exceeded, mark as failed permanently
       if (retryCount >= MAX_RETRY_ATTEMPTS) {
         await BolnaCall.findByIdAndUpdate(callId, {
@@ -105,7 +116,7 @@ async function processSingleCall(call) {
           `🚫 [Call ${callId}] Max retry attempts reached. Email sending permanently failed.`
         );
       }
-      
+
       return { success: false, error: emailError.message };
     }
   } catch (error) {
@@ -127,8 +138,12 @@ async function processScheduledCalls() {
   try {
     const now = new Date();
     // Extended window to catch calls that might have been missed
-    const windowStart = new Date(now.getTime() - EMAIL_WINDOW_MINUTES * 60 * 1000);
-    const windowEnd = new Date(now.getTime() + EMAIL_WINDOW_MINUTES * 60 * 1000);
+    const windowStart = new Date(
+      now.getTime() - EMAIL_WINDOW_MINUTES * 60 * 1000
+    );
+    const windowEnd = new Date(
+      now.getTime() + EMAIL_WINDOW_MINUTES * 60 * 1000
+    );
 
     // Find calls that need email processing
     // Exclude: already sent, failed permanently, or exceeded retry limit
@@ -166,7 +181,7 @@ async function processScheduledCalls() {
         console.log(`⏭️ [Call ${call._id}] Call not found, skipping...`);
         continue;
       }
-      
+
       if (freshCall.emailSent) {
         skippedCount++;
         console.log(`⏭️ [Call ${call._id}] Email already sent, skipping...`);
@@ -175,7 +190,7 @@ async function processScheduledCalls() {
 
       processedCount++;
       const result = await processSingleCall(freshCall);
-      
+
       if (result.success) {
         successCount++;
       } else {
@@ -189,8 +204,8 @@ async function processScheduledCalls() {
     const duration = Date.now() - startTime;
     console.log(
       `📊 Email processing completed in ${duration}ms: ` +
-      `${successCount} sent, ${failureCount} failed, ${skippedCount} skipped, ` +
-      `${processedCount} total processed`
+        `${successCount} sent, ${failureCount} failed, ${skippedCount} skipped, ` +
+        `${processedCount} total processed`
     );
   } catch (error) {
     console.error("❌ Critical error in processScheduledCalls:", error);
@@ -218,7 +233,7 @@ export async function startCronJobs() {
   cron.schedule(CRON_INTERVAL, async () => {
     const runTime = new Date().toISOString();
     console.log(`⏰ Running email scheduler at ${runTime}`);
-    
+
     try {
       await processScheduledCalls();
     } catch (error) {

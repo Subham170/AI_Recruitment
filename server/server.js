@@ -31,8 +31,8 @@ setTimeout(async () => {
   const { startCronJobs } = await import("./services/cronJobs.js");
   await startCronJobs();
   
-  const { startMatchingCronJobs } = await import("./services/matchingCronJobs.js");
-  await startMatchingCronJobs();
+  // const { startMatchingCronJobs } = await import("./services/matchingCronJobs.js");
+  // await startMatchingCronJobs();
 }, 2000); // Wait 2 seconds for DB connection to establish
 
 // Routes

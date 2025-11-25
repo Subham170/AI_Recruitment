@@ -4,7 +4,7 @@ import nodemailer from "nodemailer";
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
 const SMTP_PORT = process.env.SMTP_PORT || 587;
 const SMTP_USER =
-  process.env.SMTP_USER || process.env.SENDER_EMAIL || "admin@gmail.com";
+  process.env.SMTP_USER || process.env.SENDER_EMAIL;
 const SMTP_PASS = process.env.SMTP_PASS || process.env.SMTP_PASSWORD;
 
 // Create reusable transporter
@@ -30,8 +30,8 @@ function generateGoogleMeetLink(scheduledTime) {
 
   // Simple approach: Use a base meeting link
   // You can replace this with actual Google Meet integration
-  const meetingId = `ai-recruitment-${Date.now()}`;
-  return `https://meet.google.com/${meetingId}`;
+//   const meetingId = `ai-recruitment-${Date.now()}`;
+  return `https://meet.google.com/rrh-ggmw-ymy`;
 
   // Alternative: If you have Google Calendar API integration
   // return await createGoogleCalendarEvent(scheduledTime);
@@ -65,7 +65,7 @@ function formatDateForEmail(date) {
  */
 export async function sendEmail(
   candidateEmail,
-  senderEmail = "admin@gmail.com",
+  senderEmail = "subhamdey1114@gmail.com",
   userScheduledAt
 ) {
   try {
