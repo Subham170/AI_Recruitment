@@ -79,12 +79,12 @@ const candidateMatchesSchema = new mongoose.Schema(
 );
 
 // Create indexes for efficient queries
-jobMatchesSchema.index({ jobId: 1 });
-candidateMatchesSchema.index({ candidateId: 1 });
+// jobMatchesSchema.index({ jobId: 1 });
+// candidateMatchesSchema.index({ candidateId: 1 });
 
-// Compound indexes for nested queries
-jobMatchesSchema.index({ "matches.candidateId": 1 });
-candidateMatchesSchema.index({ "matches.jobId": 1 });
+// // Compound indexes for nested queries
+// jobMatchesSchema.index({ "matches.candidateId": 1 });
+// candidateMatchesSchema.index({ "matches.jobId": 1 });
 
 const JobMatches = mongoose.model("JobMatches", jobMatchesSchema);
 const CandidateMatches = mongoose.model(

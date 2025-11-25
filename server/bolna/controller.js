@@ -98,15 +98,6 @@ export const scheduleBolnaCall = async (req, res) => {
       userScheduledAt: null,
     });
 
-    // Call syncBolnaCall in background (non-blocking)
-    // Errors are caught and logged but don't affect the response
-    syncBolnaCall(executionId).catch((error) => {
-      console.error(
-        `Background sync failed for executionId ${executionId}:`,
-        error.message
-      );
-    });
-
     res.status(200).json({
       message: "Call scheduled successfully",
       bolnaResponse: data,

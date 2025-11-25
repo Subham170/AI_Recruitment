@@ -37,6 +37,26 @@ const bolnaCallSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    emailRetryCount: {
+      type: Number,
+      default: 0,
+    },
+    emailFailed: {
+      type: Boolean,
+      default: false,
+    },
+    emailFailedAt: {
+      type: Date,
+      default: null,
+    },
+    lastEmailError: {
+      type: String,
+      default: null,
+    },
+    lastEmailErrorAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
