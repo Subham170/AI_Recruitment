@@ -4,14 +4,17 @@ import { ChatOpenAI } from "@langchain/openai";
 import BolnaCall from "./model.js";
 
 const BOLNA_API_URL = process.env.BOLNA_API_URL || "https://api.bolna.ai/call";
-const BOLNA_API_KEY = process.env.BOLNA_API_KEY;
-const BOLNA_AGENT_ID = process.env.BOLNA_AGENT_ID;
+const BOLNA_API_KEY =
+  process.env.BOLNA_API_KEY;
+const BOLNA_AGENT_ID =
+  process.env.BOLNA_AGENT_ID;
 const BOLNA_FROM_PHONE = process.env.BOLNA_FROM_PHONE;
 const BOLNA_EXECUTIONS_URL =
   process.env.BOLNA_EXECUTIONS_URL || "https://api.bolna.ai/executions";
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_API_KEY =
+  process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
-const CALL_SCHEDULED_DELAY = process.env.CALL_SCHEDULED_DELAY || 20; // 20 minutes
+const CALL_SCHEDULED_DELAY = parseInt(process.env.CALL_SCHEDULED_DELAY) || 5; // 5 minutes default
 
 const llmClient = OPENAI_API_KEY
   ? new ChatOpenAI({
@@ -87,14 +90,21 @@ export const scheduleBolnaCall = async (req, res) => {
       });
     }
 
+    // convert scheduled_at to Date
+    console.log("scheduled_at", scheduled_at);
+    const scheduledAt = new Date(scheduled_at);
+    const callScheduledAt = new Date(
+      new Date(scheduledAt).getTime() + CALL_SCHEDULED_DELAY * 60 * 1000
+    );
+
+    console.log("callScheduledAt", callScheduledAt);
+
     const bolnaCall = await BolnaCall.create({
       candidateId,
       jobId,
       executionId,
       status: data.status || data.state || "scheduled",
-      callScheduledAt: new Date(
-        scheduled_at + CALL_SCHEDULED_DELAY * 60 * 1000
-      ),
+      callScheduledAt: callScheduledAt,
       userScheduledAt: null,
     });
 
@@ -157,16 +167,21 @@ async function extractUserScheduledAt(transcript) {
 
   const chain = prompt.pipe(llmClient).pipe(new StringOutputParser());
 
-  const content = await chain.invoke({ transcript });
+  let content = await chain.invoke({ transcript });
 
-  if (!content) {
-    return null;
-  }
+  if (!content) return null;
+
+  // 🧹 Clean LLM output to avoid JSON.parse errors
+  content = content
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .replace(/^\uFEFF/, "") // remove BOM if present
+    .trim();
 
   try {
     const parsed = JSON.parse(content);
     return parsed.user_scheduled_time || null;
-  } catch {
+  } catch (error) {
     return null;
   }
 }
@@ -191,6 +206,8 @@ export const syncBolnaCall = async (executionId) => {
     if (transcript) {
       extractedTime = await extractUserScheduledAt(transcript);
     }
+
+    console.log("extractedTime", extractedTime);
 
     bolnaCall.status = executionData.status || bolnaCall.status;
     bolnaCall.userScheduledAt = extractedTime
