@@ -1,3 +1,5 @@
+import { generateJobEmbedding } from "../services/embeddingService.js";
+import { updateJobMatches } from "../services/matchingService.js";
 import JobPosting from "./model.js";
 
 // Create a new job posting
@@ -53,6 +55,26 @@ export const createJobPosting = async (req, res) => {
       exp_req: exp_req || 0,
       skills: skills || [],
     });
+
+    // Generate embedding and update job posting
+    try {
+      const embedding = await generateJobEmbedding(jobPosting);
+      jobPosting.vector = embedding;
+      await jobPosting.save();
+
+      // Trigger matching process asynchronously (don't wait for it)
+      updateJobMatches(jobPosting._id.toString()).catch((matchError) => {
+        console.error("Error updating job matches:", matchError);
+        // Don't throw - matching can be done later via API
+      });
+    } catch (embeddingError) {
+      // Log error but don't fail the job posting creation
+      console.error(
+        "Error generating embedding for job posting:",
+        embeddingError
+      );
+      // Continue without embedding - it can be generated later
+    }
 
     res.status(201).json({
       message: "Job posting created successfully",

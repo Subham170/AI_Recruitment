@@ -51,6 +51,11 @@ const candidateSchema = new mongoose.Schema(
         type: String,
       },
     },
+    vector: {
+      type: [Number], // Array of 384 numbers (embedding vector)
+      default: null,
+      select: false, // Don't return in default queries (large data)
+    },
   },
   {
     timestamps: true, // Automatically adds created_at and updated_at fields

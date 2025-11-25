@@ -1,3 +1,5 @@
+import { generateCandidateEmbedding } from "../services/embeddingService.js";
+import { updateCandidateMatches } from "../services/matchingService.js";
 import Candidate from "./model.js";
 
 // Helper function to create candidate (used by both API and seed function)
@@ -61,6 +63,23 @@ export const createCandidateData = async (candidateData) => {
     is_active: is_active !== undefined ? is_active : true,
     social_links: social_links || {},
   });
+
+  // Generate embedding and update candidate
+  try {
+    const embedding = await generateCandidateEmbedding(candidate);
+    candidate.vector = embedding;
+    await candidate.save();
+
+    // Trigger matching process asynchronously (don't wait for it)
+    updateCandidateMatches(candidate._id.toString()).catch((matchError) => {
+      console.error("Error updating candidate matches:", matchError);
+      // Don't throw - matching can be done later via API
+    });
+  } catch (embeddingError) {
+    // Log error but don't fail the candidate creation
+    console.error("Error generating embedding for candidate:", embeddingError);
+    // Continue without embedding - it can be generated later
+  }
 
   return candidate;
 };

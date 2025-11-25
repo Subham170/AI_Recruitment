@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const jobPostingSchema = new mongoose.Schema(
   {
-     id: {
+    id: {
       type: String,
       required: true,
       unique: true,
@@ -34,6 +34,11 @@ const jobPostingSchema = new mongoose.Schema(
     skills: {
       type: [String], // Array of required skills
       default: [],
+    },
+    vector: {
+      type: [Number], // Array of 384 numbers (embedding vector)
+      default: null,
+      select: false, // Don't return in default queries (large data)
     },
   },
   {

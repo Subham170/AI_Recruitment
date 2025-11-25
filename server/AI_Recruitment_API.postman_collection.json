@@ -1,0 +1,459 @@
+{
+  "info": {
+    "name": "AI Recruitment API",
+    "description": "Complete API collection for AI Recruitment platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users?page=1&pageSize=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                },
+                {
+                  "key": "role",
+                  "value": "recruiter",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "507f1f77bcf86cd799439011"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"recruiter\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Updated\",\n  \"email\": \"john.updated@example.com\",\n  \"role\": \"manager\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "507f1f77bcf86cd799439011"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "507f1f77bcf86cd799439011"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Candidates",
+      "item": [
+        {
+          "name": "Create Candidate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice Developer\",\n  \"email\": \"alice@example.com\",\n  \"phone_no\": \"+1-555-0123\",\n  \"image\": \"https://example.com/image.jpg\",\n  \"skills\": [\"React\", \"Node.js\", \"MongoDB\", \"Python\"],\n  \"experience\": 5,\n  \"resume_url\": \"https://example.com/resume.pdf\",\n  \"role\": [\"Full-stack\"],\n  \"bio\": \"Experienced Full-stack developer with 5 years of expertise.\",\n  \"is_active\": true,\n  \"social_links\": {\n    \"linkedin\": \"https://linkedin.com/in/alice\",\n    \"github\": \"https://github.com/alice\",\n    \"portfolio\": \"https://alice.dev\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/candidates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "candidates"]
+            }
+          }
+        },
+        {
+          "name": "Get All Candidates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/candidates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "candidates"]
+            }
+          }
+        },
+        {
+          "name": "Get Candidate by ID or Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/candidates/:identifier",
+              "host": ["{{base_url}}"],
+              "path": ["api", "candidates", ":identifier"],
+              "variable": [
+                {
+                  "key": "identifier",
+                  "value": "507f191e810c19729de860ea",
+                  "description": "Can be ObjectId or email"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Candidates by Role",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/candidates/role/:role",
+              "host": ["{{base_url}}"],
+              "path": ["api", "candidates", "role", ":role"],
+              "variable": [
+                {
+                  "key": "role",
+                  "value": "Full-stack",
+                  "description": "SDET, QA, DevOps, Frontend, Backend, Full-stack"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Seed Candidates",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"count\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/candidates/seed",
+              "host": ["{{base_url}}"],
+              "path": ["api", "candidates", "seed"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Job Postings",
+      "item": [
+        {
+          "name": "Create Job Posting",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"JOB-1001\",\n  \"title\": \"Senior Frontend Developer\",\n  \"description\": \"We are looking for an experienced Frontend Developer to join our team...\",\n  \"company\": \"TechNova Labs\",\n  \"role\": [\"Frontend\"],\n  \"ctc\": \"15-25 LPA\",\n  \"exp_req\": 5,\n  \"skills\": [\"React\", \"TypeScript\", \"Next.js\", \"Tailwind CSS\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/job-postings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "job-postings"]
+            }
+          }
+        },
+        {
+          "name": "Get All Job Postings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/job-postings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "job-postings"]
+            }
+          }
+        },
+        {
+          "name": "Get Job Posting by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/job-postings/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "job-postings", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "507f1f77bcf86cd799439011",
+                  "description": "MongoDB ObjectId (24 hex chars)"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Matching",
+      "item": [
+        {
+          "name": "Get Job Matches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/matching/job/:jobId/candidates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "matching", "job", ":jobId", "candidates"],
+              "variable": [
+                {
+                  "key": "jobId",
+                  "value": "507f1f77bcf86cd799439011"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Candidate Matches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/matching/candidate/:candidateId/jobs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "matching", "candidate", ":candidateId", "jobs"],
+              "variable": [
+                {
+                  "key": "candidateId",
+                  "value": "507f191e810c19729de860ea"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refresh Job Matches",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filters\": {\n    \"experience\": 3,\n    \"role\": [\"Frontend\", \"Full-stack\"],\n    \"is_active\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/matching/job/:jobId/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "matching", "job", ":jobId", "refresh"],
+              "variable": [
+                {
+                  "key": "jobId",
+                  "value": "507f1f77bcf86cd799439011"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Refresh Candidate Matches",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filters\": {\n    \"exp_req\": 3,\n    \"role\": [\"Frontend\", \"Full-stack\"]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/matching/candidate/:candidateId/refresh",
+              "host": ["{{base_url}}"],
+              "path": [
+                "api",
+                "matching",
+                "candidate",
+                ":candidateId",
+                "refresh"
+              ],
+              "variable": [
+                {
+                  "key": "candidateId",
+                  "value": "507f191e810c19729de860ea"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

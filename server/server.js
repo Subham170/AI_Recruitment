@@ -4,6 +4,7 @@ import express from "express";
 import candidateRoutes from "./candidates/route.js";
 import connectDB from "./config/database.js";
 import jobPostingRoutes from "./job_posting/route.js";
+import matchingRoutes from "./matching/route.js";
 import userRoutes from "./user/route.js";
 
 // TODO: Uncomment when these route files are created
@@ -44,6 +45,9 @@ app.use("/api/candidates", candidateRoutes);
 
 // Job posting routes
 app.use("/api/job-postings", jobPostingRoutes);
+
+// Matching routes
+app.use("/api/matching", matchingRoutes);
 
 // TODO: Uncomment when these route files are created
 // app.use("/api/applications", applicationRoutes);
