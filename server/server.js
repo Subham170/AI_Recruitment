@@ -1,6 +1,7 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import bolnaRoutes from "./bolna/route.js";
 import candidateRoutes from "./candidates/route.js";
 import connectDB from "./config/database.js";
 import jobPostingRoutes from "./job_posting/route.js";
@@ -25,6 +26,12 @@ app.use(express.urlencoded({ extended: true }));
 // Connect to Database
 connectDB();
 
+// Start cron jobs for scheduled tasks (after DB connection)
+setTimeout(async () => {
+  const { startCronJobs } = await import("./services/cronJobs.js");
+  await startCronJobs();
+}, 2000); // Wait 2 seconds for DB connection to establish
+
 // Routes
 app.get("/", (req, res) => {
   res.json({
@@ -48,6 +55,9 @@ app.use("/api/job-postings", jobPostingRoutes);
 
 // Matching routes
 app.use("/api/matching", matchingRoutes);
+
+// Bolna routes
+app.use("/api/bolna", bolnaRoutes);
 
 // TODO: Uncomment when these route files are created
 // app.use("/api/applications", applicationRoutes);

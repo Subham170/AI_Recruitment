@@ -22,7 +22,10 @@ export const getJobMatches = async (req, res) => {
 
     const jobMatches = await JobMatches.findOne({
       jobId: jobId,
-    }).populate("matches.candidateId", "name email skills experience bio role");
+    }).populate(
+      "matches.candidateId",
+      "name email phone_no skills experience bio role"
+    );
 
     if (!jobMatches) {
       return res.status(200).json({
