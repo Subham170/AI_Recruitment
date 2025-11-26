@@ -1,6 +1,6 @@
 // API configuration
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ai-recruitment-tmn7.onrender.com/api";
+  process.env.NEXT_PUBLIC_API_URL;
 
 // Helper function to make API requests
 export const apiRequest = async (endpoint, options = {}) => {
