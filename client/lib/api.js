@@ -123,3 +123,24 @@ export const jobPostingAPI = {
     });
   },
 };
+
+// Matching API functions
+export const matchingAPI = {
+  getJobMatches: async (jobId) => {
+    return apiRequest(`/matching/job/${jobId}/candidates`, {
+      method: "GET",
+    });
+  },
+
+  refreshJobMatches: async (jobId) => {
+    return apiRequest(`/matching/job/${jobId}/refresh`, {
+      method: "POST",
+    });
+  },
+
+  getCandidateMatches: async (candidateId) => {
+    return apiRequest(`/matching/candidate/${candidateId}/jobs`, {
+      method: "GET",
+    });
+  },
+};
