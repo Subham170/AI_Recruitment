@@ -40,6 +40,15 @@ const jobPostingSchema = new mongoose.Schema(
       default: null,
       select: false, // Don't return in default queries (large data)
     },
+    primary_recruiter_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    secondary_recruiter_id: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt fields
