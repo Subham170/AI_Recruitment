@@ -87,4 +87,39 @@ export const userAPI = {
       method: "DELETE",
     });
   },
+
+  getRecruiters: async () => {
+    return apiRequest("/users/recruiters", {
+      method: "GET",
+    });
+  },
+};
+
+// Job Posting API functions
+export const jobPostingAPI = {
+  getAllJobPostings: async () => {
+    return apiRequest("/job-postings", {
+      method: "GET",
+    });
+  },
+
+  getJobPostingById: async (id) => {
+    return apiRequest(`/job-postings/${id}`, {
+      method: "GET",
+    });
+  },
+
+  createJobPosting: async (jobData) => {
+    return apiRequest("/job-postings", {
+      method: "POST",
+      body: jobData,
+    });
+  },
+
+  updateJobPosting: async (id, jobData) => {
+    return apiRequest(`/job-postings/${id}`, {
+      method: "PUT",
+      body: jobData,
+    });
+  },
 };

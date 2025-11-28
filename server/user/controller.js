@@ -301,3 +301,16 @@ export const login = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+//get all recruiters
+export const getRecruiters = async (req, res) => {
+  try {
+    const recruiters = await User.find({ role: "recruiter" }).select("-password");
+    res.status(200).json({
+      message: "Recruiters fetched successfully",
+      recruiters,
+    });
+    } catch (error) {
+    res.status(500).json({ message: error.message });
+    }
+  }

@@ -10,6 +10,7 @@ import {
   // Authentication
   login,
   updateUser,
+  getRecruiters
 } from "./controller.js";
 
 const router = express.Router();
@@ -24,6 +25,9 @@ router.get("/me", authenticate, getCurrentUser);
 
 // Get all users (Admin and Manager only)
 router.get("/", authenticate, authorize("admin", "manager"), getUsers);
+
+//get all recruiters
+router.get("/recruiters", authenticate, getRecruiters);
 
 // Get user by ID (Admin and Manager only)
 router.get("/:id", authenticate, authorize("admin", "manager"), getUserById);
