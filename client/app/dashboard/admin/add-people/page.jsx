@@ -87,14 +87,22 @@ export default function AddPeoplePage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+    
+    if (!user) {
       router.push("/login");
-    } else if (user && user.role !== "admin") {
-      router.push(`/dashboard/${user.role}`);
-    } else if (user && user.role === "admin") {
-      fetchUsers();
+      return;
     }
-  }, [user, loading, router]);
+    
+    if (user.role !== "admin") {
+      router.push(`/dashboard/${user.role}`);
+      return;
+    }
+    
+    // Fetch users when admin is available
+    fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading]); // Removed router from dependencies to prevent re-renders
 
   // Debounce search query
   useEffect(() => {
@@ -397,26 +405,25 @@ export default function AddPeoplePage() {
             </Alert>
           )}
 
-          {/* Users Table Card */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    All Users
-                  </CardTitle>
-                  <CardDescription>
-                    View and manage all users in the system
-                  </CardDescription>
-                </div>
-                <Button onClick={openAddForm} className="gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Add People
-                </Button>
+          {/* Users Table */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2 text-foreground">
+                  <Users className="h-6 w-6" />
+                  All Users
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  View and manage all users in the system
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
+              <Button onClick={openAddForm} className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Add People
+              </Button>
+            </div>
+            
+            <div>
               {/* Filters */}
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
                 {/* Search Input */}
@@ -621,8 +628,8 @@ export default function AddPeoplePage() {
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </main>
       </div>
 

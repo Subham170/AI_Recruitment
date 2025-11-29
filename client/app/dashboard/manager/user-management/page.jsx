@@ -4,12 +4,13 @@ import DashboardSidebar from "@/components/DashboardSidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,35 +20,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { userAPI } from "@/lib/api";
 import {
-  Menu,
-  UserPlus,
-  Edit,
-  Trash2,
-  Users,
-  Mail,
-  Shield,
   AlertTriangle,
-  Search,
+  Briefcase,
   ChevronLeft,
   ChevronRight,
-  Filter,
   Crown,
-  Briefcase,
-  UserCog,
+  Edit,
   Eye,
   EyeOff,
+  Filter,
+  Mail,
+  Menu,
+  Search,
+  Shield,
+  Trash2,
+  UserCog,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -62,7 +60,7 @@ export default function UserManagementPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -86,14 +84,22 @@ export default function UserManagementPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+
+    if (!user) {
       router.push("/login");
-    } else if (user && user.role !== "manager") {
-      router.push(`/dashboard/${user.role}`);
-    } else if (user && user.role === "manager") {
-      fetchUsers();
+      return;
     }
-  }, [user, loading, router]);
+
+    if (user.role !== "manager") {
+      router.push(`/dashboard/${user.role}`);
+      return;
+    }
+
+    // Fetch users when manager is available
+    fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading]); // Removed router from dependencies to prevent re-renders
 
   useEffect(() => {
     if (user && user.role === "manager") {
@@ -375,25 +381,24 @@ export default function UserManagementPage() {
             </Alert>
           )}
 
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    All Users
-                  </CardTitle>
-                  <CardDescription>
-                    View and manage all users in the system
-                  </CardDescription>
-                </div>
-                <Button onClick={openAddForm} className="gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Add People
-                </Button>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2 text-foreground">
+                  <Users className="h-6 w-6" />
+                  All Users
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  View and manage all users in the system
+                </p>
               </div>
-            </CardHeader>
-            <CardContent>
+              <Button onClick={openAddForm} className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Add People
+              </Button>
+            </div>
+
+            <div>
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -405,9 +410,14 @@ export default function UserManagementPage() {
                     className="pl-10"
                   />
                 </div>
-                
+
                 <div className="w-full sm:w-48">
-                  <Select value={roleFilter || "all"} onValueChange={(value) => setRoleFilter(value === "all" ? "" : value)}>
+                  <Select
+                    value={roleFilter || "all"}
+                    onValueChange={(value) =>
+                      setRoleFilter(value === "all" ? "" : value)
+                    }
+                  >
                     <SelectTrigger>
                       <div className="flex items-center gap-2">
                         <Filter className="h-4 w-4" />
@@ -461,7 +471,9 @@ export default function UserManagementPage() {
                         <th className="text-left p-4 font-semibold">Name</th>
                         <th className="text-left p-4 font-semibold">Email</th>
                         <th className="text-left p-4 font-semibold">Role</th>
-                        <th className="text-right p-4 font-semibold">Actions</th>
+                        <th className="text-right p-4 font-semibold">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -479,7 +491,9 @@ export default function UserManagementPage() {
                                     {userItem.name?.charAt(0).toUpperCase()}
                                   </span>
                                 </div>
-                                <span className="font-medium">{userItem.name}</span>
+                                <span className="font-medium">
+                                  {userItem.name}
+                                </span>
                               </div>
                             </td>
                             <td className="p-4">
@@ -537,14 +551,19 @@ export default function UserManagementPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
                       disabled={currentPage === 1}
                     >
                       <ChevronLeft className="h-4 w-4" />
                       Previous
                     </Button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                      {Array.from(
+                        { length: pagination.totalPages },
+                        (_, i) => i + 1
+                      )
                         .filter((page) => {
                           return (
                             page === 1 ||
@@ -553,14 +572,19 @@ export default function UserManagementPage() {
                           );
                         })
                         .map((page, index, array) => {
-                          const showEllipsisBefore = index > 0 && array[index - 1] !== page - 1;
+                          const showEllipsisBefore =
+                            index > 0 && array[index - 1] !== page - 1;
                           return (
                             <div key={page} className="flex items-center gap-1">
                               {showEllipsisBefore && (
-                                <span className="px-2 text-muted-foreground">...</span>
+                                <span className="px-2 text-muted-foreground">
+                                  ...
+                                </span>
                               )}
                               <Button
-                                variant={currentPage === page ? "default" : "outline"}
+                                variant={
+                                  currentPage === page ? "default" : "outline"
+                                }
                                 size="sm"
                                 onClick={() => setCurrentPage(page)}
                                 className="min-w-[2.5rem]"
@@ -587,8 +611,8 @@ export default function UserManagementPage() {
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </main>
       </div>
 
@@ -676,7 +700,8 @@ export default function UserManagementPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password">
-                Password {!editingUser && <span className="text-red-500">*</span>}
+                Password{" "}
+                {!editingUser && <span className="text-red-500">*</span>}
               </Label>
               <div className="relative">
                 <Input
@@ -732,7 +757,9 @@ export default function UserManagementPage() {
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
-                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showConfirmPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -781,8 +808,8 @@ export default function UserManagementPage() {
               <span className="font-semibold text-foreground">
                 {userToDelete?.name}
               </span>
-              ? This action cannot be undone and will permanently remove the user
-              from the system.
+              ? This action cannot be undone and will permanently remove the
+              user from the system.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -809,4 +836,3 @@ export default function UserManagementPage() {
     </div>
   );
 }
-

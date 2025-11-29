@@ -26,19 +26,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { jobPostingAPI, userAPI } from "@/lib/api";
 import {
   Briefcase,
+  Calendar,
+  Clock,
   DollarSign,
   Edit,
   Eye,
+  Menu,
   Plus,
   Search,
-  Menu,
-  Calendar,
-  Clock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -75,15 +80,20 @@ export default function JobsPageContent() {
   });
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+
+    if (!user) {
       router.push("/login");
-    } else if (user) {
-      fetchJobPostings();
-      if (user.role === "recruiter") {
-        fetchRecruiters();
-      }
+      return;
     }
-  }, [user, loading, router]);
+
+    // Fetch data when user is available
+    fetchJobPostings();
+    if (user.role === "recruiter") {
+      fetchRecruiters();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading]); // Removed router from dependencies to prevent re-renders
 
   const fetchRecruiters = async () => {
     try {
@@ -123,7 +133,7 @@ export default function JobsPageContent() {
       setLoadingJobs(true);
       setError(null);
       const response = await jobPostingAPI.getAllJobPostings();
-      
+
       if (user.role === "recruiter") {
         setJobPostings({
           myJobPostings: response.myJobPostings || [],
@@ -150,7 +160,10 @@ export default function JobsPageContent() {
   const handleCreateJob = async () => {
     try {
       const skillsArray = jobForm.skills
-        ? jobForm.skills.split(",").map((s) => s.trim()).filter((s) => s)
+        ? jobForm.skills
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => s)
         : [];
 
       const jobData = {
@@ -179,7 +192,10 @@ export default function JobsPageContent() {
   const handleUpdateJob = async () => {
     try {
       const skillsArray = jobForm.skills
-        ? jobForm.skills.split(",").map((s) => s.trim()).filter((s) => s)
+        ? jobForm.skills
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => s)
         : [];
 
       const jobData = {
@@ -227,7 +243,7 @@ export default function JobsPageContent() {
           )
         : []
       : [];
-    
+
     setJobForm({
       id: job.id,
       title: job.title,
@@ -460,27 +476,25 @@ export default function JobsPageContent() {
           )}
 
           {error && (
-            <Card className="mb-6 border-red-200 bg-red-50 dark:bg-red-950/20">
-              <CardContent className="pt-6">
-                <p className="text-red-900 dark:text-red-100">{error}</p>
-              </CardContent>
-            </Card>
+            <div className="mb-6 border-2 border-red-300 bg-red-50 dark:bg-red-950/30 rounded-lg p-4">
+              <p className="text-red-800 dark:text-red-200 font-medium">
+                {error}
+              </p>
+            </div>
           )}
 
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search job postings..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search job postings..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border-2 border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              />
+            </div>
+          </div>
 
           {isRecruiter && (
             <>
@@ -493,14 +507,12 @@ export default function JobsPageContent() {
                     ))}
                   </div>
                 ) : (
-                  <Card>
-                    <CardContent className="pt-6 text-center">
-                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">
-                        No job postings created by you yet.
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <div className="bg-card border-2 rounded-lg p-8 text-center">
+                    <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-foreground font-medium">
+                      No job postings created by you yet.
+                    </p>
+                  </div>
                 )}
               </div>
 
@@ -515,14 +527,13 @@ export default function JobsPageContent() {
                     ))}
                   </div>
                 ) : (
-                  <Card>
-                    <CardContent className="pt-6 text-center">
-                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">
-                        You are not assigned as a secondary recruiter to any job postings.
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <div className="bg-card border-2 rounded-lg p-8 text-center">
+                    <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-foreground font-medium">
+                      You are not assigned as a secondary recruiter to any job
+                      postings.
+                    </p>
+                  </div>
                 )}
               </div>
 
@@ -535,14 +546,12 @@ export default function JobsPageContent() {
                     ))}
                   </div>
                 ) : (
-                  <Card>
-                    <CardContent className="pt-6 text-center">
-                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">
-                        No other job postings available.
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <div className="bg-card border-2 rounded-lg p-8 text-center">
+                    <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-foreground font-medium">
+                      No other job postings available.
+                    </p>
+                  </div>
                 )}
               </div>
             </>
@@ -558,25 +567,26 @@ export default function JobsPageContent() {
                   ))}
                 </div>
               ) : (
-                <Card>
-                  <CardContent className="pt-6 text-center">
-                    <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">
-                      No job postings available.
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="bg-card border-2 rounded-lg p-8 text-center">
+                  <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-foreground font-medium">
+                    No job postings available.
+                  </p>
+                </div>
               )}
             </div>
           )}
 
-          <Dialog open={showCreateDialog} onOpenChange={(open) => {
-            setShowCreateDialog(open);
-            if (!open) {
-              setEditingJob(null);
-              resetForm();
-            }
-          }}>
+          <Dialog
+            open={showCreateDialog}
+            onOpenChange={(open) => {
+              setShowCreateDialog(open);
+              if (!open) {
+                setEditingJob(null);
+                resetForm();
+              }
+            }}
+          >
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
@@ -650,7 +660,10 @@ export default function JobsPageContent() {
                       value={jobForm.role.length > 0 ? jobForm.role[0] : ""}
                       onValueChange={(value) => {
                         if (value && !jobForm.role.includes(value)) {
-                          setJobForm({ ...jobForm, role: [...jobForm.role, value] });
+                          setJobForm({
+                            ...jobForm,
+                            role: [...jobForm.role, value],
+                          });
                         }
                       }}
                     >
@@ -679,7 +692,9 @@ export default function JobsPageContent() {
                               onClick={() => {
                                 setJobForm({
                                   ...jobForm,
-                                  role: jobForm.role.filter((_, i) => i !== idx),
+                                  role: jobForm.role.filter(
+                                    (_, i) => i !== idx
+                                  ),
                                 });
                               }}
                               className="ml-1 hover:text-blue-600"
@@ -738,10 +753,15 @@ export default function JobsPageContent() {
 
                 {isRecruiter && (
                   <div className="space-y-2">
-                    <Label htmlFor="secondary_recruiters">Secondary Recruiters</Label>
+                    <Label htmlFor="secondary_recruiters">
+                      Secondary Recruiters
+                    </Label>
                     <Select
                       onValueChange={(value) => {
-                        if (value && !jobForm.secondary_recruiter_id.includes(value)) {
+                        if (
+                          value &&
+                          !jobForm.secondary_recruiter_id.includes(value)
+                        ) {
                           setJobForm({
                             ...jobForm,
                             secondary_recruiter_id: [
@@ -759,16 +779,19 @@ export default function JobsPageContent() {
                         {recruiters
                           .filter(
                             (recruiter) =>
-                              recruiter._id?.toString() !== user.id?.toString() &&
+                              recruiter._id?.toString() !==
+                                user.id?.toString() &&
                               !jobForm.secondary_recruiter_id.includes(
-                                recruiter._id?.toString() || recruiter.id?.toString()
+                                recruiter._id?.toString() ||
+                                  recruiter.id?.toString()
                               )
                           )
                           .map((recruiter) => (
                             <SelectItem
                               key={recruiter._id || recruiter.id}
                               value={
-                                recruiter._id?.toString() || recruiter.id?.toString()
+                                recruiter._id?.toString() ||
+                                recruiter.id?.toString()
                               }
                             >
                               {recruiter.name} ({recruiter.email})
@@ -778,7 +801,8 @@ export default function JobsPageContent() {
                           (recruiter) =>
                             recruiter._id?.toString() !== user.id?.toString() &&
                             !jobForm.secondary_recruiter_id.includes(
-                              recruiter._id?.toString() || recruiter.id?.toString()
+                              recruiter._id?.toString() ||
+                                recruiter.id?.toString()
                             )
                         ).length === 0 && (
                           <SelectItem value="no-recruiters" disabled>
@@ -792,7 +816,8 @@ export default function JobsPageContent() {
                         {jobForm.secondary_recruiter_id.map((recruiterId) => {
                           const recruiter = recruiters.find(
                             (r) =>
-                              (r._id?.toString() || r.id?.toString()) === recruiterId
+                              (r._id?.toString() || r.id?.toString()) ===
+                              recruiterId
                           );
                           return (
                             <span
@@ -849,4 +874,3 @@ export default function JobsPageContent() {
     </div>
   );
 }
-

@@ -46,12 +46,17 @@ export default function TopApplicantsPageContent() {
   const [checkingScheduled, setCheckingScheduled] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+    
+    if (!user) {
       router.push("/login");
-    } else if (user) {
-      fetchJobs();
+      return;
     }
-  }, [user, loading, router]);
+    
+    // Fetch data when user is available
+    fetchJobs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading]); // Removed router from dependencies to prevent re-renders
 
   const fetchJobs = async () => {
     try {
