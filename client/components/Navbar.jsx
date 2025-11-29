@@ -9,14 +9,12 @@ import { Menu } from "lucide-react";
  * @param {Object} props
  * @param {string} props.title
  * @param {string} [props.subtitle]
- * @param {boolean} [props.showLogout]
  * @param {boolean} [props.sidebarOpen]
  * @param {function(boolean): void} [props.onSidebarToggle]
  */
 export default function Navbar({
   title,
   subtitle,
-  showLogout = false,
   sidebarOpen = false,
   onSidebarToggle,
 }) {
@@ -60,11 +58,9 @@ export default function Navbar({
               </p>
             </div>
           )}
-          {showLogout && (
-            <Button variant="outline" onClick={logout}>
-              Logout
-            </Button>
-          )}
+          <Button variant="outline" onClick={logout}>
+            Logout
+          </Button>
         </div>
       </header>
     </>

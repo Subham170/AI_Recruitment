@@ -1,16 +1,12 @@
 "use client";
 
+import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { jobPostingAPI, userAPI } from "@/lib/api";
-import { Briefcase, Download, Menu, TrendingUp, Users } from "lucide-react";
+import { Briefcase, Download, TrendingUp, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -332,31 +328,11 @@ export default function ReportsPageContent() {
       </Sheet>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="lg:hidden bg-card border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-            </Sheet>
-            <h1 className="text-xl font-bold">AI Recruitment</h1>
-            <div className="w-10" />
-          </div>
-        </header>
-
-        <header className="hidden lg:block bg-card border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Reports</h1>
-            <div className="text-right">
-              <p className="text-sm font-medium">{user.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">
-                {user.role}
-              </p>
-            </div>
-          </div>
-        </header>
+        <Navbar
+          title="Reports"
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={setSidebarOpen}
+        />
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           {error && (

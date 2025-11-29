@@ -1,5 +1,6 @@
 "use client";
 
+import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -138,21 +139,7 @@ export default function JobDetailPage() {
       </Sheet>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="lg:hidden bg-card border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-            </Sheet>
-            <h1 className="text-xl font-bold">AI Recruitment</h1>
-            <div className="w-10" />
-          </div>
-        </header>
-
-        <header className="hidden lg:block bg-card border-b px-4 py-3">
+        <div className="hidden lg:block bg-card border-b px-4 py-3">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Job Posting Details</h1>
             <div className="flex items-center gap-4">
@@ -172,15 +159,14 @@ export default function JobDetailPage() {
                   Edit
                 </Button>
               )}
-              <div className="text-right">
-                <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">
-                  {user.role}
-                </p>
-              </div>
             </div>
           </div>
-        </header>
+        </div>
+        <Navbar
+          title="Job Posting Details"
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={setSidebarOpen}
+        />
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           {/* Mobile Back and Edit Buttons */}
