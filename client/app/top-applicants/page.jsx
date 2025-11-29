@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
-import { jobPostingAPI, matchingAPI } from "@/lib/api";
+import { jobPostingAPI, matchingAPI, bolnaAPI } from "@/lib/api";
 import {
   TrendingUp,
   User,
@@ -44,6 +44,7 @@ export default function TopApplicantsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [jobs, setJobs] = useState([]);
+  const [schedulingCalls, setSchedulingCalls] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -133,6 +134,89 @@ export default function TopApplicantsPage() {
     }
   };
 
+  const handleScheduleAllCalls = async () => {
+    if (!selectedJob || candidates.length === 0) return;
+    
+    try {
+      setSchedulingCalls(true);
+      setError(null);
+      
+      // Start scheduling from 5 minutes from now
+      const startTime = new Date();
+      startTime.setMinutes(startTime.getMinutes() + 5);
+      
+      const results = [];
+      
+      // Schedule calls for all candidates with 5-minute gaps
+      for (let i = 0; i < candidates.length; i++) {
+        const match = candidates[i];
+        const candidate = match.candidateId;
+        
+        if (!candidate || !candidate.phone_no) {
+          console.warn(`Skipping candidate ${i + 1}: missing phone number`);
+          continue;
+        }
+        
+        // Calculate scheduled time (5 minutes gap between each call)
+        const scheduledTime = new Date(startTime);
+        scheduledTime.setMinutes(scheduledTime.getMinutes() + (i * 5));
+        
+        try {
+          const payload = {
+            candidateId: candidate._id,
+            jobId: selectedJob._id,
+            recipient_phone_number: candidate.phone_no,
+            scheduled_at: scheduledTime.toISOString(),
+            user_data: {
+              bio: candidate.bio || "",
+              role: candidate.role && candidate.role.length > 0 ? candidate.role.join(", ") : "",
+              experience: candidate.experience !== undefined ? `${candidate.experience} years` : "",
+              name: candidate.name || "",
+            },
+          };
+          
+          const result = await bolnaAPI.scheduleCall(payload);
+          results.push({
+            candidate: candidate.name || "Unknown",
+            success: true,
+            scheduledAt: scheduledTime.toISOString(),
+            result,
+          });
+          
+          // Wait 1 second between API calls to avoid rate limiting
+          if (i < candidates.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+        } catch (err) {
+          console.error(`Error scheduling call for candidate ${i + 1}:`, err);
+          results.push({
+            candidate: candidate.name || "Unknown",
+            success: false,
+            error: err.message || "Failed to schedule call",
+          });
+        }
+      }
+      
+      // Show success message
+      const successCount = results.filter((r) => r.success).length;
+      const failCount = results.filter((r) => !r.success).length;
+      
+      if (failCount === 0) {
+        setError(null);
+        alert(`Successfully scheduled ${successCount} calls!`);
+      } else {
+        setError(
+          `Scheduled ${successCount} calls successfully. ${failCount} failed. Check console for details.`
+        );
+      }
+    } catch (err) {
+      console.error("Error scheduling calls:", err);
+      setError(err.message || "Failed to schedule calls");
+    } finally {
+      setSchedulingCalls(false);
+    }
+  };
+
   if (loading || loadingJobs) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -196,6 +280,17 @@ export default function TopApplicantsPage() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Top Applicants</h1>
             <div className="flex items-center gap-4">
+              {selectedJob && candidates.length > 0 && (
+                <Button
+                  variant="default"
+                  onClick={handleScheduleAllCalls}
+                  disabled={schedulingCalls}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Phone className={`mr-2 h-4 w-4 ${schedulingCalls ? "animate-pulse" : ""}`} />
+                  {schedulingCalls ? "Scheduling..." : "Schedule All Calls"}
+                </Button>
+              )}
               {selectedJob && (
                 <Button
                   variant="outline"
@@ -390,8 +485,19 @@ export default function TopApplicantsPage() {
                 </CardContent>
               </Card>
 
-              {/* Mobile Refresh Button */}
-              <div className="lg:hidden mb-4">
+              {/* Mobile Action Buttons */}
+              <div className="lg:hidden mb-4 space-y-2">
+                {candidates.length > 0 && (
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    variant="default"
+                    onClick={handleScheduleAllCalls}
+                    disabled={schedulingCalls}
+                  >
+                    <Phone className={`mr-2 h-4 w-4 ${schedulingCalls ? "animate-pulse" : ""}`} />
+                    {schedulingCalls ? "Scheduling..." : "Schedule All Calls"}
+                  </Button>
+                )}
                 <Button
                   className="w-full"
                   variant="outline"

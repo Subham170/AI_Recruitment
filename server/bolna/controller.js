@@ -2,6 +2,9 @@ import { StringOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { ChatOpenAI } from "@langchain/openai";
 import BolnaCall from "./model.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const BOLNA_API_URL = process.env.BOLNA_API_URL || "https://api.bolna.ai/call";
 const BOLNA_API_KEY =
@@ -185,6 +188,229 @@ async function extractUserScheduledAt(transcript) {
     return null;
   }
 }
+
+export const checkCallsScheduled = async (req, res) => {
+  try {
+    const { jobId, candidateIds } = req.body;
+
+    if (!jobId) {
+      return res.status(400).json({
+        message: "jobId is required in the request body",
+      });
+    }
+
+    // Build query to find scheduled calls for this job
+    const query = { jobId };
+
+    // If candidateIds array is provided, check only those candidates
+    if (candidateIds && Array.isArray(candidateIds) && candidateIds.length > 0) {
+      query.candidateId = { $in: candidateIds };
+    }
+
+    // Find all scheduled calls for this job (and optionally specific candidates)
+    const scheduledCalls = await BolnaCall.find(query).select("candidateId callScheduledAt status executionId");
+
+    // Extract unique candidateIds that are already scheduled
+    const scheduledCandidateIds = scheduledCalls.map((call) => call.candidateId.toString());
+
+    res.status(200).json({
+      message: "Check completed",
+      scheduledCandidates: scheduledCandidateIds,
+      scheduledCalls: scheduledCalls.map((call) => ({
+        candidateId: call.candidateId.toString(),
+        callScheduledAt: call.callScheduledAt,
+        status: call.status,
+        executionId: call.executionId,
+      })),
+      count: scheduledCandidateIds.length,
+    });
+  } catch (error) {
+    console.error("Error checking scheduled calls:", error);
+    res.status(500).json({
+      message: error.message || "Failed to check scheduled calls",
+    });
+  }
+};
+
+export const scheduleBolnaCallsBatch = async (req, res) => {
+  try {
+    ensureBolnaConfig();
+
+    const { jobId, candidates, startTime } = req.body;
+
+    if (!jobId) {
+      return res.status(400).json({
+        message: "jobId is required in the request body",
+      });
+    }
+
+    if (!candidates || !Array.isArray(candidates) || candidates.length === 0) {
+      return res.status(400).json({
+        message: "candidates array is required and must not be empty",
+      });
+    }
+
+    // Calculate start time (5 minutes from now if not provided)
+    const baseTime = startTime ? new Date(startTime) : new Date();
+    if (!startTime) {
+      baseTime.setMinutes(baseTime.getMinutes() + 5);
+    }
+
+    const results = [];
+    const CALL_GAP_MINUTES = 5;
+
+    // Check which candidates are already scheduled for this job
+    const candidateIds = candidates.map((c) => c.candidateId).filter(Boolean);
+    const scheduledCalls = await BolnaCall.find({
+      jobId,
+      candidateId: { $in: candidateIds },
+    }).select("candidateId");
+    
+    const scheduledCandidateIds = new Set(
+      scheduledCalls.map((call) => call.candidateId.toString())
+    );
+
+    // Filter out already scheduled candidates and track them
+    const alreadyScheduled = [];
+    const candidatesToSchedule = [];
+    
+    for (const candidate of candidates) {
+      if (!candidate.candidateId || !candidate.recipient_phone_number) {
+        results.push({
+          candidateId: candidate.candidateId || "unknown",
+          success: false,
+          error: "Missing candidateId or recipient_phone_number",
+        });
+        continue;
+      }
+      
+      if (scheduledCandidateIds.has(candidate.candidateId.toString())) {
+        alreadyScheduled.push(candidate.candidateId);
+        results.push({
+          candidateId: candidate.candidateId,
+          success: false,
+          error: "Call already scheduled for this candidate and job",
+          alreadyScheduled: true,
+        });
+        continue;
+      }
+      
+      candidatesToSchedule.push(candidate);
+    }
+
+    // Schedule calls for all candidates with 5-minute gaps
+    for (let i = 0; i < candidatesToSchedule.length; i++) {
+      const candidate = candidatesToSchedule[i];
+
+      // Calculate scheduled time (5 minutes gap between each call)
+      const scheduledTime = new Date(baseTime);
+      scheduledTime.setMinutes(scheduledTime.getMinutes() + (i * CALL_GAP_MINUTES));
+
+      try {
+        const callData = {
+          recipient_phone_number: candidate.recipient_phone_number,
+          scheduled_at: scheduledTime.toISOString(),
+          ...(candidate.user_data && { user_data: candidate.user_data }),
+        };
+
+        const payload = {
+          ...callData,
+          agent_id: BOLNA_AGENT_ID,
+          from_phone_number: BOLNA_FROM_PHONE,
+        };
+
+        const response = await fetch(BOLNA_API_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${BOLNA_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          results.push({
+            candidateId: candidate.candidateId,
+            success: false,
+            error: "Failed to schedule call with Bolna API",
+            details: data,
+          });
+          continue;
+        }
+
+        const executionId =
+          data.execution_id || data.executionId || data.id || data?.call_id;
+
+        if (!executionId) {
+          results.push({
+            candidateId: candidate.candidateId,
+            success: false,
+            error: "Bolna API did not return an execution_id",
+            bolnaResponse: data,
+          });
+          continue;
+        }
+
+        // Convert scheduled_at to Date
+        const scheduledAt = new Date(scheduledTime);
+        const callScheduledAt = new Date(
+          scheduledAt.getTime() + CALL_SCHEDULED_DELAY * 60 * 1000
+        );
+
+        const bolnaCall = await BolnaCall.create({
+          candidateId: candidate.candidateId,
+          jobId: jobId,
+          executionId,
+          status: data.status || data.state || "scheduled",
+          callScheduledAt: callScheduledAt,
+          userScheduledAt: null,
+        });
+
+        results.push({
+          candidateId: candidate.candidateId,
+          success: true,
+          record: {
+            id: bolnaCall._id,
+            candidateId: bolnaCall.candidateId,
+            jobId: bolnaCall.jobId,
+            executionId: bolnaCall.executionId,
+            status: bolnaCall.status,
+          },
+          scheduledAt: scheduledTime.toISOString(),
+        });
+      } catch (error) {
+        console.error(`Error scheduling call for candidate ${candidate.candidateId}:`, error);
+        results.push({
+          candidateId: candidate.candidateId,
+          success: false,
+          error: error.message || "Failed to schedule call",
+        });
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    const failCount = results.filter((r) => !r.success && !r.alreadyScheduled).length;
+    const alreadyScheduledCount = results.filter((r) => r.alreadyScheduled).length;
+
+    res.status(200).json({
+      message: `Batch scheduling completed: ${successCount} successful, ${failCount} failed, ${alreadyScheduledCount} already scheduled`,
+      results,
+      summary: {
+        total: candidates.length,
+        successful: successCount,
+        failed: failCount,
+        alreadyScheduled: alreadyScheduledCount,
+      },
+    });
+  } catch (error) {
+    console.error("Error scheduling batch Bolna calls:", error);
+    res.status(500).json({
+      message: error.message || "Failed to schedule batch calls",
+    });
+  }
+};
 
 export const syncBolnaCall = async (executionId) => {
   try {
