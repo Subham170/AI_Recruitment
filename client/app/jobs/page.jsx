@@ -26,20 +26,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { jobPostingAPI, userAPI } from "@/lib/api";
 import {
   Briefcase,
+  Calendar,
+  Clock,
   DollarSign,
   Edit,
   Eye,
+  Menu,
   Plus,
   Search,
-  Menu,
-  Calendar,
-  Clock,
-  MapPin,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -123,7 +127,7 @@ export default function JobsPage() {
       setLoadingJobs(true);
       setError(null);
       const response = await jobPostingAPI.getAllJobPostings();
-      
+
       if (user.role === "recruiter") {
         setJobPostings({
           myJobPostings: response.myJobPostings || [],
@@ -150,7 +154,10 @@ export default function JobsPage() {
   const handleCreateJob = async () => {
     try {
       const skillsArray = jobForm.skills
-        ? jobForm.skills.split(",").map((s) => s.trim()).filter((s) => s)
+        ? jobForm.skills
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => s)
         : [];
 
       const jobData = {
@@ -179,7 +186,10 @@ export default function JobsPage() {
   const handleUpdateJob = async () => {
     try {
       const skillsArray = jobForm.skills
-        ? jobForm.skills.split(",").map((s) => s.trim()).filter((s) => s)
+        ? jobForm.skills
+            .split(",")
+            .map((s) => s.trim())
+            .filter((s) => s)
         : [];
 
       const jobData = {
@@ -228,7 +238,7 @@ export default function JobsPage() {
           )
         : []
       : [];
-    
+
     setJobForm({
       id: job.id,
       title: job.title,
@@ -252,14 +262,6 @@ export default function JobsPage() {
   const handleJobClick = (jobId) => {
     router.push(`/jobs/${jobId}`);
   };
-
-  if (loading || loadingJobs) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
-  }
 
   if (!user) {
     return null;
@@ -300,7 +302,6 @@ export default function JobsPage() {
                 {job.company}
               </CardDescription>
             </div>
-            <Briefcase className="h-6 w-6 text-blue-500 shrink-0 ml-2" />
           </div>
         </CardHeader>
         <CardContent>
@@ -468,123 +469,142 @@ export default function JobsPage() {
             </Card>
           )}
 
-          {/* Search */}
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search job postings..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recruiter View - 3 Sections */}
-          {isRecruiter && (
+          {loading || loadingJobs ? (
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-xl">Loading...</div>
+            </div>
+          ) : (
             <>
-              {/* My Job Postings */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-4">Your Job Postings</h2>
-                {filterJobs(jobPostings.myJobPostings).length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filterJobs(jobPostings.myJobPostings).map((job) => (
-                      <JobCard key={job._id} job={job} showEdit={true} />
-                    ))}
+              {/* Search */}
+              <Card className="mb-6">
+                <CardContent className="pt-6">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search job postings..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
                   </div>
-                ) : (
-                  <Card>
-                    <CardContent className="pt-6 text-center">
-                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">
-                        No job postings created by you yet.
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+                </CardContent>
+              </Card>
 
-              {/* Secondary Job Postings */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-4">
-                  Job Postings (You are Secondary Recruiter)
-                </h2>
-                {filterJobs(jobPostings.secondaryJobPostings).length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filterJobs(jobPostings.secondaryJobPostings).map((job) => (
-                      <JobCard key={job._id} job={job} showEdit={false} />
-                    ))}
+              {/* Recruiter View - 3 Sections */}
+              {isRecruiter && (
+                <>
+                  {/* My Job Postings */}
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold mb-4">
+                      Your Job Postings
+                    </h2>
+                    {filterJobs(jobPostings.myJobPostings).length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filterJobs(jobPostings.myJobPostings).map((job) => (
+                          <JobCard key={job._id} job={job} showEdit={true} />
+                        ))}
+                      </div>
+                    ) : (
+                      <Card>
+                        <CardContent className="pt-6 text-center">
+                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-muted-foreground">
+                            No job postings created by you yet.
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
                   </div>
-                ) : (
-                  <Card>
-                    <CardContent className="pt-6 text-center">
-                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">
-                        You are not assigned as a secondary recruiter to any job postings.
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
 
-              {/* Remaining Job Postings */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-4">Other Job Postings</h2>
-                {filterJobs(jobPostings.remainingJobPostings).length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filterJobs(jobPostings.remainingJobPostings).map((job) => (
-                      <JobCard key={job._id} job={job} showEdit={false} />
-                    ))}
+                  {/* Secondary Job Postings */}
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold mb-4">
+                      Job Postings (You are Secondary Recruiter)
+                    </h2>
+                    {filterJobs(jobPostings.secondaryJobPostings).length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filterJobs(jobPostings.secondaryJobPostings).map(
+                          (job) => (
+                            <JobCard key={job._id} job={job} showEdit={false} />
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      <Card>
+                        <CardContent className="pt-6 text-center">
+                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-muted-foreground">
+                            You are not assigned as a secondary recruiter to any
+                            job postings.
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
                   </div>
-                ) : (
-                  <Card>
-                    <CardContent className="pt-6 text-center">
-                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">
-                        No other job postings available.
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+
+                  {/* Remaining Job Postings */}
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold mb-4">
+                      Other Job Postings
+                    </h2>
+                    {filterJobs(jobPostings.remainingJobPostings).length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filterJobs(jobPostings.remainingJobPostings).map(
+                          (job) => (
+                            <JobCard key={job._id} job={job} showEdit={false} />
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      <Card>
+                        <CardContent className="pt-6 text-center">
+                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                          <p className="text-muted-foreground">
+                            No other job postings available.
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Admin/Manager View - Single Section */}
+              {isAdminOrManager && (
+                <div>
+                  {filterJobs(jobPostings.allJobPostings).length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filterJobs(jobPostings.allJobPostings).map((job) => (
+                        <JobCard key={job._id} job={job} showEdit={false} />
+                      ))}
+                    </div>
+                  ) : (
+                    <Card>
+                      <CardContent className="pt-6 text-center">
+                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-muted-foreground">
+                          No job postings available.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
             </>
           )}
 
-          {/* Admin/Manager View - Single Section */}
-          {isAdminOrManager && (
-            <div>
-              <h2 className="text-2xl font-bold mb-4">All Job Postings</h2>
-              {filterJobs(jobPostings.allJobPostings).length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filterJobs(jobPostings.allJobPostings).map((job) => (
-                    <JobCard key={job._id} job={job} showEdit={false} />
-                  ))}
-                </div>
-              ) : (
-                <Card>
-                  <CardContent className="pt-6 text-center">
-                    <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">
-                      No job postings available.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
           {/* Create/Edit Dialog */}
-          <Dialog open={showCreateDialog} onOpenChange={(open) => {
-            setShowCreateDialog(open);
-            if (!open) {
-              setEditingJob(null);
-              resetForm();
-            }
-          }}>
+          <Dialog
+            open={showCreateDialog}
+            onOpenChange={(open) => {
+              setShowCreateDialog(open);
+              if (!open) {
+                setEditingJob(null);
+                resetForm();
+              }
+            }}
+          >
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
@@ -658,7 +678,10 @@ export default function JobsPage() {
                       value={jobForm.role.length > 0 ? jobForm.role[0] : ""}
                       onValueChange={(value) => {
                         if (value && !jobForm.role.includes(value)) {
-                          setJobForm({ ...jobForm, role: [...jobForm.role, value] });
+                          setJobForm({
+                            ...jobForm,
+                            role: [...jobForm.role, value],
+                          });
                         }
                       }}
                     >
@@ -687,7 +710,9 @@ export default function JobsPage() {
                               onClick={() => {
                                 setJobForm({
                                   ...jobForm,
-                                  role: jobForm.role.filter((_, i) => i !== idx),
+                                  role: jobForm.role.filter(
+                                    (_, i) => i !== idx
+                                  ),
                                 });
                               }}
                               className="ml-1 hover:text-blue-600"
@@ -746,10 +771,15 @@ export default function JobsPage() {
 
                 {/* Secondary Recruiters */}
                 <div className="space-y-2">
-                  <Label htmlFor="secondary_recruiters">Secondary Recruiters</Label>
+                  <Label htmlFor="secondary_recruiters">
+                    Secondary Recruiters
+                  </Label>
                   <Select
                     onValueChange={(value) => {
-                      if (value && !jobForm.secondary_recruiter_id.includes(value)) {
+                      if (
+                        value &&
+                        !jobForm.secondary_recruiter_id.includes(value)
+                      ) {
                         setJobForm({
                           ...jobForm,
                           secondary_recruiter_id: [
@@ -769,14 +799,16 @@ export default function JobsPage() {
                           (recruiter) =>
                             recruiter._id?.toString() !== user.id?.toString() &&
                             !jobForm.secondary_recruiter_id.includes(
-                              recruiter._id?.toString() || recruiter.id?.toString()
+                              recruiter._id?.toString() ||
+                                recruiter.id?.toString()
                             )
                         )
                         .map((recruiter) => (
                           <SelectItem
                             key={recruiter._id || recruiter.id}
                             value={
-                              recruiter._id?.toString() || recruiter.id?.toString()
+                              recruiter._id?.toString() ||
+                              recruiter.id?.toString()
                             }
                           >
                             {recruiter.name} ({recruiter.email})
@@ -786,7 +818,8 @@ export default function JobsPage() {
                         (recruiter) =>
                           recruiter._id?.toString() !== user.id?.toString() &&
                           !jobForm.secondary_recruiter_id.includes(
-                            recruiter._id?.toString() || recruiter.id?.toString()
+                            recruiter._id?.toString() ||
+                              recruiter.id?.toString()
                           )
                       ).length === 0 && (
                         <SelectItem value="no-recruiters" disabled>
@@ -800,7 +833,8 @@ export default function JobsPage() {
                       {jobForm.secondary_recruiter_id.map((recruiterId) => {
                         const recruiter = recruiters.find(
                           (r) =>
-                            (r._id?.toString() || r.id?.toString()) === recruiterId
+                            (r._id?.toString() || r.id?.toString()) ===
+                            recruiterId
                         );
                         return (
                           <span

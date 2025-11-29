@@ -63,14 +63,6 @@ export default function JobDetailPage() {
     router.push(`/jobs?edit=${jobId}`);
   };
 
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
-  }
-
   if (!user) {
     return null;
   }
