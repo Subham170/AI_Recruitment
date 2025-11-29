@@ -1,7 +1,7 @@
 "use client";
 
-import Sidebar from "@/components/Sidebar";
-import { Button } from "@/components/ui/button";
+import Navbar from "@/components/Navbar";
+import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import {
   Card,
   CardContent,
@@ -9,12 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   BarChart3,
@@ -22,16 +16,15 @@ import {
   Calendar,
   ClipboardList,
   FileText,
-  Menu,
   Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export default function ManagerDashboardPage() {
-  const { user, logout, loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { sidebarOpen, setSidebarOpen } = useSidebarState();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -55,51 +48,16 @@ export default function ManagerDashboardPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-white dark:bg-white">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:block">
-        <Sidebar />
-      </aside>
+      <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
-      {/* Mobile Sidebar */}
-      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-52 p-0">
-          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <Sidebar />
-        </SheetContent>
-      </Sheet>
-
-      {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <header className="lg:hidden bg-card border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-            </Sheet>
-            <h1 className="text-xl font-bold">AI Recruitment</h1>
-            <div className="w-10" />
-          </div>
-        </header>
-
-        {/* Desktop Header */}
-        <header className="hidden lg:flex items-center justify-between bg-card border-b px-4 py-3">
-          <div>
-            <h1 className="text-2xl font-bold">Manager Dashboard</h1>
-            <p className="text-sm text-muted-foreground">
-              Overview of recruitment operations
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user.name}</span>
-            <Button variant="outline" onClick={logout}>
-              Logout
-            </Button>
-          </div>
-        </header>
+        <Navbar
+          title="Manager Dashboard"
+          subtitle="Overview of recruitment operations"
+          showLogout={true}
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={setSidebarOpen}
+        />
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6">

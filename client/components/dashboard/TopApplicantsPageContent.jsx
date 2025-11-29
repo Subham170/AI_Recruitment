@@ -1,14 +1,10 @@
 "use client";
 
+import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { bolnaAPI, jobPostingAPI, matchingAPI } from "@/lib/api";
 import {
@@ -18,7 +14,6 @@ import {
   DollarSign,
   Eye,
   Mail,
-  Menu,
   Phone,
   RefreshCw,
   Search,
@@ -285,87 +280,11 @@ export default function TopApplicantsPageContent() {
       </Sheet>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="lg:hidden bg-card border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-            </Sheet>
-            <h1 className="text-xl font-bold">AI Recruitment</h1>
-            <div className="w-10" />
-          </div>
-        </header>
-
-        <header className="hidden lg:block bg-card border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Top Applicants</h1>
-            <div className="flex items-center gap-4">
-              {selectedJob &&
-                candidates.length > 0 &&
-                (() => {
-                  const unscheduledCount = candidates.filter(
-                    (match) =>
-                      !scheduledCandidateIds.has(
-                        match.candidateId?._id?.toString() || ""
-                      )
-                  ).length;
-                  const allScheduled = unscheduledCount === 0;
-
-                  return (
-                    <Button
-                      variant="default"
-                      onClick={handleScheduleAllCalls}
-                      disabled={
-                        schedulingCalls || checkingScheduled || allScheduled
-                      }
-                      className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-                      title={
-                        allScheduled
-                          ? "All candidates are already scheduled"
-                          : ""
-                      }
-                    >
-                      <Phone
-                        className={`mr-2 h-4 w-4 ${
-                          schedulingCalls ? "animate-pulse" : ""
-                        }`}
-                      />
-                      {schedulingCalls
-                        ? "Scheduling..."
-                        : checkingScheduled
-                        ? "Checking..."
-                        : allScheduled
-                        ? "All Scheduled"
-                        : `Schedule All Calls (${unscheduledCount} remaining)`}
-                    </Button>
-                  );
-                })()}
-              {selectedJob && (
-                <Button
-                  variant="outline"
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                >
-                  <RefreshCw
-                    className={`mr-2 h-4 w-4 ${
-                      refreshing ? "animate-spin" : ""
-                    }`}
-                  />
-                  Refresh Matches
-                </Button>
-              )}
-              <div className="text-right">
-                <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">
-                  {user.role}
-                </p>
-              </div>
-            </div>
-          </div>
-        </header>
+        <Navbar
+          title="Top Applicants"
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={setSidebarOpen}
+        />
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6">
           {loading || loadingJobs ? (

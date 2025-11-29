@@ -1,5 +1,6 @@
 "use client";
 
+import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,12 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { jobPostingAPI, userAPI } from "@/lib/api";
 import {
@@ -41,7 +37,6 @@ import {
   DollarSign,
   Edit,
   Eye,
-  Menu,
   Plus,
   Search,
 } from "lucide-react";
@@ -416,42 +411,11 @@ export default function JobsPageContent() {
       </Sheet>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="lg:hidden bg-card border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-            </Sheet>
-            <h1 className="text-xl font-bold">AI Recruitment</h1>
-            <div className="w-10" />
-          </div>
-        </header>
-
-        <header className="hidden lg:block bg-card border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Job Postings</h1>
-            <div className="flex items-center gap-4">
-              {canCreate && (
-                <Button
-                  className="bg-green-500 hover:bg-green-600 text-white"
-                  onClick={openCreateDialog}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Job Posting
-                </Button>
-              )}
-              <div className="text-right">
-                <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">
-                  {user.role}
-                </p>
-              </div>
-            </div>
-          </div>
-        </header>
+        <Navbar
+          title="Job Postings"
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={setSidebarOpen}
+        />
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           {loading || loadingJobs ? (

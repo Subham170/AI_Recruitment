@@ -1,5 +1,6 @@
 "use client";
 
+import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -21,12 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { userAPI } from "@/lib/api";
 import {
@@ -40,7 +36,6 @@ import {
   EyeOff,
   Filter,
   Mail,
-  Menu,
   Search,
   Shield,
   Trash2,
@@ -343,31 +338,12 @@ export default function UserManagementPage() {
       </Sheet>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="lg:hidden bg-card border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-            </Sheet>
-            <h1 className="text-xl font-bold">AI Recruitment</h1>
-            <div className="w-10" />
-          </div>
-        </header>
-
-        <header className="hidden lg:flex items-center justify-between bg-card border-b px-4 py-3">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Users className="h-6 w-6" />
-              User Management
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Manage all users in the system
-            </p>
-          </div>
-        </header>
+        <Navbar
+          title="User Management"
+          subtitle="Manage all users in the system"
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={setSidebarOpen}
+        />
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           {error && (
