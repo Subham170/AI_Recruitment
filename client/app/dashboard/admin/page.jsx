@@ -1,7 +1,7 @@
 "use client";
 
-import DashboardSidebar from "@/components/DashboardSidebar";
-import { Button } from "@/components/ui/button";
+import Navbar from "@/components/Navbar";
+import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import {
   Card,
   CardContent,
@@ -9,38 +9,38 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Briefcase,
   ClipboardList,
   Database,
-  Menu,
   PieChart,
   Settings,
   Shield,
   Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export default function AdminDashboardPage() {
-  const { user, logout, loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { sidebarOpen, setSidebarOpen } = useSidebarState();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+
+    if (!user) {
       router.push("/login");
-    } else if (user && user.role !== "admin") {
-      router.push(`/dashboard/${user.role}`);
+      return;
     }
-  }, [user, loading, router]);
+
+    if (user.role !== "admin") {
+      router.push(`/dashboard/${user.role}`);
+      return;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading]);
 
   if (loading) {
     return (
@@ -56,54 +56,18 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-white dark:bg-white">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:block">
-        <DashboardSidebar />
-      </aside>
+      <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
-      {/* Mobile Sidebar */}
-      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0">
-          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <DashboardSidebar />
-        </SheetContent>
-      </Sheet>
-
-      {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Mobile Header */}
-        <header className="lg:hidden bg-card border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-            </Sheet>
-            <h1 className="text-xl font-bold">AI Recruitment</h1>
-            <div className="w-10" />
-          </div>
-        </header>
+        <Navbar
+          title="Admin Dashboard"
+          subtitle="System administration panel"
+          showLogout={true}
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={setSidebarOpen}
+        />
 
-        {/* Desktop Header */}
-        <header className="hidden lg:flex items-center justify-between bg-card border-b px-6 py-4">
-          <div>
-            <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-            <p className="text-sm text-muted-foreground">
-              System administration panel
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user.name}</span>
-            <Button variant="outline" onClick={logout}>
-              Logout
-            </Button>
-          </div>
-        </header>
-
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           <div className="max-w-7xl mx-auto">
             <div className="mb-8">
               <h2 className="text-3xl font-bold mb-2 text-foreground">
