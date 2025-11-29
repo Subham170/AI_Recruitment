@@ -1,6 +1,6 @@
 "use client";
 
-import DashboardSidebar from "@/components/DashboardSidebar";
+import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -57,14 +57,14 @@ export default function RecruiterDashboardPage() {
     <div className="flex h-screen overflow-hidden bg-white dark:bg-white">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block">
-        <DashboardSidebar />
+        <Sidebar />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-52 p-0">
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <DashboardSidebar />
+          <Sidebar />
         </SheetContent>
       </Sheet>
 
@@ -86,7 +86,7 @@ export default function RecruiterDashboardPage() {
         </header>
 
         {/* Desktop Header */}
-        <header className="hidden lg:flex items-center justify-between bg-card border-b px-6 py-4">
+        <header className="hidden lg:flex items-center justify-between bg-card border-b px-4 py-3">
           <div>
             <h1 className="text-2xl font-bold">Recruiter Dashboard</h1>
             <p className="text-sm text-muted-foreground">

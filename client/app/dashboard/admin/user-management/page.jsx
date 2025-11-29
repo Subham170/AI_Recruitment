@@ -1,7 +1,8 @@
 "use client";
 
-import DashboardSidebar from "@/components/DashboardSidebar";
+import Sidebar from "@/components/Sidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -288,16 +289,18 @@ export default function UserManagementPage() {
     setFormOpen(true);
   };
 
-  const getRoleBadgeColor = (role) => {
-    switch (role) {
+  const getRoleBadgeVariant = (role) => {
+    switch (role?.toLowerCase()) {
       case "admin":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200";
+        return "secondary";
       case "manager":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200";
+        return "secondary";
       case "recruiter":
-        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200";
+        return "secondary";
+      case "candidate":
+        return "outline";
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-200";
+        return "outline";
     }
   };
 
@@ -329,13 +332,13 @@ export default function UserManagementPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-white dark:bg-white">
       <aside className="hidden lg:block">
-        <DashboardSidebar />
+        <Sidebar />
       </aside>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-52 p-0">
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <DashboardSidebar />
+          <Sidebar />
         </SheetContent>
       </Sheet>
 
@@ -354,7 +357,7 @@ export default function UserManagementPage() {
           </div>
         </header>
 
-        <header className="hidden lg:flex items-center justify-between bg-card border-b px-6 py-4">
+        <header className="hidden lg:flex items-center justify-between bg-card border-b px-4 py-3">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Users className="h-6 w-6" />
@@ -382,236 +385,220 @@ export default function UserManagementPage() {
           )}
 
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold flex items-center gap-2 text-foreground">
-                  <Users className="h-6 w-6" />
-                  All Users
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  View and manage all users in the system
-                </p>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-              <Button onClick={openAddForm} className="gap-2">
+
+              <div className="w-full sm:w-48">
+                <Select
+                  value={roleFilter || "all"}
+                  onValueChange={(value) =>
+                    setRoleFilter(value === "all" ? "" : value)
+                  }
+                >
+                  <SelectTrigger>
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      <SelectValue placeholder="All Roles" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="recruiter">Recruiter</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button onClick={openAddForm} className="gap-2 w-full sm:w-auto">
                 <UserPlus className="h-4 w-4" />
                 Add People
               </Button>
             </div>
 
-            <div>
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Search by name or email..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                <div className="w-full sm:w-48">
-                  <Select
-                    value={roleFilter || "all"}
-                    onValueChange={(value) =>
-                      setRoleFilter(value === "all" ? "" : value)
-                    }
+            {!loadingUsers && (
+              <div className="mb-4 text-sm text-muted-foreground">
+                Showing {users.length} of {pagination.totalCount} users
+                {(searchQuery || roleFilter) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-2 h-auto p-0 text-xs"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setRoleFilter("");
+                      setCurrentPage(1);
+                    }}
                   >
-                    <SelectTrigger>
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4" />
-                        <SelectValue placeholder="All Roles" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Roles</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="recruiter">Recruiter</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    Clear filters
+                  </Button>
+                )}
               </div>
+            )}
 
-              {!loadingUsers && (
-                <div className="mb-4 text-sm text-muted-foreground">
-                  Showing {users.length} of {pagination.totalCount} users
-                  {(searchQuery || roleFilter) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="ml-2 h-auto p-0 text-xs"
-                      onClick={() => {
-                        setSearchQuery("");
-                        setRoleFilter("");
-                        setCurrentPage(1);
-                      }}
-                    >
-                      Clear filters
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              {loadingUsers ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="text-muted-foreground">Loading users...</div>
-                </div>
-              ) : users.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <Users className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No users found</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-4 font-semibold">Name</th>
-                        <th className="text-left p-4 font-semibold">Email</th>
-                        <th className="text-left p-4 font-semibold">Role</th>
-                        <th className="text-right p-4 font-semibold">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map((userItem) => {
-                        const RoleIcon = getRoleIcon(userItem.role);
-                        return (
-                          <tr
-                            key={userItem.id || userItem._id}
-                            className="border-b hover:bg-muted/50 transition-colors"
-                          >
-                            <td className="p-4">
-                              <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                  <span className="text-sm font-semibold text-primary">
-                                    {userItem.name?.charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                                <span className="font-medium">
-                                  {userItem.name}
+            {loadingUsers ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-muted-foreground">Loading users...</div>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No users found</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-4 font-semibold">Name</th>
+                      <th className="text-left p-4 font-semibold">Email</th>
+                      <th className="text-left p-4 font-semibold">Role</th>
+                      <th className="text-right p-4 font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((userItem) => {
+                      const RoleIcon = getRoleIcon(userItem.role);
+                      return (
+                        <tr
+                          key={userItem.id || userItem._id}
+                          className="border-b hover:bg-muted/50 transition-colors"
+                        >
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <span className="text-sm font-semibold text-primary">
+                                  {userItem.name?.charAt(0).toUpperCase()}
                                 </span>
                               </div>
-                            </td>
-                            <td className="p-4">
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <Mail className="h-4 w-4" />
-                                {userItem.email}
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <span
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[0.8rem] font-semibold capitalize shadow-sm ${getRoleBadgeColor(
-                                  userItem.role
-                                )}`}
-                              >
-                                <RoleIcon className="h-4 w-4" />
-                                <span>{userItem.role}</span>
+                              <span className="font-medium">
+                                {userItem.name}
                               </span>
-                            </td>
-                            <td className="p-4">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEdit(userItem)}
-                                  className="gap-2"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteClick(userItem)}
-                                  className="gap-2 text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Delete
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {!loadingUsers && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6 pt-4 border-t">
-                  <div className="text-sm text-muted-foreground">
-                    Page {pagination.currentPage} of {pagination.totalPages}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(1, prev - 1))
-                      }
-                      disabled={currentPage === 1}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Previous
-                    </Button>
-                    <div className="flex items-center gap-1">
-                      {Array.from(
-                        { length: pagination.totalPages },
-                        (_, i) => i + 1
-                      )
-                        .filter((page) => {
-                          return (
-                            page === 1 ||
-                            page === pagination.totalPages ||
-                            (page >= currentPage - 1 && page <= currentPage + 1)
-                          );
-                        })
-                        .map((page, index, array) => {
-                          const showEllipsisBefore =
-                            index > 0 && array[index - 1] !== page - 1;
-                          return (
-                            <div key={page} className="flex items-center gap-1">
-                              {showEllipsisBefore && (
-                                <span className="px-2 text-muted-foreground">
-                                  ...
-                                </span>
-                              )}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Mail className="h-4 w-4" />
+                              {userItem.email}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <Badge
+                              variant={getRoleBadgeVariant(userItem.role)}
+                              className="capitalize"
+                            >
+                              <RoleIcon className="h-4 w-4" />
+                              <span>{userItem.role}</span>
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center justify-end gap-2">
                               <Button
-                                variant={
-                                  currentPage === page ? "default" : "outline"
-                                }
+                                variant="outline"
                                 size="sm"
-                                onClick={() => setCurrentPage(page)}
-                                className="min-w-[2.5rem]"
+                                onClick={() => handleEdit(userItem)}
+                                className="gap-2"
                               >
-                                {page}
+                                <Edit className="h-4 w-4" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteClick(userItem)}
+                                className="gap-2 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
                               </Button>
                             </div>
-                          );
-                        })}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) =>
-                          Math.min(pagination.totalPages, prev + 1)
-                        )
-                      }
-                      disabled={currentPage === pagination.totalPages}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {!loadingUsers && pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Page {pagination.currentPage} of {pagination.totalPages}
                 </div>
-              )}
-            </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from(
+                      { length: pagination.totalPages },
+                      (_, i) => i + 1
+                    )
+                      .filter((page) => {
+                        return (
+                          page === 1 ||
+                          page === pagination.totalPages ||
+                          (page >= currentPage - 1 && page <= currentPage + 1)
+                        );
+                      })
+                      .map((page, index, array) => {
+                        const showEllipsisBefore =
+                          index > 0 && array[index - 1] !== page - 1;
+                        return (
+                          <div key={page} className="flex items-center gap-1">
+                            {showEllipsisBefore && (
+                              <span className="px-2 text-muted-foreground">
+                                ...
+                              </span>
+                            )}
+                            <Button
+                              variant={
+                                currentPage === page ? "default" : "outline"
+                              }
+                              size="sm"
+                              onClick={() => setCurrentPage(page)}
+                              className="min-w-[2.5rem]"
+                            >
+                              {page}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCurrentPage((prev) =>
+                        Math.min(pagination.totalPages, prev + 1)
+                      )
+                    }
+                    disabled={currentPage === pagination.totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>

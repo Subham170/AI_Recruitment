@@ -1,6 +1,6 @@
 "use client";
 
-import DashboardSidebar from "@/components/DashboardSidebar";
+import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -398,13 +398,13 @@ export default function JobsPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-white dark:bg-white">
       <aside className="hidden lg:block">
-        <DashboardSidebar />
+        <Sidebar />
       </aside>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-52 p-0">
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <DashboardSidebar />
+          <Sidebar />
         </SheetContent>
       </Sheet>
 
@@ -423,7 +423,7 @@ export default function JobsPage() {
           </div>
         </header>
 
-        <header className="hidden lg:block bg-card border-b px-6 py-4">
+        <header className="hidden lg:block bg-card border-b px-4 py-3">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Job Postings</h1>
             <div className="flex items-center gap-4">

@@ -1,15 +1,17 @@
 "use client";
 
-import DashboardSidebar from "@/components/DashboardSidebar";
+import Sidebar from "@/components/Sidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,35 +21,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { userAPI } from "@/lib/api";
 import {
-  Menu,
-  UserPlus,
-  Edit,
-  Trash2,
-  Users,
-  Mail,
-  Shield,
   AlertTriangle,
-  Search,
+  Briefcase,
   ChevronLeft,
   ChevronRight,
-  Filter,
   Crown,
-  Briefcase,
-  UserCog,
+  Edit,
   Eye,
   EyeOff,
+  Filter,
+  Mail,
+  Menu,
+  Search,
+  Shield,
+  Trash2,
+  UserCog,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -62,7 +61,7 @@ export default function AddPeoplePage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
-  
+
   // Filter and pagination states
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -88,17 +87,17 @@ export default function AddPeoplePage() {
 
   useEffect(() => {
     if (loading) return;
-    
+
     if (!user) {
       router.push("/login");
       return;
     }
-    
+
     if (user.role !== "admin") {
       router.push(`/dashboard/${user.role}`);
       return;
     }
-    
+
     // Fetch users when admin is available
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -305,16 +304,18 @@ export default function AddPeoplePage() {
     setFormOpen(true);
   };
 
-  const getRoleBadgeColor = (role) => {
-    switch (role) {
+  const getRoleBadgeVariant = (role) => {
+    switch (role?.toLowerCase()) {
       case "admin":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200";
+        return "secondary";
       case "manager":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200";
+        return "secondary";
       case "recruiter":
-        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200";
+        return "secondary";
+      case "candidate":
+        return "outline";
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-200";
+        return "outline";
     }
   };
 
@@ -347,14 +348,14 @@ export default function AddPeoplePage() {
     <div className="flex h-screen overflow-hidden bg-white dark:bg-white">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block">
-        <DashboardSidebar />
+        <Sidebar />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-52 p-0">
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <DashboardSidebar />
+          <Sidebar />
         </SheetContent>
       </Sheet>
 
@@ -376,7 +377,7 @@ export default function AddPeoplePage() {
         </header>
 
         {/* Desktop Header */}
-        <header className="hidden lg:flex items-center justify-between bg-card border-b px-6 py-4">
+        <header className="hidden lg:flex items-center justify-between bg-card border-b px-4 py-3">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Users className="h-6 w-6" />
@@ -422,7 +423,7 @@ export default function AddPeoplePage() {
                 Add People
               </Button>
             </div>
-            
+
             <div>
               {/* Filters */}
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -437,10 +438,15 @@ export default function AddPeoplePage() {
                     className="pl-10"
                   />
                 </div>
-                
+
                 {/* Role Filter */}
                 <div className="w-full sm:w-48">
-                  <Select value={roleFilter || "all"} onValueChange={(value) => setRoleFilter(value === "all" ? "" : value)}>
+                  <Select
+                    value={roleFilter || "all"}
+                    onValueChange={(value) =>
+                      setRoleFilter(value === "all" ? "" : value)
+                    }
+                  >
                     <SelectTrigger>
                       <div className="flex items-center gap-2">
                         <Filter className="h-4 w-4" />
@@ -495,7 +501,9 @@ export default function AddPeoplePage() {
                         <th className="text-left p-4 font-semibold">Name</th>
                         <th className="text-left p-4 font-semibold">Email</th>
                         <th className="text-left p-4 font-semibold">Role</th>
-                        <th className="text-right p-4 font-semibold">Actions</th>
+                        <th className="text-right p-4 font-semibold">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -511,7 +519,9 @@ export default function AddPeoplePage() {
                                   {userItem.name?.charAt(0).toUpperCase()}
                                 </span>
                               </div>
-                              <span className="font-medium">{userItem.name}</span>
+                              <span className="font-medium">
+                                {userItem.name}
+                              </span>
                             </div>
                           </td>
                           <td className="p-4">
@@ -524,16 +534,13 @@ export default function AddPeoplePage() {
                             {(() => {
                               const RoleIcon = getRoleIcon(userItem.role);
                               return (
-                                <div className="flex items-center">
-                                  <span
-                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[0.8rem] font-semibold capitalize shadow-sm ${getRoleBadgeColor(
-                                      userItem.role
-                                    )}`}
-                                  >
-                                    <RoleIcon className="h-4 w-4" />
-                                    <span>{userItem.role}</span>
-                                  </span>
-                                </div>
+                                <Badge
+                                  variant={getRoleBadgeVariant(userItem.role)}
+                                  className="capitalize"
+                                >
+                                  <RoleIcon className="h-4 w-4" />
+                                  <span>{userItem.role}</span>
+                                </Badge>
                               );
                             })()}
                           </td>
@@ -576,14 +583,19 @@ export default function AddPeoplePage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
                       disabled={currentPage === 1}
                     >
                       <ChevronLeft className="h-4 w-4" />
                       Previous
                     </Button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                      {Array.from(
+                        { length: pagination.totalPages },
+                        (_, i) => i + 1
+                      )
                         .filter((page) => {
                           // Show first page, last page, current page, and pages around current
                           return (
@@ -594,14 +606,19 @@ export default function AddPeoplePage() {
                         })
                         .map((page, index, array) => {
                           // Add ellipsis if there's a gap
-                          const showEllipsisBefore = index > 0 && array[index - 1] !== page - 1;
+                          const showEllipsisBefore =
+                            index > 0 && array[index - 1] !== page - 1;
                           return (
                             <div key={page} className="flex items-center gap-1">
                               {showEllipsisBefore && (
-                                <span className="px-2 text-muted-foreground">...</span>
+                                <span className="px-2 text-muted-foreground">
+                                  ...
+                                </span>
                               )}
                               <Button
-                                variant={currentPage === page ? "default" : "outline"}
+                                variant={
+                                  currentPage === page ? "default" : "outline"
+                                }
                                 size="sm"
                                 onClick={() => setCurrentPage(page)}
                                 className="min-w-[2.5rem]"
@@ -724,7 +741,8 @@ export default function AddPeoplePage() {
             {/* Password Field */}
             <div className="space-y-2">
               <Label htmlFor="password">
-                Password {!editingUser && <span className="text-red-500">*</span>}
+                Password{" "}
+                {!editingUser && <span className="text-red-500">*</span>}
               </Label>
               <div className="relative">
                 <Input
@@ -781,7 +799,9 @@ export default function AddPeoplePage() {
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
-                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showConfirmPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showConfirmPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -831,8 +851,8 @@ export default function AddPeoplePage() {
               <span className="font-semibold text-foreground">
                 {userToDelete?.name}
               </span>
-              ? This action cannot be undone and will permanently remove the user
-              from the system.
+              ? This action cannot be undone and will permanently remove the
+              user from the system.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
