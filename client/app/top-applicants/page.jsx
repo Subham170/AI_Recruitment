@@ -9,25 +9,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { useAuth } from "@/contexts/AuthContext";
-import { jobPostingAPI, matchingAPI, bolnaAPI } from "@/lib/api";
 import {
-  TrendingUp,
-  User,
-  Mail,
-  MapPin,
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { useAuth } from "@/contexts/AuthContext";
+import { bolnaAPI, jobPostingAPI, matchingAPI } from "@/lib/api";
+import {
   Briefcase,
-  Star,
-  Search,
-  Eye,
-  Phone,
-  Download,
   Calendar,
-  Menu,
-  RefreshCw,
   Clock,
   DollarSign,
+  Eye,
+  Mail,
+  Menu,
+  Phone,
+  RefreshCw,
+  Search,
+  TrendingUp,
+  User,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -59,7 +61,7 @@ export default function TopApplicantsPage() {
       setLoadingJobs(true);
       setError(null);
       const response = await jobPostingAPI.getAllJobPostings();
-      
+
       if (user.role === "recruiter") {
         // Combine my jobs and secondary jobs
         const myJobs = response.myJobPostings || [];
@@ -81,22 +83,22 @@ export default function TopApplicantsPage() {
     setSelectedJob(job);
     setCandidates([]);
     setError(null);
-    
+
     try {
       setRefreshing(true);
       setLoadingCandidates(true);
-      
+
       // First refresh the matches
       await matchingAPI.refreshJobMatches(job._id);
-      
+
       // Then get the top 10 candidates
       const response = await matchingAPI.getJobMatches(job._id);
-      
+
       // Sort by match score (descending) and take top 10
       const sortedMatches = (response.matches || [])
         .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
         .slice(0, 10);
-      
+
       setCandidates(sortedMatches);
     } catch (err) {
       console.error("Error fetching candidates:", err);
@@ -109,22 +111,22 @@ export default function TopApplicantsPage() {
 
   const handleRefresh = async () => {
     if (!selectedJob) return;
-    
+
     try {
       setRefreshing(true);
       setError(null);
-      
+
       // Refresh the matches
       await matchingAPI.refreshJobMatches(selectedJob._id);
-      
+
       // Get updated candidates
       const response = await matchingAPI.getJobMatches(selectedJob._id);
-      
+
       // Sort by match score (descending) and take top 10
       const sortedMatches = (response.matches || [])
         .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
         .slice(0, 10);
-      
+
       setCandidates(sortedMatches);
     } catch (err) {
       console.error("Error refreshing candidates:", err);
@@ -136,31 +138,31 @@ export default function TopApplicantsPage() {
 
   const handleScheduleAllCalls = async () => {
     if (!selectedJob || candidates.length === 0) return;
-    
+
     try {
       setSchedulingCalls(true);
       setError(null);
-      
+
       // Start scheduling from 5 minutes from now
       const startTime = new Date();
       startTime.setMinutes(startTime.getMinutes() + 5);
-      
+
       const results = [];
-      
+
       // Schedule calls for all candidates with 5-minute gaps
       for (let i = 0; i < candidates.length; i++) {
         const match = candidates[i];
         const candidate = match.candidateId;
-        
+
         if (!candidate || !candidate.phone_no) {
           console.warn(`Skipping candidate ${i + 1}: missing phone number`);
           continue;
         }
-        
+
         // Calculate scheduled time (5 minutes gap between each call)
         const scheduledTime = new Date(startTime);
-        scheduledTime.setMinutes(scheduledTime.getMinutes() + (i * 5));
-        
+        scheduledTime.setMinutes(scheduledTime.getMinutes() + i * 5);
+
         try {
           const payload = {
             candidateId: candidate._id,
@@ -169,12 +171,18 @@ export default function TopApplicantsPage() {
             scheduled_at: scheduledTime.toISOString(),
             user_data: {
               bio: candidate.bio || "",
-              role: candidate.role && candidate.role.length > 0 ? candidate.role.join(", ") : "",
-              experience: candidate.experience !== undefined ? `${candidate.experience} years` : "",
+              role:
+                candidate.role && candidate.role.length > 0
+                  ? candidate.role.join(", ")
+                  : "",
+              experience:
+                candidate.experience !== undefined
+                  ? `${candidate.experience} years`
+                  : "",
               name: candidate.name || "",
             },
           };
-          
+
           const result = await bolnaAPI.scheduleCall(payload);
           results.push({
             candidate: candidate.name || "Unknown",
@@ -182,7 +190,7 @@ export default function TopApplicantsPage() {
             scheduledAt: scheduledTime.toISOString(),
             result,
           });
-          
+
           // Wait 1 second between API calls to avoid rate limiting
           if (i < candidates.length - 1) {
             await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -196,11 +204,11 @@ export default function TopApplicantsPage() {
           });
         }
       }
-      
+
       // Show success message
       const successCount = results.filter((r) => r.success).length;
       const failCount = results.filter((r) => !r.success).length;
-      
+
       if (failCount === 0) {
         setError(null);
         alert(`Successfully scheduled ${successCount} calls!`);
@@ -238,8 +246,10 @@ export default function TopApplicantsPage() {
 
   const getScoreColor = (score) => {
     const percentage = Math.round(score * 100);
-    if (percentage >= 90) return "text-green-600 bg-green-100 dark:bg-green-900/30";
-    if (percentage >= 80) return "text-blue-600 bg-blue-100 dark:bg-blue-900/30";
+    if (percentage >= 90)
+      return "text-green-600 bg-green-100 dark:bg-green-900/30";
+    if (percentage >= 80)
+      return "text-blue-600 bg-blue-100 dark:bg-blue-900/30";
     return "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30";
   };
 
@@ -287,7 +297,11 @@ export default function TopApplicantsPage() {
                   disabled={schedulingCalls}
                   className="bg-green-600 hover:bg-green-700 text-white"
                 >
-                  <Phone className={`mr-2 h-4 w-4 ${schedulingCalls ? "animate-pulse" : ""}`} />
+                  <Phone
+                    className={`mr-2 h-4 w-4 ${
+                      schedulingCalls ? "animate-pulse" : ""
+                    }`}
+                  />
                   {schedulingCalls ? "Scheduling..." : "Schedule All Calls"}
                 </Button>
               )}
@@ -297,7 +311,11 @@ export default function TopApplicantsPage() {
                   onClick={handleRefresh}
                   disabled={refreshing}
                 >
-                  <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                  <RefreshCw
+                    className={`mr-2 h-4 w-4 ${
+                      refreshing ? "animate-spin" : ""
+                    }`}
+                  />
                   Refresh Matches
                 </Button>
               )}
@@ -312,71 +330,71 @@ export default function TopApplicantsPage() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-          <Card className="bg-green-500 border-0 text-white mb-8">
-            <CardHeader>
-              <CardTitle className="text-4xl mb-2 flex items-center gap-3">
-                <TrendingUp className="h-10 w-10" />
-                Top Applicants
-              </CardTitle>
-              <CardDescription className="text-xl opacity-90 text-white">
-                {selectedJob
-                  ? `Top candidates for ${selectedJob.title} at ${selectedJob.company}`
-                  : "Select a job posting to view top matching candidates"}
-              </CardDescription>
-            </CardHeader>
-          </Card>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6">
+          {/* Header Section */}
+          <div className="bg-green-500 rounded-lg p-6 text-white shadow-lg">
+            <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+              <TrendingUp className="h-10 w-10" />
+              Top Applicants
+            </h1>
+            <p className="text-xl opacity-95">
+              {selectedJob
+                ? `Top candidates for ${selectedJob.title} at ${selectedJob.company}`
+                : "Select a job posting to view top matching candidates"}
+            </p>
+          </div>
 
           {error && (
-            <Card className="mb-6 border-red-200 bg-red-50 dark:bg-red-950/20">
-              <CardContent className="pt-6">
-                <p className="text-red-900 dark:text-red-100">{error}</p>
-              </CardContent>
-            </Card>
+            <div className="border-2 border-red-300 bg-red-50 dark:bg-red-950/30 rounded-lg p-4">
+              <p className="text-red-800 dark:text-red-200 font-medium">
+                {error}
+              </p>
+            </div>
           )}
 
           {/* Search */}
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search jobs..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search jobs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border-2 border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              />
+            </div>
+          </div>
 
           {!selectedJob ? (
             <>
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="text-2xl font-bold">{jobs.length}</div>
-                    <p className="text-xs text-muted-foreground">Total Jobs</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="text-2xl font-bold text-green-600">
-                      {jobs.filter((j) => j.primary_recruiter_id).length}
-                    </div>
-                    <p className="text-xs text-muted-foreground">Your Jobs</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {jobs.length - jobs.filter((j) => j.primary_recruiter_id).length}
-                    </div>
-                    <p className="text-xs text-muted-foreground">Secondary Jobs</p>
-                  </CardContent>
-                </Card>
+                <div className="bg-card border-2 rounded-lg p-6">
+                  <div className="text-2xl font-bold text-foreground">
+                    {jobs.length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Total Jobs
+                  </p>
+                </div>
+                <div className="bg-card border-2 rounded-lg p-6">
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {jobs.filter((j) => j.primary_recruiter_id).length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your Jobs
+                  </p>
+                </div>
+                <div className="bg-card border-2 rounded-lg p-6">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {jobs.length -
+                      jobs.filter((j) => j.primary_recruiter_id).length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Secondary Jobs
+                  </p>
+                </div>
               </div>
 
               {/* Jobs List */}
@@ -390,7 +408,9 @@ export default function TopApplicantsPage() {
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <CardTitle className="text-xl mb-2">{job.title}</CardTitle>
+                          <CardTitle className="text-xl mb-2">
+                            {job.title}
+                          </CardTitle>
                           <CardDescription className="text-base font-semibold text-foreground">
                             {job.company}
                           </CardDescription>
@@ -440,27 +460,29 @@ export default function TopApplicantsPage() {
               </div>
 
               {filteredJobs.length === 0 && (
-                <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 border-2">
-                  <CardContent className="pt-6 text-center">
-                    <Briefcase className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                    <p className="text-green-900 dark:text-green-100">
-                      {jobs.length === 0
-                        ? "No job postings available. Create a job posting to see top applicants."
-                        : "No jobs found matching your search criteria."}
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="bg-green-50 dark:bg-green-950/30 border-2 border-green-300 dark:border-green-700 rounded-lg p-8 text-center">
+                  <Briefcase className="h-12 w-12 mx-auto mb-4 text-green-600 dark:text-green-400" />
+                  <p className="text-green-900 dark:text-green-100 font-medium">
+                    {jobs.length === 0
+                      ? "No job postings available. Create a job posting to see top applicants."
+                      : "No jobs found matching your search criteria."}
+                  </p>
+                </div>
               )}
             </>
           ) : (
             <>
               {/* Selected Job Header */}
-              <Card className="mb-6 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-                <CardContent className="pt-6">
+              <div className="mb-6 bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-6">
+                <div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-2xl font-bold mb-2">{selectedJob.title}</h2>
-                      <p className="text-lg text-muted-foreground">{selectedJob.company}</p>
+                      <h2 className="text-2xl font-bold mb-2">
+                        {selectedJob.title}
+                      </h2>
+                      <p className="text-lg text-muted-foreground">
+                        {selectedJob.company}
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -477,13 +499,17 @@ export default function TopApplicantsPage() {
                         onClick={handleRefresh}
                         disabled={refreshing}
                       >
-                        <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                        <RefreshCw
+                          className={`mr-2 h-4 w-4 ${
+                            refreshing ? "animate-spin" : ""
+                          }`}
+                        />
                         Refresh
                       </Button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/* Mobile Action Buttons */}
               <div className="lg:hidden mb-4 space-y-2">
@@ -494,7 +520,11 @@ export default function TopApplicantsPage() {
                     onClick={handleScheduleAllCalls}
                     disabled={schedulingCalls}
                   >
-                    <Phone className={`mr-2 h-4 w-4 ${schedulingCalls ? "animate-pulse" : ""}`} />
+                    <Phone
+                      className={`mr-2 h-4 w-4 ${
+                        schedulingCalls ? "animate-pulse" : ""
+                      }`}
+                    />
                     {schedulingCalls ? "Scheduling..." : "Schedule All Calls"}
                   </Button>
                 )}
@@ -504,7 +534,11 @@ export default function TopApplicantsPage() {
                   onClick={handleRefresh}
                   disabled={refreshing}
                 >
-                  <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                  <RefreshCw
+                    className={`mr-2 h-4 w-4 ${
+                      refreshing ? "animate-spin" : ""
+                    }`}
+                  />
                   Refresh Matches
                 </Button>
               </div>
@@ -514,23 +548,28 @@ export default function TopApplicantsPage() {
                 <Card>
                   <CardContent className="pt-6 text-center">
                     <RefreshCw className="h-12 w-12 mx-auto mb-4 animate-spin text-muted-foreground" />
-                    <p className="text-muted-foreground">Loading top candidates...</p>
+                    <p className="text-muted-foreground">
+                      Loading top candidates...
+                    </p>
                   </CardContent>
                 </Card>
               ) : candidates.length > 0 ? (
                 <>
                   <div className="mb-4">
                     <p className="text-sm text-muted-foreground">
-                      Showing top {candidates.length} candidates sorted by match score
+                      Showing top {candidates.length} candidates sorted by match
+                      score
                     </p>
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {candidates.map((match, index) => {
                       const candidate = match.candidateId;
                       if (!candidate) return null;
-                      
-                      const matchScore = Math.round((match.matchScore || 0) * 100);
-                      
+
+                      const matchScore = Math.round(
+                        (match.matchScore || 0) * 100
+                      );
+
                       return (
                         <Card
                           key={candidate._id || index}
@@ -586,7 +625,9 @@ export default function TopApplicantsPage() {
                               {candidate.experience !== undefined && (
                                 <div className="flex items-center gap-2 text-muted-foreground">
                                   <Briefcase className="h-4 w-4" />
-                                  <span>{candidate.experience} years experience</span>
+                                  <span>
+                                    {candidate.experience} years experience
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -594,39 +635,51 @@ export default function TopApplicantsPage() {
                             {/* Bio */}
                             {candidate.bio && (
                               <div>
-                                <p className="text-xs text-muted-foreground mb-1">Bio</p>
-                                <p className="text-sm line-clamp-2">{candidate.bio}</p>
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  Bio
+                                </p>
+                                <p className="text-sm line-clamp-2">
+                                  {candidate.bio}
+                                </p>
                               </div>
                             )}
 
                             {/* Skills */}
-                            {candidate.skills && candidate.skills.length > 0 && (
-                              <div>
-                                <p className="text-xs text-muted-foreground mb-2">Skills</p>
-                                <div className="flex flex-wrap gap-2">
-                                  {candidate.skills.slice(0, 6).map((skill, idx) => (
-                                    <span
-                                      key={idx}
-                                      className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 rounded-md"
-                                    >
-                                      {skill}
-                                    </span>
-                                  ))}
-                                  {candidate.skills.length > 6 && (
-                                    <span className="px-2 py-1 text-xs text-muted-foreground">
-                                      +{candidate.skills.length - 6} more
-                                    </span>
-                                  )}
+                            {candidate.skills &&
+                              candidate.skills.length > 0 && (
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-2">
+                                    Skills
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {candidate.skills
+                                      .slice(0, 6)
+                                      .map((skill, idx) => (
+                                        <span
+                                          key={idx}
+                                          className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 rounded-md"
+                                        >
+                                          {skill}
+                                        </span>
+                                      ))}
+                                    {candidate.skills.length > 6 && (
+                                      <span className="px-2 py-1 text-xs text-muted-foreground">
+                                        +{candidate.skills.length - 6} more
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
                             {/* Match Info */}
                             {match.matchedAt && (
                               <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
                                 <Clock className="h-3 w-3" />
                                 <span>
-                                  Matched {new Date(match.matchedAt).toLocaleDateString()}
+                                  Matched{" "}
+                                  {new Date(
+                                    match.matchedAt
+                                  ).toLocaleDateString()}
                                 </span>
                               </div>
                             )}
@@ -655,18 +708,20 @@ export default function TopApplicantsPage() {
                   </div>
                 </>
               ) : (
-                <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 border-2">
-                  <CardContent className="pt-6 text-center">
-                    <User className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                    <p className="text-green-900 dark:text-green-100 mb-4">
-                      No candidates found for this job posting.
-                    </p>
-                    <Button onClick={handleRefresh} disabled={refreshing}>
-                      <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-                      Refresh Matches
-                    </Button>
-                  </CardContent>
-                </Card>
+                <div className="bg-green-50 dark:bg-green-950/30 border-2 border-green-300 dark:border-green-700 rounded-lg p-8 text-center">
+                  <User className="h-12 w-12 mx-auto mb-4 text-green-600 dark:text-green-400" />
+                  <p className="text-green-900 dark:text-green-100 mb-4 font-medium">
+                    No candidates found for this job posting.
+                  </p>
+                  <Button onClick={handleRefresh} disabled={refreshing}>
+                    <RefreshCw
+                      className={`mr-2 h-4 w-4 ${
+                        refreshing ? "animate-spin" : ""
+                      }`}
+                    />
+                    Refresh Matches
+                  </Button>
+                </div>
               )}
             </>
           )}

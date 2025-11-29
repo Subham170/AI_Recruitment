@@ -3,13 +3,11 @@
 import DashboardSidebar from "@/components/DashboardSidebar";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -155,93 +153,80 @@ export default function DashboardPage() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-          <Card className={`${content.color} border-0 text-white mb-8`}>
-            <CardHeader>
-              <CardTitle className="text-4xl mb-2">{content.title}</CardTitle>
-              <CardDescription className="text-xl opacity-90 text-white">
-                {content.description}
-              </CardDescription>
-            </CardHeader>
-          </Card>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-8">
+          {/* Header Section */}
+          <div
+            className={`${content.color} rounded-lg p-6 text-white shadow-lg`}
+          >
+            <h1 className="text-4xl font-bold mb-2">{content.title}</h1>
+            <p className="text-xl opacity-95">{content.description}</p>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Available Features</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {content.features.map((feature, index) => (
-                  <Card key={index} className="hover:shadow-md transition">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`flex-shrink-0 w-8 h-8 ${content.color} rounded-full flex items-center justify-center text-white font-bold`}
-                        >
-                          {index + 1}
-                        </div>
-                        <p className="font-medium">{feature}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Features Section */}
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-foreground">
+              Available Features
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {content.features.map((feature, index) => (
+                <div
+                  key={index}
+                  className="bg-card border rounded-lg p-4 hover:shadow-md transition hover:border-primary/50"
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`shrink-0 w-8 h-8 ${content.color} rounded-full flex items-center justify-center text-white font-bold`}
+                    >
+                      {index + 1}
+                    </div>
+                    <p className="font-medium text-foreground">{feature}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Role-specific additional content */}
           {user.role === "candidate" && (
-            <Card
-              className={`mt-8 ${content.cardColor} ${content.borderColor} border-2`}
+            <div
+              className={`rounded-lg p-6 ${content.cardColor} ${content.borderColor} border-2`}
             >
-              <CardHeader>
-                <CardTitle className={content.textColor}>
-                  Quick Actions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className={content.textColor}>
-                  Browse jobs, update your resume, or check your application
-                  status.
-                </p>
-              </CardContent>
-            </Card>
+              <h3 className={`text-xl font-bold mb-2 ${content.textColor}`}>
+                Quick Actions
+              </h3>
+              <p className={content.textColor}>
+                Browse jobs, update your resume, or check your application
+                status.
+              </p>
+            </div>
           )}
 
           {user.role === "recruiter" && (
-            <Card
-              className={`mt-8 ${content.cardColor} ${content.borderColor} border-2`}
+            <div
+              className={`rounded-lg p-6 ${content.cardColor} ${content.borderColor} border-2`}
             >
-              <CardHeader>
-                <CardTitle className={content.textColor}>
-                  Quick Actions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className={content.textColor}>
-                  Post a new job, review applications, or manage your active
-                  listings.
-                </p>
-              </CardContent>
-            </Card>
+              <h3 className={`text-xl font-bold mb-2 ${content.textColor}`}>
+                Quick Actions
+              </h3>
+              <p className={content.textColor}>
+                Post a new job, review applications, or manage your active
+                listings.
+              </p>
+            </div>
           )}
 
           {user.role === "admin" && (
-            <Card
-              className={`mt-8 ${content.cardColor} ${content.borderColor} border-2`}
+            <div
+              className={`rounded-lg p-6 ${content.cardColor} ${content.borderColor} border-2`}
             >
-              <CardHeader>
-                <CardTitle className={content.textColor}>
-                  System Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className={content.textColor}>
-                  Monitor platform activity, manage users, and access system
-                  settings.
-                </p>
-              </CardContent>
-            </Card>
+              <h3 className={`text-xl font-bold mb-2 ${content.textColor}`}>
+                System Overview
+              </h3>
+              <p className={content.textColor}>
+                Monitor platform activity, manage users, and access system
+                settings.
+              </p>
+            </div>
           )}
         </main>
       </div>
