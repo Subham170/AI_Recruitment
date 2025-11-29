@@ -9,9 +9,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
-import { Menu, Users, Briefcase, ClipboardList, Calendar, BarChart3, FileText, Settings } from "lucide-react";
+import {
+  BarChart3,
+  Briefcase,
+  Calendar,
+  ClipboardList,
+  FileText,
+  Menu,
+  Users,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -41,7 +54,7 @@ export default function ManagerDashboardPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="flex h-screen overflow-hidden bg-white dark:bg-white">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block">
         <DashboardSidebar />
@@ -76,7 +89,9 @@ export default function ManagerDashboardPage() {
         <header className="hidden lg:flex items-center justify-between bg-card border-b px-6 py-4">
           <div>
             <h1 className="text-2xl font-bold">Manager Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Overview of recruitment operations</p>
+            <p className="text-sm text-muted-foreground">
+              Overview of recruitment operations
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">{user.name}</span>
@@ -90,8 +105,10 @@ export default function ManagerDashboardPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
             <div className="mb-8">
-              <h2 className="text-3xl font-bold mb-2">Welcome, {user.name}</h2>
-              <p className="text-muted-foreground">
+              <h2 className="text-3xl font-bold mb-2 text-foreground">
+                Welcome, {user.name}
+              </h2>
+              <p className="text-foreground/80">
                 Manage your recruitment team and operations
               </p>
             </div>
@@ -100,7 +117,9 @@ export default function ManagerDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Recruiters</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Recruiters
+                  </CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -111,7 +130,9 @@ export default function ManagerDashboardPage() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Job Postings</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Job Postings
+                  </CardTitle>
                   <Briefcase className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -122,18 +143,24 @@ export default function ManagerDashboardPage() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Applications</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Applications
+                  </CardTitle>
                   <ClipboardList className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">-</div>
-                  <p className="text-xs text-muted-foreground">Total received</p>
+                  <p className="text-xs text-muted-foreground">
+                    Total received
+                  </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Interviews</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Interviews
+                  </CardTitle>
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -145,7 +172,10 @@ export default function ManagerDashboardPage() {
 
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push("/dashboard/manager/recruiters")}>
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => router.push("/dashboard/manager/recruiters")}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
@@ -155,7 +185,10 @@ export default function ManagerDashboardPage() {
                 </CardHeader>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push("/dashboard/manager/jobs")}>
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => router.push("/dashboard/manager/jobs")}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Briefcase className="h-5 w-5" />
@@ -165,7 +198,10 @@ export default function ManagerDashboardPage() {
                 </CardHeader>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push("/dashboard/manager/applications")}>
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => router.push("/dashboard/manager/applications")}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <ClipboardList className="h-5 w-5" />
@@ -175,7 +211,10 @@ export default function ManagerDashboardPage() {
                 </CardHeader>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push("/dashboard/manager/candidates")}>
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => router.push("/dashboard/manager/candidates")}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
@@ -185,7 +224,10 @@ export default function ManagerDashboardPage() {
                 </CardHeader>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push("/dashboard/manager/analytics")}>
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => router.push("/dashboard/manager/analytics")}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="h-5 w-5" />
@@ -195,7 +237,10 @@ export default function ManagerDashboardPage() {
                 </CardHeader>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => router.push("/dashboard/manager/reports")}>
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => router.push("/dashboard/manager/reports")}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="h-5 w-5" />
@@ -211,4 +256,3 @@ export default function ManagerDashboardPage() {
     </div>
   );
 }
-
