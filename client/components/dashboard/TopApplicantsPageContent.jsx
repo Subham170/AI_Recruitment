@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import Loading from "@/components/ui/loading";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { bolnaAPI, jobPostingAPI, matchingAPI } from "@/lib/api";
@@ -289,7 +290,7 @@ export default function TopApplicantsPageContent() {
         <main className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6">
           {loading || loadingJobs ? (
             <div className="flex items-center justify-center min-h-[400px]">
-              <div className="text-xl">Loading...</div>
+              <Loading />
             </div>
           ) : (
             <>

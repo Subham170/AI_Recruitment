@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Loading from "@/components/ui/loading";
 import {
   Select,
   SelectContent,
@@ -314,8 +315,8 @@ export default function UserManagementPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-white">
+        <Loading size="lg" />
       </div>
     );
   }
@@ -423,7 +424,7 @@ export default function UserManagementPage() {
 
             {loadingUsers ? (
               <div className="flex items-center justify-center py-12">
-                <div className="text-muted-foreground">Loading users...</div>
+                <Loading message="Loading users..." />
               </div>
             ) : users.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12">
