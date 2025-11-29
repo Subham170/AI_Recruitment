@@ -360,7 +360,7 @@ export default function TopApplicantsPage() {
                         <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
                           {job.description}
                         </p>
-                        <Button className="w-full" variant="outline" size="sm">
+                        <Button className="w-full" variant="outline">
                           <Eye className="mr-2 h-4 w-4" />
                           View Top Candidates
                         </Button>

@@ -366,10 +366,10 @@ export default function JobsPageContent() {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-4 border-t">
+          <div className="pt-4 border-t space-y-2">
             <Button
               variant="outline"
-              size="sm"
+              className="w-full"
               onClick={(e) => {
                 e.stopPropagation();
                 handleJobClick(job._id);
@@ -381,7 +381,7 @@ export default function JobsPageContent() {
             {showEdit && isOwner && (
               <Button
                 variant="outline"
-                size="sm"
+                className="w-full"
                 onClick={(e) => {
                   e.stopPropagation();
                   openEditDialog(job);
