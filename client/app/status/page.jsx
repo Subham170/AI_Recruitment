@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import Loading from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   CheckCircle,
@@ -45,8 +46,8 @@ export default function ApplicationStatusPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-white">
+        <Loading size="lg" />
       </div>
     );
   }

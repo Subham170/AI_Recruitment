@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Loading from "@/components/ui/loading";
 import {
   Select,
   SelectContent,
@@ -435,7 +436,7 @@ export default function JobsPage() {
 
           {loading || loadingJobs ? (
             <div className="flex items-center justify-center min-h-[400px]">
-              <div className="text-xl">Loading...</div>
+              <Loading />
             </div>
           ) : (
             <>

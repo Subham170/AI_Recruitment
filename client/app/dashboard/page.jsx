@@ -2,6 +2,7 @@
 
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
+import Loading from "@/components/ui/loading";
 import {
   Sheet,
   SheetContent,
@@ -29,8 +30,8 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-white">
+        <Loading size="lg" />
       </div>
     );
   }
