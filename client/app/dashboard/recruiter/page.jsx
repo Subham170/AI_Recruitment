@@ -9,7 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   BarChart3,
@@ -49,7 +54,7 @@ export default function RecruiterDashboardPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="flex h-screen overflow-hidden bg-white dark:bg-white">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block">
         <DashboardSidebar />
@@ -100,8 +105,10 @@ export default function RecruiterDashboardPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
             <div className="mb-8">
-              <h2 className="text-3xl font-bold mb-2">Welcome, {user.name}</h2>
-              <p className="text-muted-foreground">
+              <h2 className="text-3xl font-bold mb-2 text-foreground">
+                Welcome, {user.name}
+              </h2>
+              <p className="text-foreground/80">
                 Manage your recruitment pipeline and find the best candidates
               </p>
             </div>
