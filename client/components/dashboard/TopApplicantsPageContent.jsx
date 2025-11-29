@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
-import { jobPostingAPI, matchingAPI } from "@/lib/api";
+import { jobPostingAPI, matchingAPI, bolnaAPI } from "@/lib/api";
 import {
   TrendingUp,
   User,
@@ -41,6 +41,9 @@ export default function TopApplicantsPageContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [jobs, setJobs] = useState([]);
+  const [schedulingCalls, setSchedulingCalls] = useState(false);
+  const [scheduledCandidateIds, setScheduledCandidateIds] = useState(new Set());
+  const [checkingScheduled, setCheckingScheduled] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -71,10 +74,28 @@ export default function TopApplicantsPageContent() {
     }
   };
 
+  const checkScheduledCalls = async (jobId, candidateIds) => {
+    try {
+      setCheckingScheduled(true);
+      const response = await bolnaAPI.checkCallsScheduled({
+        jobId,
+        candidateIds,
+      });
+      setScheduledCandidateIds(new Set(response.scheduledCandidates || []));
+    } catch (err) {
+      console.error("Error checking scheduled calls:", err);
+      // Don't show error to user, just log it
+      setScheduledCandidateIds(new Set());
+    } finally {
+      setCheckingScheduled(false);
+    }
+  };
+
   const handleJobClick = async (job) => {
     setSelectedJob(job);
     setCandidates([]);
     setError(null);
+    setScheduledCandidateIds(new Set());
     
     try {
       setRefreshing(true);
@@ -88,6 +109,15 @@ export default function TopApplicantsPageContent() {
         .slice(0, 10);
       
       setCandidates(sortedMatches);
+      
+      // Check which candidates are already scheduled
+      const candidateIds = sortedMatches
+        .map((match) => match.candidateId?._id)
+        .filter(Boolean);
+      
+      if (candidateIds.length > 0) {
+        await checkScheduledCalls(job._id, candidateIds);
+      }
     } catch (err) {
       console.error("Error fetching candidates:", err);
       setError(err.message || "Failed to load candidates");
@@ -117,6 +147,97 @@ export default function TopApplicantsPageContent() {
       setError(err.message || "Failed to refresh candidates");
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleScheduleAllCalls = async () => {
+    if (!selectedJob || candidates.length === 0) return;
+    
+    try {
+      setSchedulingCalls(true);
+      setError(null);
+      
+      // Filter out already scheduled candidates
+      const candidatesToSchedule = candidates.filter((match) => {
+        const candidateId = match.candidateId?._id?.toString();
+        return candidateId && !scheduledCandidateIds.has(candidateId);
+      });
+      
+      if (candidatesToSchedule.length === 0) {
+        setError("All candidates are already scheduled for calls");
+        return;
+      }
+      
+      // Prepare candidates array for batch scheduling
+      const candidatesArray = candidatesToSchedule
+        .map((match) => {
+          const candidate = match.candidateId;
+          if (!candidate || !candidate.phone_no) {
+            return null;
+          }
+          return {
+            candidateId: candidate._id,
+            recipient_phone_number: candidate.phone_no,
+            user_data: {
+              bio: candidate.bio || "",
+              role: candidate.role && candidate.role.length > 0 ? candidate.role.join(", ") : "",
+              experience: candidate.experience !== undefined ? `${candidate.experience} years` : "",
+              name: candidate.name || "",
+            },
+          };
+        })
+        .filter((c) => c !== null); // Remove candidates without phone numbers
+      
+      if (candidatesArray.length === 0) {
+        setError("No candidates with valid phone numbers found");
+        return;
+      }
+      
+      // Calculate start time (5 minutes from now)
+      const startTime = new Date();
+      startTime.setMinutes(startTime.getMinutes() + 5);
+      
+      // Send batch request
+      const payload = {
+        jobId: selectedJob._id,
+        candidates: candidatesArray,
+        startTime: startTime.toISOString(),
+      };
+      
+      const response = await bolnaAPI.scheduleCallsBatch(payload);
+      
+      // Update scheduled candidate IDs
+      const newlyScheduled = response.results
+        .filter((r) => r.success)
+        .map((r) => r.candidateId);
+      
+      setScheduledCandidateIds((prev) => {
+        const updated = new Set(prev);
+        newlyScheduled.forEach((id) => updated.add(id));
+        return updated;
+      });
+      
+      // Show success message
+      const alreadyScheduledCount = candidates.length - candidatesToSchedule.length;
+      let message = `Successfully scheduled ${response.summary.successful} calls!`;
+      if (alreadyScheduledCount > 0) {
+        message += ` (${alreadyScheduledCount} were already scheduled)`;
+      }
+      if (response.summary.failed > 0) {
+        message += ` ${response.summary.failed} failed.`;
+      }
+      
+      if (response.summary.failed === 0) {
+        setError(null);
+        alert(message);
+      } else {
+        setError(message);
+      }
+    } catch (err) {
+      console.error("Error scheduling calls:", err);
+      setError(err.message || "Failed to schedule calls");
+    } finally {
+      setSchedulingCalls(false);
     }
   };
 
@@ -178,6 +299,31 @@ export default function TopApplicantsPageContent() {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">Top Applicants</h1>
             <div className="flex items-center gap-4">
+              {selectedJob && candidates.length > 0 && (() => {
+                const unscheduledCount = candidates.filter(
+                  (match) => !scheduledCandidateIds.has(match.candidateId?._id?.toString() || "")
+                ).length;
+                const allScheduled = unscheduledCount === 0;
+                
+                return (
+                  <Button
+                    variant="default"
+                    onClick={handleScheduleAllCalls}
+                    disabled={schedulingCalls || checkingScheduled || allScheduled}
+                    className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                    title={allScheduled ? "All candidates are already scheduled" : ""}
+                  >
+                    <Phone className={`mr-2 h-4 w-4 ${schedulingCalls ? "animate-pulse" : ""}`} />
+                    {schedulingCalls
+                      ? "Scheduling..."
+                      : checkingScheduled
+                      ? "Checking..."
+                      : allScheduled
+                      ? "All Scheduled"
+                      : `Schedule All Calls (${unscheduledCount} remaining)`}
+                  </Button>
+                );
+              })()}
               {selectedJob && (
                 <Button
                   variant="outline"
@@ -367,7 +513,32 @@ export default function TopApplicantsPageContent() {
                 </CardContent>
               </Card>
 
-              <div className="lg:hidden mb-4">
+              <div className="lg:hidden mb-4 space-y-2">
+                {candidates.length > 0 && (() => {
+                  const unscheduledCount = candidates.filter(
+                    (match) => !scheduledCandidateIds.has(match.candidateId?._id?.toString() || "")
+                  ).length;
+                  const allScheduled = unscheduledCount === 0;
+                  
+                  return (
+                    <Button
+                      className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                      variant="default"
+                      onClick={handleScheduleAllCalls}
+                      disabled={schedulingCalls || checkingScheduled || allScheduled}
+                      title={allScheduled ? "All candidates are already scheduled" : ""}
+                    >
+                      <Phone className={`mr-2 h-4 w-4 ${schedulingCalls ? "animate-pulse" : ""}`} />
+                      {schedulingCalls
+                        ? "Scheduling..."
+                        : checkingScheduled
+                        ? "Checking..."
+                        : allScheduled
+                        ? "All Scheduled"
+                        : `Schedule All Calls (${unscheduledCount} remaining)`}
+                    </Button>
+                  );
+                })()}
                 <Button
                   className="w-full"
                   variant="outline"
@@ -400,10 +571,14 @@ export default function TopApplicantsPageContent() {
                       
                       const matchScore = Math.round((match.matchScore || 0) * 100);
                       
+                      const isScheduled = scheduledCandidateIds.has(candidate._id?.toString() || "");
+                      
                       return (
                         <Card
                           key={candidate._id || index}
-                          className="hover:shadow-lg transition-shadow"
+                          className={`hover:shadow-lg transition-shadow ${
+                            isScheduled ? "border-green-500 border-2" : ""
+                          }`}
                         >
                           <CardHeader>
                             <div className="flex items-start justify-between">
@@ -428,12 +603,20 @@ export default function TopApplicantsPageContent() {
                                   </CardDescription>
                                 </div>
                               </div>
-                              <div
-                                className={`px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                                  match.matchScore || 0
-                                )}`}
-                              >
-                                {matchScore}%
+                              <div className="flex flex-col items-end gap-2">
+                                <div
+                                  className={`px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                    match.matchScore || 0
+                                  )}`}
+                                >
+                                  {matchScore}%
+                                </div>
+                                {isScheduled && (
+                                  <div className="px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                                    <Calendar className="inline h-3 w-3 mr-1" />
+                                    Scheduled
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </CardHeader>

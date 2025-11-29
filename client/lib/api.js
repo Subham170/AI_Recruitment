@@ -144,3 +144,27 @@ export const matchingAPI = {
     });
   },
 };
+
+// Bolna API functions
+export const bolnaAPI = {
+  scheduleCall: async (callData) => {
+    return apiRequest("/bolna/schedule-call", {
+      method: "POST",
+      body: callData,
+    });
+  },
+
+  scheduleCallsBatch: async (batchData) => {
+    return apiRequest("/bolna/schedule-calls-batch", {
+      method: "POST",
+      body: batchData,
+    });
+  },
+
+  checkCallsScheduled: async (checkData) => {
+    return apiRequest("/bolna/check-calls", {
+      method: "POST",
+      body: checkData,
+    });
+  },
+};
