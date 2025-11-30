@@ -331,11 +331,18 @@ export const scheduleBolnaCallsBatch = async (req, res) => {
         const data = await response.json();
 
         if (!response.ok) {
+          // Extract detailed error message from Bolna API response
+          const errorMessage = data?.message || data?.error || data?.error_message || 
+                              data?.detail || `API returned status ${response.status}`;
+          const errorCode = data?.code || data?.error_code || response.status;
+          
           results.push({
             candidateId: candidate.candidateId,
             success: false,
-            error: "Failed to schedule call with Bolna API",
+            error: errorMessage,
+            errorCode: errorCode,
             details: data,
+            httpStatus: response.status,
           });
           continue;
         }
@@ -386,6 +393,8 @@ export const scheduleBolnaCallsBatch = async (req, res) => {
           candidateId: candidate.candidateId,
           success: false,
           error: error.message || "Failed to schedule call",
+          errorCode: error.code || "UNKNOWN_ERROR",
+          details: error.response?.data || { message: error.message },
         });
       }
     }
