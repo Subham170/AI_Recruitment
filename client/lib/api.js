@@ -145,6 +145,21 @@ export const matchingAPI = {
   },
 };
 
+// Candidate API functions
+export const candidateAPI = {
+  getCandidateById: async (candidateId) => {
+    return apiRequest(`/candidates/${candidateId}`, {
+      method: "GET",
+    });
+  },
+
+  getCandidates: async () => {
+    return apiRequest("/candidates", {
+      method: "GET",
+    });
+  },
+};
+
 // Bolna API functions
 export const bolnaAPI = {
   scheduleCall: async (callData) => {
