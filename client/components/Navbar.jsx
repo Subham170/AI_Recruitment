@@ -36,7 +36,8 @@ export default function Navbar({
           ) : (
             <div className="w-10" />
           )}
-          <h1 className="text-xl font-bold">{title}</h1>
+          {title && <h1 className="text-xl font-bold">{title}</h1>}
+          {!title && <div className="flex-1" />}
           <div className="w-10" />
         </div>
       </header>
@@ -44,7 +45,7 @@ export default function Navbar({
       {/* Desktop Header */}
       <header className="hidden lg:flex items-center justify-between bg-card border-b px-4 py-3">
         <div>
-          <h1 className="text-2xl font-bold">{title}</h1>
+          {title && <h1 className="text-2xl font-bold">{title}</h1>}
           {subtitle && (
             <p className="text-sm text-muted-foreground">{subtitle}</p>
           )}
