@@ -428,7 +428,7 @@ export default function JobsPageContent() {
               {canCreate && (
                 <div className="lg:hidden mb-4">
                   <Button
-                    className="w-full bg-green-500 hover:bg-green-600 text-white"
+                    className="w-full bg-black hover:bg-gray-800 text-white"
                     onClick={openCreateDialog}
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -445,8 +445,8 @@ export default function JobsPageContent() {
                 </div>
               )}
 
-              <div className="mb-6">
-                <div className="relative">
+              <div className="mb-6 flex gap-3 items-center">
+                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <input
                     type="text"
@@ -456,6 +456,17 @@ export default function JobsPageContent() {
                     className="w-full pl-10 pr-4 py-2 border-2 border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   />
                 </div>
+                {canCreate && (
+                  <div className="hidden lg:block">
+                    <Button
+                      className="bg-black hover:bg-gray-800 text-white"
+                      onClick={openCreateDialog}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Job Posting
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {isRecruiter && (

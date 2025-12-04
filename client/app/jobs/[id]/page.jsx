@@ -10,22 +10,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { jobPostingAPI } from "@/lib/api";
 import {
-  Briefcase,
-  DollarSign,
   ArrowLeft,
+  Briefcase,
   Calendar,
   Clock,
-  MapPin,
-  User,
-  Mail,
-  Menu,
+  DollarSign,
   Edit,
+  User,
 } from "lucide-react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function JobDetailPage() {
@@ -105,10 +102,7 @@ export default function JobDetailPage() {
             <CardContent className="pt-6 text-center">
               <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-muted-foreground">Job posting not found</p>
-              <Button
-                className="mt-4"
-                onClick={() => router.push("/jobs")}
-              >
+              <Button className="mt-4" onClick={() => router.push("/jobs")}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Job Postings
               </Button>
@@ -139,41 +133,18 @@ export default function JobDetailPage() {
       </Sheet>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="hidden lg:block bg-card border-b px-4 py-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Job Posting Details</h1>
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                onClick={() => router.push("/jobs")}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-              {isOwner && (
-                <Button
-                  className="bg-green-500 hover:bg-green-600 text-white"
-                  onClick={handleEdit}
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
         <Navbar
-          title="Job Posting Details"
+          title=""
           sidebarOpen={sidebarOpen}
           onSidebarToggle={setSidebarOpen}
         />
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-          {/* Mobile Back and Edit Buttons */}
-          <div className="lg:hidden mb-4 flex gap-2">
+          {/* Back and Edit Buttons */}
+          <div className="mb-6 flex gap-2 items-center justify-between">
             <Button
               variant="outline"
-              className="flex-1"
+              className="flex-1 lg:flex-initial"
               onClick={() => router.push("/jobs")}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -181,7 +152,7 @@ export default function JobDetailPage() {
             </Button>
             {isOwner && (
               <Button
-                className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                className="flex-1 lg:flex-initial bg-black hover:bg-gray-800 text-white"
                 onClick={handleEdit}
               >
                 <Edit className="mr-2 h-4 w-4" />
@@ -239,24 +210,27 @@ export default function JobDetailPage() {
                       <DollarSign className="h-5 w-5 text-muted-foreground" />
                       <div>
                         <p className="text-sm text-muted-foreground">CTC</p>
-                        <p className="text-base font-medium">{jobPosting.ctc}</p>
+                        <p className="text-base font-medium">
+                          {jobPosting.ctc}
+                        </p>
                       </div>
                     </div>
                   )}
 
-                  {jobPosting.exp_req !== undefined && jobPosting.exp_req > 0 && (
-                    <div className="flex items-center gap-3">
-                      <Clock className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Experience Required
-                        </p>
-                        <p className="text-base font-medium">
-                          {jobPosting.exp_req} years
-                        </p>
+                  {jobPosting.exp_req !== undefined &&
+                    jobPosting.exp_req > 0 && (
+                      <div className="flex items-center gap-3">
+                        <Clock className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Experience Required
+                          </p>
+                          <p className="text-base font-medium">
+                            {jobPosting.exp_req} years
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {jobPosting.createdAt && (
                     <div className="flex items-center gap-3">
@@ -350,8 +324,8 @@ export default function JobDetailPage() {
                               Primary Recruiter
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {typeof jobPosting.primary_recruiter_id === "object" &&
-                              jobPosting.primary_recruiter_id.name
+                              {typeof jobPosting.primary_recruiter_id ===
+                                "object" && jobPosting.primary_recruiter_id.name
                                 ? `${jobPosting.primary_recruiter_id.name}${
                                     jobPosting.primary_recruiter_id.email
                                       ? ` (${jobPosting.primary_recruiter_id.email})`
@@ -374,12 +348,18 @@ export default function JobDetailPage() {
                               {jobPosting.secondary_recruiter_id
                                 .filter((recruiter) => recruiter !== null)
                                 .map((recruiter, idx) => (
-                                  <div key={idx} className="flex items-center gap-2">
+                                  <div
+                                    key={idx}
+                                    className="flex items-center gap-2"
+                                  >
                                     <User className="h-3 w-3 text-muted-foreground" />
                                     <p className="text-xs text-muted-foreground">
-                                      {typeof recruiter === "object" && recruiter.name
+                                      {typeof recruiter === "object" &&
+                                      recruiter.name
                                         ? `${recruiter.name}${
-                                            recruiter.email ? ` (${recruiter.email})` : ""
+                                            recruiter.email
+                                              ? ` (${recruiter.email})`
+                                              : ""
                                           }`
                                         : "N/A"}
                                     </p>
@@ -399,4 +379,3 @@ export default function JobDetailPage() {
     </div>
   );
 }
-

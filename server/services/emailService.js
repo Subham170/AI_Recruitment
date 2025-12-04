@@ -1,11 +1,16 @@
+import axios from "axios";
 import nodemailer from "nodemailer";
 
 // Email configuration from environment variables
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
 const SMTP_PORT = process.env.SMTP_PORT || 587;
-const SMTP_USER =
-  process.env.SMTP_USER || process.env.SENDER_EMAIL;
+const SMTP_USER = process.env.SMTP_USER || process.env.SENDER_EMAIL;
 const SMTP_PASS = process.env.SMTP_PASS || process.env.SMTP_PASSWORD;
+
+// Cal.com API configuration
+const CAL_SECRET_KEY = process.env.CAL_SECRET_KEY;
+const CAL_API_VERSION = process.env.CAL_API_VERSION;
+const EVENT_TYPE_ID = process.env.CAL_EVENT_TYPE_ID;
 
 // Create reusable transporter
 const transporter = nodemailer.createTransport({
@@ -19,22 +24,101 @@ const transporter = nodemailer.createTransport({
 });
 
 /**
- * Generate Google Meet link with scheduled time
- * @param {Date} scheduledTime - The scheduled time for the meeting
- * @returns {string} - Google Meet link
+ * Generate Google Meet link with scheduled time using Cal.com API
+ * @param {Date|string} scheduledTime - The scheduled time for the meeting
+ * @param {string} candidateName - Candidate name for the booking
+ * @param {string} candidateEmail - Candidate email for the booking
+ * @returns {Promise<string>} - Google Meet link
  */
-function generateGoogleMeetLink(scheduledTime) {
-  // Format: https://meet.google.com/xxx-xxxx-xxx
-  // For now, we'll use a placeholder or generate a unique meeting ID
-  // In production, you might want to integrate with Google Calendar API to create actual meetings
+async function generateGoogleMeetLink(
+  scheduledTime,
+  candidateName,  
+  candidateEmail
+) {
+  try {
+    // Convert scheduledTime to ISO string if it's a Date object
+    const startTimeISO =
+      scheduledTime instanceof Date
+        ? scheduledTime.toISOString()
+        : scheduledTime;
 
-  // Simple approach: Use a base meeting link
-  // You can replace this with actual Google Meet integration
-//   const meetingId = `ai-recruitment-${Date.now()}`;
-  return `https://meet.google.com/rrh-ggmw-ymy`;
+    if (!startTimeISO) {
+      throw new Error("Scheduled time is required");
+    }
 
-  // Alternative: If you have Google Calendar API integration
-  // return await createGoogleCalendarEvent(scheduledTime);
+    console.log("Creating Cal.com booking for:", startTimeISO);
+
+    // Create booking request body
+    const requestBody = {
+      eventTypeId: EVENT_TYPE_ID,
+      start: startTimeISO,
+      location: "integrations:google_meet",
+      attendee: {
+        name: candidateName,
+        email: candidateEmail,
+        timeZone: "Asia/Kolkata",
+        language: "en",
+      },
+    };
+
+    // Create booking via Cal.com API
+    const createResp = await axios.post(
+      "https://api.cal.com/v2/bookings",
+      requestBody,
+      {
+        headers: {
+          Authorization: `Bearer ${CAL_SECRET_KEY}`,
+          "cal-api-version": CAL_API_VERSION,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const bookingUid = createResp.data.data.uid;
+    console.log("✓ Booking Created. UID:", bookingUid);
+
+    // Get booking details to retrieve the meeting link
+    const getBookingResp = await axios.get(
+      `https://api.cal.com/v2/bookings/${bookingUid}`,
+      {
+        headers: {
+          Authorization: `Bearer ${CAL_SECRET_KEY}`,
+          "cal-api-version": CAL_API_VERSION,
+        },
+      }
+    );
+
+    const bookingData = getBookingResp.data.data;
+
+    // Extract meeting link from booking data
+    const meetLink =
+      bookingData.meetingUrl ||
+      bookingData.location?.url ||
+      bookingData.metadata?.videoCallUrl ||
+      null;
+
+    if (!meetLink) {
+      console.warn("⚠️ Meeting link not found in booking response");
+      return "No link generated";
+    }
+
+    console.log("✓ Google Meet link generated:", meetLink);
+    return meetLink;
+  } catch (error) {
+    console.error("❌ Error generating Google Meet link:", error.message);
+
+    // Log detailed error if available
+    if (error.response?.data) {
+      console.error(
+        "API Error Details:",
+        JSON.stringify(error.response.data, null, 2)
+      );
+    }
+
+    // Return error message on error
+    console.warn("⚠️ Unable to generate Google Meet link due to error");
+    return "Unable to generate link";
+  }
 }
 
 /**
@@ -80,7 +164,11 @@ export async function sendEmail(
       );
     }
 
-    const meetLink = generateGoogleMeetLink(userScheduledAt);
+    const meetLink = await generateGoogleMeetLink(
+      userScheduledAt,
+      "Candidate",
+      candidateEmail
+    );
     const formattedDate = formatDateForEmail(userScheduledAt);
 
     const mailOptions = {
