@@ -49,6 +49,8 @@ import {
   Search,
   User,
   X,
+  StopCircle,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -75,6 +77,13 @@ export default function TopApplicantsPageContent() {
   const [candidateDetails, setCandidateDetails] = useState(null);
   const [loadingCandidateDetails, setLoadingCandidateDetails] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [callStatuses, setCallStatuses] = useState(new Map()); // Map of candidateId -> { executionId, status, canStop, callScheduledAt }
+  const [stoppingCalls, setStoppingCalls] = useState(false);
+  const [stoppingCallId, setStoppingCallId] = useState(null);
+  const [stopAllDialogOpen, setStopAllDialogOpen] = useState(false);
+  const [callDetailsDialogOpen, setCallDetailsDialogOpen] = useState(false);
+  const [selectedCallDetails, setSelectedCallDetails] = useState(null);
+  const [loadingCallDetails, setLoadingCallDetails] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -334,10 +343,19 @@ export default function TopApplicantsPageContent() {
     try {
       setSchedulingCalls(true);
 
-      // Filter out already scheduled candidates
+      // Filter out already scheduled candidates and candidates with stopped calls
       const candidatesToSchedule = candidates.filter((match) => {
         const candidateId = match.candidateId?._id?.toString();
-        return candidateId && !scheduledCandidateIds.has(candidateId);
+        if (!candidateId) return false;
+        
+        // Skip if already scheduled
+        if (scheduledCandidateIds.has(candidateId)) return false;
+        
+        // Skip if call is stopped
+        const callStatus = callStatuses.get(candidateId);
+        if (callStatus && callStatus.status === "stopped") return false;
+        
+        return true;
       });
 
       if (candidatesToSchedule.length === 0) {
@@ -419,6 +437,11 @@ export default function TopApplicantsPageContent() {
         newlyScheduled.forEach((id) => updated.add(id));
         return updated;
       });
+
+      // Fetch call statuses for all scheduled calls
+      if (selectedJob?._id) {
+        fetchCallStatuses(selectedJob._id);
+      }
 
       // Prepare detailed error information
       const failedResults = response.results.filter(
@@ -557,6 +580,163 @@ export default function TopApplicantsPageContent() {
       setSchedulingCalls(false);
     }
   };
+
+  // Fetch call statuses for all calls in a job
+  const fetchCallStatuses = async (jobId) => {
+    if (!jobId) return;
+
+    try {
+      const response = await bolnaAPI.getCallsByJob(jobId);
+      const statusMap = new Map();
+
+      response.calls.forEach((call) => {
+        // candidateId is already a string from backend
+        const candidateId = call.candidateId;
+        
+        if (candidateId) {
+          statusMap.set(candidateId, {
+            executionId: call.executionId,
+            status: call.status,
+            canStop: call.canStop,
+            callScheduledAt: call.callScheduledAt,
+            userScheduledAt: call.userScheduledAt,
+          });
+        }
+      });
+
+      setCallStatuses(statusMap);
+    } catch (err) {
+      console.error("Error fetching call statuses:", err);
+    }
+  };
+
+  // Stop all calls for the selected job
+  const handleStopAllCalls = async () => {
+    if (!selectedJob?._id) return;
+
+    try {
+      setStoppingCalls(true);
+      const response = await bolnaAPI.stopAllCalls(selectedJob._id);
+
+      setNotification({
+        variant: "success",
+        title: "Calls Stopped",
+        message: `Successfully stopped ${response.stoppedCount} call(s)`,
+        dismissible: true,
+      });
+
+      // Refresh call statuses
+      await fetchCallStatuses(selectedJob._id);
+      setStopAllDialogOpen(false);
+    } catch (err) {
+      console.error("Error stopping calls:", err);
+      setNotification({
+        variant: "error",
+        title: "Failed to Stop Calls",
+        message: err.message || "Failed to stop calls. Please try again.",
+        dismissible: true,
+      });
+    } finally {
+      setStoppingCalls(false);
+    }
+  };
+
+  // Fetch and show call details for a candidate
+  const handleViewCallDetails = async (candidateId, executionId) => {
+    if (!executionId) {
+      // If no executionId, try to get it from callStatuses
+      const candidateIdStr = candidateId?.toString();
+      const callStatus = candidateIdStr ? callStatuses.get(candidateIdStr) : null;
+      if (!callStatus?.executionId) {
+        setNotification({
+          variant: "info",
+          title: "No Call Information",
+          message: "No call information available for this candidate.",
+          dismissible: true,
+        });
+        return;
+      }
+      executionId = callStatus.executionId;
+    }
+
+    try {
+      setLoadingCallDetails(true);
+      setCallDetailsDialogOpen(true);
+      const response = await bolnaAPI.getCallStatus(executionId);
+      setSelectedCallDetails(response);
+    } catch (err) {
+      console.error("Error fetching call details:", err);
+      setNotification({
+        variant: "error",
+        title: "Failed to Load Call Details",
+        message: err.message || "Failed to load call details. Please try again.",
+        dismissible: true,
+      });
+      setCallDetailsDialogOpen(false);
+    } finally {
+      setLoadingCallDetails(false);
+    }
+  };
+
+  // Stop a single call
+  const handleStopCall = async (executionId, candidateId) => {
+    if (!executionId) return;
+
+    try {
+      setStoppingCallId(executionId);
+      await bolnaAPI.stopCall(executionId);
+
+      setNotification({
+        variant: "success",
+        title: "Call Stopped",
+        message: "The call has been stopped successfully.",
+        dismissible: true,
+      });
+
+      // Update call status in the map
+      setCallStatuses((prev) => {
+        const updated = new Map(prev);
+        const candidateIdStr = candidateId?.toString();
+        if (candidateIdStr && updated.has(candidateIdStr)) {
+          const status = updated.get(candidateIdStr);
+          updated.set(candidateIdStr, {
+            ...status,
+            status: "stopped",
+            canStop: false,
+          });
+        }
+        return updated;
+      });
+
+      // Refresh call statuses and call details if dialog is open
+      if (selectedJob?._id) {
+        await fetchCallStatuses(selectedJob._id);
+        if (callDetailsDialogOpen && selectedCallDetails?.call?.executionId === executionId) {
+          // Refresh call details
+          const response = await bolnaAPI.getCallStatus(executionId);
+          setSelectedCallDetails(response);
+        }
+      }
+    } catch (err) {
+      console.error("Error stopping call:", err);
+      setNotification({
+        variant: "error",
+        title: "Failed to Stop Call",
+        message: err.message || "Failed to stop call. Please try again.",
+        dismissible: true,
+      });
+    } finally {
+      setStoppingCallId(null);
+    }
+  };
+
+  // Fetch call statuses when job is selected
+  useEffect(() => {
+    if (selectedJob?._id) {
+      fetchCallStatuses(selectedJob._id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedJob?._id]);
 
   if (!user) {
     return null;
@@ -778,6 +958,23 @@ export default function TopApplicantsPageContent() {
                               </Button>
                             );
                           })()}
+                        {/* Stop All Calls Button - Show if there are scheduled calls that can be stopped */}
+                        {(() => {
+                          const scheduledCallsCount = Array.from(callStatuses.values()).filter(
+                            (status) => status.canStop
+                          ).length;
+                          return scheduledCallsCount > 0 ? (
+                            <Button
+                              variant="outline"
+                              className="bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400"
+                              onClick={() => setStopAllDialogOpen(true)}
+                              disabled={stoppingCalls}
+                            >
+                              <StopCircle className="mr-2 h-4 w-4" />
+                              Stop All Calls ({scheduledCallsCount})
+                            </Button>
+                          ) : null;
+                        })()}
                         <Button
                           variant="outline"
                           onClick={() => {
@@ -1002,6 +1199,23 @@ export default function TopApplicantsPageContent() {
                           </Button>
                         );
                       })()}
+                    {/* Stop All Calls Button - Mobile */}
+                    {(() => {
+                      const scheduledCallsCount = Array.from(callStatuses.values()).filter(
+                        (status) => status.canStop
+                      ).length;
+                      return scheduledCallsCount > 0 ? (
+                        <Button
+                          className="w-full bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400"
+                          variant="outline"
+                          onClick={() => setStopAllDialogOpen(true)}
+                          disabled={stoppingCalls}
+                        >
+                          <StopCircle className="mr-2 h-4 w-4" />
+                          Stop All Calls ({scheduledCallsCount})
+                        </Button>
+                      ) : null;
+                    })()}
                     <Button
                       className="w-full"
                       variant="outline"
@@ -1151,16 +1365,45 @@ export default function TopApplicantsPageContent() {
                                     )}
                                   </TableCell>
                                   <TableCell>
-                                    {isScheduled ? (
-                                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
-                                        <Calendar className="h-3 w-3" />
-                                        Scheduled
-                                      </div>
-                                    ) : (
-                                      <span className="text-sm text-muted-foreground">
-                                        Not Scheduled
-                                      </span>
-                                    )}
+                                    {(() => {
+                                      const candidateIdStr = candidate._id?.toString();
+                                      const callStatus = candidateIdStr ? callStatuses.get(candidateIdStr) : null;
+                                      
+                                      if (isScheduled && callStatus) {
+                                        const statusColors = {
+                                          scheduled: "bg-blue-500",
+                                          in_progress: "bg-yellow-500",
+                                          completed: "bg-green-500",
+                                          stopped: "bg-red-500",
+                                          cancelled: "bg-gray-500",
+                                          failed: "bg-red-600",
+                                        };
+                                        const statusColor = statusColors[callStatus.status?.toLowerCase()] || "bg-blue-500";
+                                        const statusText = callStatus.status || "Scheduled";
+                                        
+                                        return (
+                                          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${statusColor} text-white`}>
+                                            <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                                            <span>
+                                              {statusText}
+                                            </span>
+                                          </div>
+                                        );
+                                      } else if (isScheduled) {
+                                        return (
+                                          <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                                            <Calendar className="h-3 w-3" />
+                                            Scheduled
+                                          </div>
+                                        );
+                                      } else {
+                                        return (
+                                          <span className="text-sm text-muted-foreground">
+                                            Not Scheduled
+                                          </span>
+                                        );
+                                      }
+                                    })()}
                                   </TableCell>
                                   <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-2">
@@ -1173,12 +1416,76 @@ export default function TopApplicantsPageContent() {
                                       >
                                         <Eye className="h-4 w-4" />
                                       </Button>
-                                      <Button
-                                        className="bg-black hover:bg-black/80 text-white"
-                                        size="sm"
-                                      >
-                                        <Calendar className="h-4 w-4" />
-                                      </Button>
+                                      {(() => {
+                                        const candidateIdStr = candidate._id?.toString();
+                                        const callStatus = candidateIdStr ? callStatuses.get(candidateIdStr) : null;
+                                        const isStopping = stoppingCallId === callStatus?.executionId;
+                                        
+                                        // Show stop button only if canStop is true AND status is not stopped/cancelled/completed
+                                        if (
+                                          callStatus &&
+                                          callStatus.canStop &&
+                                          callStatus.status !== "stopped" &&
+                                          callStatus.status !== "cancelled" &&
+                                          callStatus.status !== "completed"
+                                        ) {
+                                          return (
+                                            <Button
+                                              className="bg-red-500 hover:bg-red-600 text-white"
+                                              size="sm"
+                                              onClick={() =>
+                                                handleViewCallDetails(
+                                                  candidateIdStr,
+                                                  callStatus.executionId
+                                                )
+                                              }
+                                              title={`View call details - Status: ${callStatus.status}`}
+                                            >
+                                              <StopCircle className="h-4 w-4" />
+                                            </Button>
+                                          );
+                                        } else if (callStatus) {
+                                          return (
+                                            <Button
+                                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                                              size="sm"
+                                              onClick={() =>
+                                                handleViewCallDetails(
+                                                  candidateIdStr,
+                                                  callStatus.executionId
+                                                )
+                                              }
+                                              title={`View call details - Status: ${callStatus.status}`}
+                                            >
+                                              <Calendar className="h-4 w-4" />
+                                            </Button>
+                                          );
+                                        } else if (isScheduled) {
+                                          return (
+                                            <Button
+                                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                                              size="sm"
+                                              onClick={() =>
+                                                handleViewCallDetails(candidateIdStr)
+                                              }
+                                              title="View call details"
+                                            >
+                                              <Calendar className="h-4 w-4" />
+                                            </Button>
+                                          );
+                                        } else {
+                                          return (
+                                            <Button
+                                              className="bg-black hover:bg-black/80 text-white"
+                                              size="sm"
+                                              disabled
+                                              title="No call scheduled"
+                                            >
+                                              <Calendar className="h-4 w-4" />
+                                            </Button>
+                                          );
+                                        }
+                                      })()}
                                     </div>
                                   </TableCell>
                                 </TableRow>
@@ -1212,6 +1519,307 @@ export default function TopApplicantsPageContent() {
           )}
         </main>
       </div>
+
+      {/* Stop All Calls Dialog */}
+      <Dialog open={stopAllDialogOpen} onOpenChange={setStopAllDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Stop All Scheduled Calls</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to stop all scheduled calls for this job? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {(() => {
+              const stoppableCalls = Array.from(callStatuses.values()).filter(
+                (status) => status.canStop
+              );
+              return (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">
+                    The following {stoppableCalls.length} call(s) will be stopped:
+                  </p>
+                  <div className="max-h-48 overflow-y-auto space-y-2 border rounded-md p-3">
+                    {stoppableCalls.map((callStatus, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded"
+                      >
+                        <div>
+                          <p className="font-medium">Call #{idx + 1}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Scheduled:{" "}
+                            {callStatus.callScheduledAt
+                              ? new Date(callStatus.callScheduledAt).toLocaleString()
+                              : "N/A"}
+                          </p>
+                        </div>
+                        <div className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400">
+                          {callStatus.status || "scheduled"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setStopAllDialogOpen(false)}
+              disabled={stoppingCalls}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-red-500 hover:bg-red-600 text-white"
+              onClick={handleStopAllCalls}
+              disabled={stoppingCalls}
+            >
+              {stoppingCalls ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Stopping...
+                </>
+              ) : (
+                <>
+                  <StopCircle className="mr-2 h-4 w-4" />
+                  Stop All Calls
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Call Details Dialog */}
+      <Dialog
+        open={callDetailsDialogOpen}
+        onOpenChange={setCallDetailsDialogOpen}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Call Details</DialogTitle>
+            <DialogDescription>
+              View detailed information about the scheduled call
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingCallDetails ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : selectedCallDetails ? (
+            <div className="space-y-6 mt-4">
+              {/* Call Status */}
+              <div className="p-4 rounded-lg border bg-gray-50 dark:bg-gray-800/50">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    Call Status
+                  </h3>
+                  <div
+                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      selectedCallDetails.call?.status === "completed"
+                        ? "bg-green-500 text-white"
+                        : selectedCallDetails.call?.status === "stopped" ||
+                          selectedCallDetails.call?.status === "cancelled"
+                        ? "bg-red-500 text-white"
+                        : selectedCallDetails.call?.status === "in_progress"
+                        ? "bg-yellow-500 text-white"
+                        : "bg-blue-500 text-white"
+                    }`}
+                  >
+                    {selectedCallDetails.call?.status || "Unknown"}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Execution ID
+                    </p>
+                    <p className="text-sm font-mono">
+                      {selectedCallDetails.call?.executionId || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Can Stop
+                    </p>
+                    <p className="text-sm">
+                      {selectedCallDetails.call?.canStop ? (
+                        <span className="text-green-600 dark:text-green-400">
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="text-red-600 dark:text-red-400">
+                          No
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Schedule Information */}
+              <div className="p-4 rounded-lg border">
+                <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wide">
+                  Schedule Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedCallDetails.call?.callScheduledAt && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground">
+                          Scheduled Time
+                        </p>
+                      </div>
+                      <p className="text-sm font-medium">
+                        {new Date(
+                          selectedCallDetails.call.callScheduledAt
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                  {selectedCallDetails.call?.userScheduledAt && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground">
+                          User Scheduled Time
+                        </p>
+                      </div>
+                      <p className="text-sm font-medium">
+                        {new Date(
+                          selectedCallDetails.call.userScheduledAt
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                  {selectedCallDetails.call?.createdAt && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Created At
+                      </p>
+                      <p className="text-sm">
+                        {new Date(
+                          selectedCallDetails.call.createdAt
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                  {selectedCallDetails.call?.updatedAt && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Last Updated
+                      </p>
+                      <p className="text-sm">
+                        {new Date(
+                          selectedCallDetails.call.updatedAt
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Execution Details */}
+              {selectedCallDetails.execution && (
+                <div className="p-4 rounded-lg border">
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wide">
+                    Execution Details
+                  </h3>
+                  <div className="space-y-3">
+                    {selectedCallDetails.execution.transcript && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Transcript
+                        </p>
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded text-sm max-h-40 overflow-y-auto">
+                          {selectedCallDetails.execution.transcript}
+                        </div>
+                      </div>
+                    )}
+                    {selectedCallDetails.execution.duration && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Duration
+                        </p>
+                        <p className="text-sm">
+                          {selectedCallDetails.execution.duration} seconds
+                        </p>
+                      </div>
+                    )}
+                    {selectedCallDetails.execution.start_time && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Start Time
+                        </p>
+                        <p className="text-sm">
+                          {new Date(
+                            selectedCallDetails.execution.start_time
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                    {selectedCallDetails.execution.end_time && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          End Time
+                        </p>
+                        <p className="text-sm">
+                          {new Date(
+                            selectedCallDetails.execution.end_time
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Stop Call Button - Only show if call can be stopped and is not already stopped */}
+              {selectedCallDetails.call?.canStop &&
+                selectedCallDetails.call?.status !== "stopped" &&
+                selectedCallDetails.call?.status !== "cancelled" &&
+                selectedCallDetails.call?.status !== "completed" && (
+                  <div className="flex justify-end pt-4 border-t">
+                    <Button
+                      className="bg-red-500 hover:bg-red-600 text-white"
+                      onClick={() =>
+                        handleStopCall(
+                          selectedCallDetails.call.executionId,
+                          selectedCallDetails.call.candidateId
+                        )
+                      }
+                      disabled={
+                        stoppingCallId === selectedCallDetails.call.executionId
+                      }
+                    >
+                      {stoppingCallId ===
+                      selectedCallDetails.call.executionId ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Stopping...
+                        </>
+                      ) : (
+                        <>
+                          <StopCircle className="mr-2 h-4 w-4" />
+                          Stop Call
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-muted-foreground">
+              No call details available
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Candidate Profile Dialog */}
       <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
