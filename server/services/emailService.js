@@ -294,13 +294,6 @@ async function generateGoogleMeetLink(
   }
 }
 
-const res = await generateGoogleMeetLink(
-  new Date(),
-  "Subham",
-  "subhamdey1114@gmail.com"
-);
-console.log("res", res);
-
 /**
  * Format date for email display
  * @param {Date} date - Date to format
