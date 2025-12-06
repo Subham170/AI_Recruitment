@@ -2,6 +2,7 @@ import { StringOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { ChatOpenAI } from "@langchain/openai";
 import BolnaCall from "./model.js";
+import RecruiterAvailability from "../recruiter_availability/model.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -39,6 +40,96 @@ function ensureBolnaConfig() {
   }
 }
 
+// Format recruiter availability data into a natural paragraph using LLM
+async function formatRecruiterAvailabilityWithLLM(availabilities) {
+  if (!llmClient || !availabilities || availabilities.length === 0) {
+    return "";
+  }
+
+  try {
+    // Prepare structured data for LLM
+    const availabilityData = [];
+    
+    for (const availability of availabilities) {
+      const recruiterName = availability.recruiter_id?.name || "Recruiter";
+      const recruiterType = availability.recruiter_type === "primary" ? "Primary" : "Secondary";
+      
+      if (availability.availability_slots && availability.availability_slots.length > 0) {
+        // Filter only available slots
+        const availableSlots = availability.availability_slots.filter(
+          (slot) => slot.is_available !== false
+        );
+        
+        if (availableSlots.length > 0) {
+          // Group slots by date
+          const slotsByDate = {};
+          availableSlots.forEach((slot) => {
+            const date = new Date(slot.date);
+            const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+            const dateDisplay = date.toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            });
+            
+            if (!slotsByDate[dateStr]) {
+              slotsByDate[dateStr] = {
+                display: dateDisplay,
+                slots: [],
+              };
+            }
+            slotsByDate[dateStr].slots.push({
+              start: slot.start_time,
+              end: slot.end_time,
+            });
+          });
+          
+          availabilityData.push({
+            recruiterName,
+            recruiterType,
+            availability: Object.keys(slotsByDate).map((dateStr) => ({
+              date: slotsByDate[dateStr].display,
+              timeSlots: slotsByDate[dateStr].slots.map(
+                (slot) => `${slot.start} to ${slot.end}`
+              ),
+            })),
+          });
+        }
+      }
+    }
+
+    if (availabilityData.length === 0) {
+      return "";
+    }
+
+    // Create prompt for LLM
+    const prompt = ChatPromptTemplate.fromMessages([
+      {
+        role: "system",
+        content:
+          "You are a helpful assistant that formats recruiter availability information into a clear, natural, and professional paragraph. The paragraph should be concise, easy to understand, and suitable for use in a phone conversation context.",
+      },
+      {
+        role: "user",
+        content:
+          'Format the following recruiter availability information into a single, natural paragraph. Make it sound professional and conversational, suitable for an AI agent to read to a candidate during a phone call.\n\nRecruiter Availability Data:\n{availabilityData}\n\nReturn only the formatted paragraph, nothing else. Do not include any prefixes, labels, or additional text.',
+      },
+    ]);
+
+    const chain = prompt.pipe(llmClient).pipe(new StringOutputParser());
+    const formattedText = await chain.invoke({
+      availabilityData: JSON.stringify(availabilityData, null, 2),
+    });
+
+    return formattedText.trim();
+  } catch (error) {
+    console.error("Error formatting recruiter availability with LLM:", error);
+    // Fallback to empty string if LLM fails
+    return "";
+  }
+}
+
 export const scheduleBolnaCall = async (req, res) => {
   try {
     ensureBolnaConfig();
@@ -59,8 +150,35 @@ export const scheduleBolnaCall = async (req, res) => {
       });
     }
 
+    // Fetch recruiter availability for this job and format with LLM
+    let recruiterAvailabilityText = "";
+    try {
+      const availabilities = await RecruiterAvailability.find({
+        job_id: jobId,
+      })
+        .populate("recruiter_id", "name email")
+        .sort({ recruiter_type: 1 }); // Primary first, then secondary
+
+      if (availabilities && availabilities.length > 0) {
+        // Use LLM to format availability into a natural paragraph
+        recruiterAvailabilityText = await formatRecruiterAvailabilityWithLLM(availabilities);
+      }
+    } catch (error) {
+      console.error("Error fetching recruiter availability:", error);
+      // Continue without availability text if there's an error
+    }
+
+    // Add recruiter availability to user_data if it exists
+    const updatedCallData = { ...callData };
+    if (recruiterAvailabilityText) {
+      if (!updatedCallData.user_data) {
+        updatedCallData.user_data = {};
+      }
+      updatedCallData.user_data.recruiter_availability = recruiterAvailabilityText;
+    }
+
     const payload = {
-      ...callData,
+      ...updatedCallData,
       agent_id: BOLNA_AGENT_ID,
       from_phone_number: BOLNA_FROM_PHONE,
     };
@@ -306,6 +424,24 @@ export const scheduleBolnaCallsBatch = async (req, res) => {
       candidatesToSchedule.push(candidate);
     }
 
+    // Fetch all recruiter availability for this job and format with LLM
+    let recruiterAvailabilityText = "";
+    try {
+      const availabilities = await RecruiterAvailability.find({
+        job_id: jobId,
+      })
+        .populate("recruiter_id", "name email")
+        .sort({ recruiter_type: 1 }); // Primary first, then secondary
+
+      if (availabilities && availabilities.length > 0) {
+        // Use LLM to format availability into a natural paragraph
+        recruiterAvailabilityText = await formatRecruiterAvailabilityWithLLM(availabilities);
+      }
+    } catch (error) {
+      console.error("Error fetching recruiter availability:", error);
+      // Continue without availability text if there's an error
+    }
+
     // Schedule calls for all candidates with 5-minute gaps
     for (let i = 0; i < candidatesToSchedule.length; i++) {
       const candidate = candidatesToSchedule[i];
@@ -315,10 +451,17 @@ export const scheduleBolnaCallsBatch = async (req, res) => {
       scheduledTime.setMinutes(scheduledTime.getMinutes() + (i * CALL_GAP_MINUTES));
 
       try {
+        // Prepare user_data with recruiter availability
+        const userData = candidate.user_data || {};
+        console.log("recruiterAvailabilityText", recruiterAvailabilityText);
+        if (recruiterAvailabilityText) {
+          userData.recruiter_availability = recruiterAvailabilityText;
+        }
+
         const callData = {
           recipient_phone_number: candidate.recipient_phone_number,
           scheduled_at: scheduledTime.toISOString(),
-          ...(candidate.user_data && { user_data: candidate.user_data }),
+          ...(Object.keys(userData).length > 0 && { user_data: userData }),
         };
 
         const payload = {
