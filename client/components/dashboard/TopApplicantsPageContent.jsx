@@ -4,8 +4,14 @@ import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Loading from "@/components/ui/loading";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Notification } from "@/components/ui/notification";
 import {
   Select,
@@ -14,31 +20,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
-import { bolnaAPI, candidateAPI, jobPostingAPI, matchingAPI, userAPI } from "@/lib/api";
 import {
-  AlertCircle,
+  bolnaAPI,
+  candidateAPI,
+  jobPostingAPI,
+  matchingAPI,
+  userAPI,
+} from "@/lib/api";
+import {
   Briefcase,
   Calendar,
-  CheckCircle2,
   Clock,
   DollarSign,
   Eye,
-  Info,
   Mail,
   Phone,
   RefreshCw,
   Search,
   User,
   X,
-  XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -182,12 +192,12 @@ export default function TopApplicantsPageContent() {
     if (!selectedJob || !recruiterId) return;
 
     const currentSecondaryRecruiters = selectedJob.secondary_recruiter_id || [];
-    
+
     // Convert to string IDs for comparison (handle both populated objects and ID strings)
     const currentIds = currentSecondaryRecruiters.map(
       (id) => id?._id?.toString() || id?.toString()
     );
-    
+
     // Check if already added
     if (currentIds.includes(recruiterId.toString())) {
       return;
@@ -195,8 +205,11 @@ export default function TopApplicantsPageContent() {
 
     try {
       setUpdatingRecruiters(true);
-      const updatedSecondaryRecruiters = [...currentIds, recruiterId.toString()];
-      
+      const updatedSecondaryRecruiters = [
+        ...currentIds,
+        recruiterId.toString(),
+      ];
+
       await jobPostingAPI.updateJobPosting(selectedJob._id, {
         secondary_recruiter_id: updatedSecondaryRecruiters,
       });
@@ -215,7 +228,6 @@ export default function TopApplicantsPageContent() {
             : job
         )
       );
-
     } catch (err) {
       console.error("Error adding secondary recruiter:", err);
     } finally {
@@ -225,11 +237,11 @@ export default function TopApplicantsPageContent() {
 
   const handleViewProfile = async (candidate) => {
     if (!candidate?._id) return;
-    
+
     setSelectedCandidate(candidate);
     setProfileDialogOpen(true);
     setCandidateDetails(null);
-    
+
     try {
       setLoadingCandidateDetails(true);
       const details = await candidateAPI.getCandidateById(candidate._id);
@@ -239,7 +251,8 @@ export default function TopApplicantsPageContent() {
       setNotification({
         variant: "error",
         title: "Failed to Load Profile",
-        message: err.message || "Failed to load candidate details. Please try again.",
+        message:
+          err.message || "Failed to load candidate details. Please try again.",
         dismissible: true,
       });
     } finally {
@@ -261,7 +274,7 @@ export default function TopApplicantsPageContent() {
 
     try {
       setUpdatingRecruiters(true);
-      
+
       await jobPostingAPI.updateJobPosting(selectedJob._id, {
         secondary_recruiter_id: updatedSecondaryRecruiters,
       });
@@ -280,7 +293,6 @@ export default function TopApplicantsPageContent() {
             : job
         )
       );
-
     } catch (err) {
       console.error("Error removing secondary recruiter:", err);
     } finally {
@@ -307,7 +319,8 @@ export default function TopApplicantsPageContent() {
       setNotification({
         variant: "error",
         title: "Failed to Refresh",
-        message: err.message || "Failed to refresh candidates. Please try again.",
+        message:
+          err.message || "Failed to refresh candidates. Please try again.",
         dismissible: true,
       });
     } finally {
@@ -366,13 +379,17 @@ export default function TopApplicantsPageContent() {
       if (candidatesArray.length === 0) {
         const failedCandidates = candidatesToSchedule
           .filter((match) => !match.candidateId?.phone_no)
-          .map((match) => 
-            `${match.candidateId?.name || "Unknown Candidate"}: Missing phone number`
+          .map(
+            (match) =>
+              `${
+                match.candidateId?.name || "Unknown Candidate"
+              }: Missing phone number`
           );
         setNotification({
           variant: "warning",
           title: "No Valid Candidates",
-          message: "No candidates with valid phone numbers found for scheduling.",
+          message:
+            "No candidates with valid phone numbers found for scheduling.",
           details: failedCandidates,
           dismissible: true,
         });
@@ -404,16 +421,22 @@ export default function TopApplicantsPageContent() {
       });
 
       // Prepare detailed error information
-      const failedResults = response.results.filter((r) => !r.success && !r.alreadyScheduled);
-      const alreadyScheduledResults = response.results.filter((r) => r.alreadyScheduled);
-      
+      const failedResults = response.results.filter(
+        (r) => !r.success && !r.alreadyScheduled
+      );
+      const alreadyScheduledResults = response.results.filter(
+        (r) => r.alreadyScheduled
+      );
+
       // Map failed candidates with detailed error information
       const failedDetails = failedResults.map((result) => {
         const candidate = candidates.find(
-          (c) => c.candidateId?._id?.toString() === result.candidateId?.toString()
+          (c) =>
+            c.candidateId?._id?.toString() === result.candidateId?.toString()
         );
-        const candidateName = candidate?.candidateId?.name || "Unknown Candidate";
-        
+        const candidateName =
+          candidate?.candidateId?.name || "Unknown Candidate";
+
         // Return structured error object with all available details
         return {
           name: candidateName,
@@ -423,31 +446,39 @@ export default function TopApplicantsPageContent() {
           httpStatus: result.httpStatus,
           details: result.details,
           // Also keep string format for backward compatibility
-          string: `${candidateName}: ${result.error || "Failed to schedule call"}`,
+          string: `${candidateName}: ${
+            result.error || "Failed to schedule call"
+          }`,
         };
       });
-      
+
       // Extract main/common error
-      const mainError = failedDetails.length > 0 ? (() => {
-        const errorCounts = {};
-        failedDetails.forEach((detail) => {
-          const errorKey = detail.error || "Unknown error";
-          errorCounts[errorKey] = (errorCounts[errorKey] || 0) + 1;
-        });
-        const sortedErrors = Object.entries(errorCounts).sort((a, b) => b[1] - a[1]);
-        if (sortedErrors.length > 0) {
-          return {
-            message: sortedErrors[0][0],
-            count: sortedErrors[0][1],
-            total: failedDetails.length,
-          };
-        }
-        return null;
-      })() : null;
+      const mainError =
+        failedDetails.length > 0
+          ? (() => {
+              const errorCounts = {};
+              failedDetails.forEach((detail) => {
+                const errorKey = detail.error || "Unknown error";
+                errorCounts[errorKey] = (errorCounts[errorKey] || 0) + 1;
+              });
+              const sortedErrors = Object.entries(errorCounts).sort(
+                (a, b) => b[1] - a[1]
+              );
+              if (sortedErrors.length > 0) {
+                return {
+                  message: sortedErrors[0][0],
+                  count: sortedErrors[0][1],
+                  total: failedDetails.length,
+                };
+              }
+              return null;
+            })()
+          : null;
 
       const alreadyScheduledDetails = alreadyScheduledResults.map((result) => {
         const candidate = candidates.find(
-          (c) => c.candidateId?._id?.toString() === result.candidateId?.toString()
+          (c) =>
+            c.candidateId?._id?.toString() === result.candidateId?.toString()
         );
         return candidate?.candidateId?.name || "Unknown Candidate";
       });
@@ -459,9 +490,13 @@ export default function TopApplicantsPageContent() {
 
       if (failedCount === 0 && successCount > 0) {
         // All successful
-        let message = `Successfully scheduled ${successCount} call${successCount !== 1 ? "s" : ""}!`;
+        let message = `Successfully scheduled ${successCount} call${
+          successCount !== 1 ? "s" : ""
+        }!`;
         if (alreadyScheduledCount > 0) {
-          message += ` ${alreadyScheduledCount} ${alreadyScheduledCount === 1 ? "was" : "were"} already scheduled.`;
+          message += ` ${alreadyScheduledCount} ${
+            alreadyScheduledCount === 1 ? "was" : "were"
+          } already scheduled.`;
         }
         setNotification({
           variant: "success",
@@ -475,7 +510,15 @@ export default function TopApplicantsPageContent() {
         setNotification({
           variant: "warning",
           title: "Partial Success",
-          message: `Successfully scheduled ${successCount} call${successCount !== 1 ? "s" : ""}, but ${failedCount} failed.${alreadyScheduledCount > 0 ? ` ${alreadyScheduledCount} ${alreadyScheduledCount === 1 ? "was" : "were"} already scheduled.` : ""}`,
+          message: `Successfully scheduled ${successCount} call${
+            successCount !== 1 ? "s" : ""
+          }, but ${failedCount} failed.${
+            alreadyScheduledCount > 0
+              ? ` ${alreadyScheduledCount} ${
+                  alreadyScheduledCount === 1 ? "was" : "were"
+                } already scheduled.`
+              : ""
+          }`,
           details: failedDetails,
           mainError: mainError,
           dismissible: true,
@@ -485,7 +528,9 @@ export default function TopApplicantsPageContent() {
         setNotification({
           variant: "error",
           title: "Failed to Schedule Calls",
-          message: `Failed to schedule ${failedCount} call${failedCount !== 1 ? "s" : ""}. Please check the details below.`,
+          message: `Failed to schedule ${failedCount} call${
+            failedCount !== 1 ? "s" : ""
+          }. Please check the details below.`,
           details: failedDetails,
           mainError: mainError,
           dismissible: true,
@@ -495,7 +540,8 @@ export default function TopApplicantsPageContent() {
         setNotification({
           variant: "info",
           title: "No Calls Scheduled",
-          message: "No calls were scheduled. All candidates may already be scheduled.",
+          message:
+            "No calls were scheduled. All candidates may already be scheduled.",
           dismissible: true,
         });
       }
@@ -691,38 +737,47 @@ export default function TopApplicantsPageContent() {
                         </p>
                       </div>
                       <div className="flex gap-2">
-                        {candidates.length > 0 && (() => {
-                          const unscheduledCount = candidates.filter(
-                            (match) =>
-                              !scheduledCandidateIds.has(
-                                match.candidateId?._id?.toString() || ""
-                              )
-                          ).length;
-                          const allScheduled = unscheduledCount === 0;
-                          
-                          return (
-                            <Button
-                              variant="default"
-                              onClick={handleScheduleAllCalls}
-                              disabled={schedulingCalls || checkingScheduled || allScheduled}
-                              className="bg-black hover:bg-black/80 cursor-pointer text-white disabled:opacity-50"
-                              title={allScheduled ? "All candidates are already scheduled" : ""}
-                            >
-                              <Phone
-                                className={`mr-2 h-4 w-4 ${
-                                  schedulingCalls ? "animate-pulse" : ""
-                                }`}
-                              />
-                              {schedulingCalls
-                                ? "Scheduling..."
-                                : checkingScheduled
-                                ? "Checking..."
-                                : allScheduled
-                                ? "All Scheduled"
-                                : `Schedule All Calls (${unscheduledCount} remaining)`}
-                            </Button>
-                          );
-                        })()}
+                        {candidates.length > 0 &&
+                          (() => {
+                            const unscheduledCount = candidates.filter(
+                              (match) =>
+                                !scheduledCandidateIds.has(
+                                  match.candidateId?._id?.toString() || ""
+                                )
+                            ).length;
+                            const allScheduled = unscheduledCount === 0;
+
+                            return (
+                              <Button
+                                variant="default"
+                                onClick={handleScheduleAllCalls}
+                                disabled={
+                                  schedulingCalls ||
+                                  checkingScheduled ||
+                                  allScheduled
+                                }
+                                className="bg-black hover:bg-black/80 cursor-pointer text-white disabled:opacity-50"
+                                title={
+                                  allScheduled
+                                    ? "All candidates are already scheduled"
+                                    : ""
+                                }
+                              >
+                                <Phone
+                                  className={`mr-2 h-4 w-4 ${
+                                    schedulingCalls ? "animate-pulse" : ""
+                                  }`}
+                                />
+                                {schedulingCalls
+                                  ? "Scheduling..."
+                                  : checkingScheduled
+                                  ? "Checking..."
+                                  : allScheduled
+                                  ? "All Scheduled"
+                                  : `Schedule All Calls (${unscheduledCount} remaining)`}
+                              </Button>
+                            );
+                          })()}
                         <Button
                           variant="outline"
                           onClick={() => {
@@ -748,112 +803,160 @@ export default function TopApplicantsPageContent() {
                     </div>
 
                     {/* Secondary Recruiters Section */}
-                    {user?.role === "recruiter" && (() => {
-                      const primaryRecruiterId = selectedJob.primary_recruiter_id?._id?.toString() || selectedJob.primary_recruiter_id?.toString();
-                      const currentUserId = user.id?.toString();
-                      return primaryRecruiterId === currentUserId;
-                    })() && (
-                      <div className="mt-6 pt-6 border-t">
-                        <div className="flex items-start gap-4">
-                          <div className="flex-1">
-                            <label className="text-sm font-semibold text-foreground mb-2 block">
-                              Secondary Recruiters
-                            </label>
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {(selectedJob.secondary_recruiter_id || []).map((recruiterId) => {
-                                // Handle both populated object and ID string
-                                const recruiterIdStr = recruiterId?._id?.toString() || recruiterId?.toString();
-                                
-                                // If recruiterId is a populated object, use its name/email directly
-                                // Otherwise, try to find it in the recruiters list
-                                let recruiterName = "Unknown Recruiter";
-                                
-                                if (recruiterId && typeof recruiterId === 'object' && recruiterId.name) {
-                                  // Populated object with name
-                                  recruiterName = recruiterId.name || recruiterId.email || "Unknown Recruiter";
-                                } else if (recruiterId && typeof recruiterId === 'object' && recruiterId.email) {
-                                  // Populated object with only email
-                                  recruiterName = recruiterId.email;
-                                } else {
-                                  // ID string - try to find in recruiters list
-                                  const recruiter = recruiters.find(
-                                    (r) => r._id?.toString() === recruiterIdStr
-                                  );
-                                  recruiterName = recruiter?.name || recruiter?.email || "Unknown Recruiter";
-                                }
-                                
-                                return (
-                                  <div
-                                    key={recruiterIdStr}
-                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-black text-white border border-gray-700"
-                                  >
-                                    <User className="h-3.5 w-3.5" />
-                                    <span className="text-sm font-medium">{recruiterName}</span>
-                                    <button
-                                      onClick={() => handleRemoveSecondaryRecruiter(recruiterIdStr)}
-                                      disabled={updatingRecruiters}
-                                      className="ml-1 hover:bg-gray-800 rounded-full p-0.5 transition-colors disabled:opacity-50"
-                                      title="Remove recruiter"
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                            <Select
-                              onValueChange={handleAddSecondaryRecruiter}
-                              disabled={updatingRecruiters || loadingRecruiters}
-                            >
-                              <SelectTrigger className="w-full max-w-md">
-                                <SelectValue placeholder="Add Secondary Recruiter" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {recruiters
-                                  .filter((recruiter) => {
-                                    // Exclude primary recruiter and already added secondary recruiters
-                                    const primaryRecruiterId = selectedJob.primary_recruiter_id?._id?.toString() || selectedJob.primary_recruiter_id?.toString();
-                                    const isPrimary = recruiter._id?.toString() === primaryRecruiterId;
-                                    const isSecondary = (selectedJob.secondary_recruiter_id || []).some(
-                                      (id) => {
-                                        const recruiterId = id?._id?.toString() || id?.toString();
-                                        return recruiterId === recruiter._id?.toString();
-                                      }
-                                    );
-                                    return !isPrimary && !isSecondary;
-                                  })
-                                  .map((recruiter) => (
-                                    <SelectItem
-                                      key={recruiter._id}
-                                      value={recruiter._id}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <User className="h-4 w-4" />
-                                        <span>{recruiter.name || recruiter.email}</span>
-                                      </div>
-                                    </SelectItem>
-                                  ))}
-                                {recruiters.filter((recruiter) => {
-                                  const primaryRecruiterId = selectedJob.primary_recruiter_id?._id?.toString() || selectedJob.primary_recruiter_id?.toString();
-                                  const isPrimary = recruiter._id?.toString() === primaryRecruiterId;
-                                  const isSecondary = (selectedJob.secondary_recruiter_id || []).some(
-                                    (id) => {
-                                      const recruiterId = id?._id?.toString() || id?.toString();
-                                      return recruiterId === recruiter._id?.toString();
+                    {user?.role === "recruiter" &&
+                      (() => {
+                        const primaryRecruiterId =
+                          selectedJob.primary_recruiter_id?._id?.toString() ||
+                          selectedJob.primary_recruiter_id?.toString();
+                        const currentUserId = user.id?.toString();
+                        return primaryRecruiterId === currentUserId;
+                      })() && (
+                        <div className="mt-6 pt-6 border-t">
+                          <div className="flex items-start gap-4">
+                            <div className="flex-1">
+                              <label className="text-sm font-semibold text-foreground mb-2 block">
+                                Secondary Recruiters
+                              </label>
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {(selectedJob.secondary_recruiter_id || []).map(
+                                  (recruiterId) => {
+                                    // Handle both populated object and ID string
+                                    const recruiterIdStr =
+                                      recruiterId?._id?.toString() ||
+                                      recruiterId?.toString();
+
+                                    // If recruiterId is a populated object, use its name/email directly
+                                    // Otherwise, try to find it in the recruiters list
+                                    let recruiterName = "Unknown Recruiter";
+
+                                    if (
+                                      recruiterId &&
+                                      typeof recruiterId === "object" &&
+                                      recruiterId.name
+                                    ) {
+                                      // Populated object with name
+                                      recruiterName =
+                                        recruiterId.name ||
+                                        recruiterId.email ||
+                                        "Unknown Recruiter";
+                                    } else if (
+                                      recruiterId &&
+                                      typeof recruiterId === "object" &&
+                                      recruiterId.email
+                                    ) {
+                                      // Populated object with only email
+                                      recruiterName = recruiterId.email;
+                                    } else {
+                                      // ID string - try to find in recruiters list
+                                      const recruiter = recruiters.find(
+                                        (r) =>
+                                          r._id?.toString() === recruiterIdStr
+                                      );
+                                      recruiterName =
+                                        recruiter?.name ||
+                                        recruiter?.email ||
+                                        "Unknown Recruiter";
                                     }
-                                  );
-                                  return !isPrimary && !isSecondary;
-                                }).length === 0 && (
-                                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                                    No available recruiters
-                                  </div>
+
+                                    return (
+                                      <div
+                                        key={recruiterIdStr}
+                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-black text-white border border-gray-700"
+                                      >
+                                        <User className="h-3.5 w-3.5" />
+                                        <span className="text-sm font-medium">
+                                          {recruiterName}
+                                        </span>
+                                        <button
+                                          onClick={() =>
+                                            handleRemoveSecondaryRecruiter(
+                                              recruiterIdStr
+                                            )
+                                          }
+                                          disabled={updatingRecruiters}
+                                          className="ml-1 hover:bg-gray-800 rounded-full p-0.5 transition-colors disabled:opacity-50"
+                                          title="Remove recruiter"
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </button>
+                                      </div>
+                                    );
+                                  }
                                 )}
-                              </SelectContent>
-                            </Select>
+                              </div>
+                              <Select
+                                onValueChange={handleAddSecondaryRecruiter}
+                                disabled={
+                                  updatingRecruiters || loadingRecruiters
+                                }
+                              >
+                                <SelectTrigger className="w-full max-w-md">
+                                  <SelectValue placeholder="Add Secondary Recruiter" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {recruiters
+                                    .filter((recruiter) => {
+                                      // Exclude primary recruiter and already added secondary recruiters
+                                      const primaryRecruiterId =
+                                        selectedJob.primary_recruiter_id?._id?.toString() ||
+                                        selectedJob.primary_recruiter_id?.toString();
+                                      const isPrimary =
+                                        recruiter._id?.toString() ===
+                                        primaryRecruiterId;
+                                      const isSecondary = (
+                                        selectedJob.secondary_recruiter_id || []
+                                      ).some((id) => {
+                                        const recruiterId =
+                                          id?._id?.toString() || id?.toString();
+                                        return (
+                                          recruiterId ===
+                                          recruiter._id?.toString()
+                                        );
+                                      });
+                                      return !isPrimary && !isSecondary;
+                                    })
+                                    .map((recruiter) => (
+                                      <SelectItem
+                                        key={recruiter._id}
+                                        value={recruiter._id}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <User className="h-4 w-4" />
+                                          <span>
+                                            {recruiter.name || recruiter.email}
+                                          </span>
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  {recruiters.filter((recruiter) => {
+                                    const primaryRecruiterId =
+                                      selectedJob.primary_recruiter_id?._id?.toString() ||
+                                      selectedJob.primary_recruiter_id?.toString();
+                                    const isPrimary =
+                                      recruiter._id?.toString() ===
+                                      primaryRecruiterId;
+                                    const isSecondary = (
+                                      selectedJob.secondary_recruiter_id || []
+                                    ).some((id) => {
+                                      const recruiterId =
+                                        id?._id?.toString() || id?.toString();
+                                      return (
+                                        recruiterId ===
+                                        recruiter._id?.toString()
+                                      );
+                                    });
+                                    return !isPrimary && !isSecondary;
+                                  }).length === 0 && (
+                                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                      No available recruiters
+                                    </div>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
 
                   {/* Mobile Action Buttons */}
@@ -930,160 +1033,159 @@ export default function TopApplicantsPageContent() {
                           match score
                         </p>
                       </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {candidates.map((match, index) => {
-                          const candidate = match.candidateId;
-                          if (!candidate) return null;
+                      <div className="bg-card border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Candidate</TableHead>
+                              <TableHead>Role</TableHead>
+                              <TableHead>Match Score</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Phone</TableHead>
+                              <TableHead>Experience</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">
+                                Actions
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {candidates.map((match, index) => {
+                              const candidate = match.candidateId;
+                              if (!candidate) return null;
 
-                          const matchScore = Math.round(
-                            (match.matchScore || 0) * 100
-                          );
+                              const matchScore = Math.round(
+                                (match.matchScore || 0) * 100
+                              );
 
-                          const isScheduled = scheduledCandidateIds.has(
-                            candidate._id?.toString() || ""
-                          );
+                              const isScheduled = scheduledCandidateIds.has(
+                                candidate._id?.toString() || ""
+                              );
 
-                          return (
-                            <div
-                              key={candidate._id || index}
-                              className={`bg-card border rounded-lg p-6 hover:shadow-lg transition-all ${
-                                isScheduled ? "border-green-500 border-2" : ""
-                              }`}
-                            >
-                              <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                                    <span className="text-lg font-semibold text-primary">
-                                      {candidate.name
-                                        ?.split(" ")
-                                        .map((n) => n[0])
-                                        .join("")
-                                        .toUpperCase() || "N/A"}
-                                    </span>
-                                  </div>
-                                  <div className="flex-1">
-                                    <h3 className="text-lg font-semibold mb-1">
-                                      {candidate.name || "Unknown"}
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                      {candidate.role &&
-                                      candidate.role.length > 0
-                                        ? candidate.role.join(", ")
-                                        : "Candidate"}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex flex-col items-end gap-2">
-                                  <div
-                                    className={`px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                                      match.matchScore || 0
-                                    )}`}
-                                  >
-                                    {matchScore}%
-                                  </div>
-                                  {isScheduled && (
-                                    <div className="px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
-                                      <Calendar className="inline h-3 w-3 mr-1" />
-                                      Scheduled
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="space-y-4">
-                                <div className="space-y-2 text-sm">
-                                  {candidate.email && (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                      <Mail className="h-4 w-4" />
-                                      <span>{candidate.email}</span>
-                                    </div>
-                                  )}
-                                  {candidate.phone_no && (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                      <Phone className="h-4 w-4" />
-                                      <span>{candidate.phone_no}</span>
-                                    </div>
-                                  )}
-                                  {candidate.experience !== undefined && (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                      <Briefcase className="h-4 w-4" />
-                                      <span>
-                                        {candidate.experience} years experience
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {candidate.bio && (
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Bio
-                                    </p>
-                                    <p className="text-sm line-clamp-2">
-                                      {candidate.bio}
-                                    </p>
-                                  </div>
-                                )}
-
-                                {candidate.skills &&
-                                  candidate.skills.length > 0 && (
-                                    <div>
-                                      <p className="text-xs text-muted-foreground mb-2">
-                                        Skills
-                                      </p>
-                                      <div className="flex flex-wrap gap-2">
-                                        {candidate.skills
-                                          .slice(0, 6)
-                                          .map((skill, idx) => (
-                                            <span
-                                              key={idx}
-                                              className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg border border-gray-300 dark:border-gray-600 font-medium"
-                                            >
-                                              {skill}
-                                            </span>
-                                          ))}
-                                        {candidate.skills.length > 6 && (
-                                          <span className="px-2 py-1 text-xs text-muted-foreground">
-                                            +{candidate.skills.length - 6} more
-                                          </span>
+                              return (
+                                <TableRow
+                                  key={candidate._id || index}
+                                  className={
+                                    isScheduled
+                                      ? "bg-green-50 dark:bg-green-950/20"
+                                      : ""
+                                  }
+                                >
+                                  <TableCell>
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                                        <span className="text-sm font-semibold text-primary">
+                                          {candidate.name
+                                            ?.split(" ")
+                                            .map((n) => n[0])
+                                            .join("")
+                                            .toUpperCase() || "N/A"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <div className="font-semibold">
+                                          {candidate.name || "Unknown"}
+                                        </div>
+                                        {candidate.bio && (
+                                          <div className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
+                                            {candidate.bio}
+                                          </div>
                                         )}
                                       </div>
                                     </div>
-                                  )}
-
-                                {match.matchedAt && (
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
-                                    <Clock className="h-3 w-3" />
-                                    <span>
-                                      Matched{" "}
-                                      {new Date(
-                                        match.matchedAt
-                                      ).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                )}
-
-                                <div className="flex gap-2 pt-2">
-                                  <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    size="sm"
-                                    onClick={() => handleViewProfile(candidate)}
-                                  >
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    View Profile
-                                  </Button>
-                                  <Button
-                                    className="flex-1 bg-green-500 hover:bg-green-600 text-white"
-                                    size="sm"
-                                  >
-                                    <Calendar className="mr-2 h-4 w-4" />
-                                    Contact
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                                  </TableCell>
+                                  <TableCell>
+                                    {candidate.role && candidate.role.length > 0
+                                      ? candidate.role.join(", ")
+                                      : "N/A"}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div
+                                      className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                        match.matchScore || 0
+                                      )}`}
+                                    >
+                                      {matchScore}%
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {candidate.email ? (
+                                      <div className="flex items-center gap-2">
+                                        <Mail className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-sm">
+                                          {candidate.email}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">
+                                        N/A
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {candidate.phone_no ? (
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-sm">
+                                          {candidate.phone_no}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">
+                                        N/A
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {candidate.experience !== undefined ? (
+                                      <div className="flex items-center gap-2">
+                                        <Briefcase className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-sm">
+                                          {candidate.experience} years
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">
+                                        N/A
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {isScheduled ? (
+                                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                                        <Calendar className="h-3 w-3" />
+                                        Scheduled
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">
+                                        Not Scheduled
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleViewProfile(candidate)
+                                        }
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        className="bg-black hover:bg-black/80 text-white"
+                                        size="sm"
+                                      >
+                                        <Calendar className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
                       </div>
                     </>
                   ) : (
@@ -1132,19 +1234,29 @@ export default function TopApplicantsPageContent() {
               {/* Basic Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Name</h3>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                    Name
+                  </h3>
                   <p className="text-base">{candidateDetails.name || "N/A"}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Email</h3>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                    Email
+                  </h3>
                   <p className="text-base">{candidateDetails.email || "N/A"}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Phone</h3>
-                  <p className="text-base">{candidateDetails.phone_no || "N/A"}</p>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                    Phone
+                  </h3>
+                  <p className="text-base">
+                    {candidateDetails.phone_no || "N/A"}
+                  </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Experience</h3>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                    Experience
+                  </h3>
                   <p className="text-base">
                     {candidateDetails.experience !== undefined
                       ? `${candidateDetails.experience} years`
@@ -1152,9 +1264,12 @@ export default function TopApplicantsPageContent() {
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Role</h3>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                    Role
+                  </h3>
                   <div className="flex flex-wrap gap-2">
-                    {candidateDetails.role && candidateDetails.role.length > 0 ? (
+                    {candidateDetails.role &&
+                    candidateDetails.role.length > 0 ? (
                       candidateDetails.role.map((r, idx) => (
                         <span
                           key={idx}
@@ -1170,7 +1285,9 @@ export default function TopApplicantsPageContent() {
                 </div>
                 {candidateDetails.resume_url && (
                   <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Resume</h3>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                      Resume
+                    </h3>
                     <a
                       href={candidateDetails.resume_url}
                       target="_blank"
@@ -1186,72 +1303,84 @@ export default function TopApplicantsPageContent() {
               {/* Bio */}
               {candidateDetails.bio && (
                 <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">Bio</h3>
-                  <p className="text-base leading-relaxed">{candidateDetails.bio}</p>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                    Bio
+                  </h3>
+                  <p className="text-base leading-relaxed">
+                    {candidateDetails.bio}
+                  </p>
                 </div>
               )}
 
               {/* Skills */}
-              {candidateDetails.skills && candidateDetails.skills.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">Skills</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {candidateDetails.skills.map((skill, idx) => (
-                      <span
-                        key={idx}
-                        className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg border border-gray-300 dark:border-gray-600 font-medium"
-                      >
-                        {skill}
-                      </span>
-                    ))}
+              {candidateDetails.skills &&
+                candidateDetails.skills.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+                      Skills
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {candidateDetails.skills.map((skill, idx) => (
+                        <span
+                          key={idx}
+                          className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg border border-gray-300 dark:border-gray-600 font-medium"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Social Links */}
-              {candidateDetails.social_links && Object.keys(candidateDetails.social_links).length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">Social Links</h3>
-                  <div className="flex flex-wrap gap-3">
-                    {candidateDetails.social_links.linkedin && (
-                      <a
-                        href={candidateDetails.social_links.linkedin}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline text-sm"
-                      >
-                        LinkedIn
-                      </a>
-                    )}
-                    {candidateDetails.social_links.github && (
-                      <a
-                        href={candidateDetails.social_links.github}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline text-sm"
-                      >
-                        GitHub
-                      </a>
-                    )}
-                    {candidateDetails.social_links.portfolio && (
-                      <a
-                        href={candidateDetails.social_links.portfolio}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline text-sm"
-                      >
-                        Portfolio
-                      </a>
-                    )}
+              {candidateDetails.social_links &&
+                Object.keys(candidateDetails.social_links).length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+                      Social Links
+                    </h3>
+                    <div className="flex flex-wrap gap-3">
+                      {candidateDetails.social_links.linkedin && (
+                        <a
+                          href={candidateDetails.social_links.linkedin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-sm"
+                        >
+                          LinkedIn
+                        </a>
+                      )}
+                      {candidateDetails.social_links.github && (
+                        <a
+                          href={candidateDetails.social_links.github}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-sm"
+                        >
+                          GitHub
+                        </a>
+                      )}
+                      {candidateDetails.social_links.portfolio && (
+                        <a
+                          href={candidateDetails.social_links.portfolio}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-sm"
+                        >
+                          Portfolio
+                        </a>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Additional Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
                 {candidateDetails.is_active !== undefined && (
                   <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Status</h3>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                      Status
+                    </h3>
                     <span
                       className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
                         candidateDetails.is_active
@@ -1265,9 +1394,13 @@ export default function TopApplicantsPageContent() {
                 )}
                 {candidateDetails.createdAt && (
                   <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">Created</h3>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                      Created
+                    </h3>
                     <p className="text-base">
-                      {new Date(candidateDetails.createdAt).toLocaleDateString()}
+                      {new Date(
+                        candidateDetails.createdAt
+                      ).toLocaleDateString()}
                     </p>
                   </div>
                 )}

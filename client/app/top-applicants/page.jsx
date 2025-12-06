@@ -5,6 +5,14 @@ import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/ui/loading";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import { bolnaAPI, jobPostingAPI, matchingAPI } from "@/lib/api";
 import {
@@ -469,149 +477,135 @@ export default function TopApplicantsPage() {
                           match score
                         </p>
                       </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {candidates.map((match, index) => {
-                          const candidate = match.candidateId;
-                          if (!candidate) return null;
+                      <div className="bg-card border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Candidate</TableHead>
+                              <TableHead>Role</TableHead>
+                              <TableHead>Match Score</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Phone</TableHead>
+                              <TableHead>Experience</TableHead>
+                              <TableHead className="text-right">
+                                Actions
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {candidates.map((match, index) => {
+                              const candidate = match.candidateId;
+                              if (!candidate) return null;
 
-                          const matchScore = Math.round(
-                            (match.matchScore || 0) * 100
-                          );
+                              const matchScore = Math.round(
+                                (match.matchScore || 0) * 100
+                              );
 
-                          return (
-                            <div
-                              key={candidate._id || index}
-                              className="bg-card border rounded-lg p-6 hover:shadow-lg transition-all"
-                            >
-                              <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                                    <span className="text-lg font-semibold text-primary">
-                                      {candidate.name
-                                        ?.split(" ")
-                                        .map((n) => n[0])
-                                        .join("")
-                                        .toUpperCase() || "N/A"}
-                                    </span>
-                                  </div>
-                                  <div className="flex-1">
-                                    <h3 className="text-lg font-semibold mb-1">
-                                      {candidate.name || "Unknown"}
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                      {candidate.role &&
-                                      candidate.role.length > 0
-                                        ? candidate.role.join(", ")
-                                        : "Candidate"}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div
-                                  className={`px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                                    match.matchScore || 0
-                                  )}`}
-                                >
-                                  {matchScore}%
-                                </div>
-                              </div>
-                              <div className="space-y-4">
-                                {/* Contact Info */}
-                                <div className="space-y-2 text-sm">
-                                  {candidate.email && (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                      <Mail className="h-4 w-4" />
-                                      <span>{candidate.email}</span>
-                                    </div>
-                                  )}
-                                  {candidate.phone_no && (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                      <Phone className="h-4 w-4" />
-                                      <span>{candidate.phone_no}</span>
-                                    </div>
-                                  )}
-                                  {candidate.experience !== undefined && (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                      <Briefcase className="h-4 w-4" />
-                                      <span>
-                                        {candidate.experience} years experience
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Bio */}
-                                {candidate.bio && (
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Bio
-                                    </p>
-                                    <p className="text-sm line-clamp-2">
-                                      {candidate.bio}
-                                    </p>
-                                  </div>
-                                )}
-
-                                {/* Skills */}
-                                {candidate.skills &&
-                                  candidate.skills.length > 0 && (
-                                    <div>
-                                      <p className="text-xs text-muted-foreground mb-2">
-                                        Skills
-                                      </p>
-                                      <div className="flex flex-wrap gap-2">
-                                        {candidate.skills
-                                          .slice(0, 6)
-                                          .map((skill, idx) => (
-                                            <span
-                                              key={idx}
-                                              className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 rounded-md"
-                                            >
-                                              {skill}
-                                            </span>
-                                          ))}
-                                        {candidate.skills.length > 6 && (
-                                          <span className="px-2 py-1 text-xs text-muted-foreground">
-                                            +{candidate.skills.length - 6} more
-                                          </span>
+                              return (
+                                <TableRow key={candidate._id || index}>
+                                  <TableCell>
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                                        <span className="text-sm font-semibold text-primary">
+                                          {candidate.name
+                                            ?.split(" ")
+                                            .map((n) => n[0])
+                                            .join("")
+                                            .toUpperCase() || "N/A"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <div className="font-semibold">
+                                          {candidate.name || "Unknown"}
+                                        </div>
+                                        {candidate.bio && (
+                                          <div className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
+                                            {candidate.bio}
+                                          </div>
                                         )}
                                       </div>
                                     </div>
-                                  )}
-
-                                {/* Match Info */}
-                                {match.matchedAt && (
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
-                                    <Clock className="h-3 w-3" />
-                                    <span>
-                                      Matched{" "}
-                                      {new Date(
-                                        match.matchedAt
-                                      ).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                )}
-
-                                {/* Actions */}
-                                <div className="flex gap-2 pt-2">
-                                  <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => {
-                                      // View profile functionality
-                                    }}
-                                  >
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    View Profile
-                                  </Button>
-                                  <Button className="flex-1 bg-green-500 hover:bg-green-600 text-white">
-                                    <Calendar className="mr-2 h-4 w-4" />
-                                    Contact
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                                  </TableCell>
+                                  <TableCell>
+                                    {candidate.role && candidate.role.length > 0
+                                      ? candidate.role.join(", ")
+                                      : "N/A"}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div
+                                      className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                        match.matchScore || 0
+                                      )}`}
+                                    >
+                                      {matchScore}%
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {candidate.email ? (
+                                      <div className="flex items-center gap-2">
+                                        <Mail className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-sm">
+                                          {candidate.email}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">
+                                        N/A
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {candidate.phone_no ? (
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-sm">
+                                          {candidate.phone_no}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">
+                                        N/A
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {candidate.experience !== undefined ? (
+                                      <div className="flex items-center gap-2">
+                                        <Briefcase className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-sm">
+                                          {candidate.experience} years
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground">
+                                        N/A
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          // View profile functionality
+                                        }}
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        className="bg-black hover:bg-black/80 text-white"
+                                        size="sm"
+                                      >
+                                        <Calendar className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
                       </div>
                     </>
                   ) : (
