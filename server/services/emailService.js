@@ -10,7 +10,7 @@ const SMTP_PASS = process.env.SMTP_PASS || process.env.SMTP_PASSWORD;
 // Cal.com API configuration
 const CAL_SECRET_KEY = process.env.CAL_SECRET_KEY;
 const CAL_API_VERSION = process.env.CAL_API_VERSION;
-const EVENT_TYPE_ID = process.env.CAL_EVENT_TYPE_ID;
+const EVENT_TYPE_ID = process.env.CAL_EVENT_TYPE_ID || 4025819;
 
 // Create reusable transporter
 const transporter = nodemailer.createTransport({
@@ -32,26 +32,121 @@ const transporter = nodemailer.createTransport({
  */
 async function generateGoogleMeetLink(
   scheduledTime,
-  candidateName,  
+  candidateName,
   candidateEmail
 ) {
   try {
-    // Convert scheduledTime to ISO string if it's a Date object
-    const startTimeISO =
-      scheduledTime instanceof Date
-        ? scheduledTime.toISOString()
-        : scheduledTime;
-
-    if (!startTimeISO) {
-      throw new Error("Scheduled time is required");
+    // Validate environment variables
+    if (!CAL_SECRET_KEY) {
+      throw new Error("CAL_SECRET_KEY environment variable is not set");
+    }
+    if (!CAL_API_VERSION) {
+      throw new Error("CAL_API_VERSION environment variable is not set");
+    }
+    if (!EVENT_TYPE_ID) {
+      throw new Error("CAL_EVENT_TYPE_ID environment variable is not set");
     }
 
-    console.log("Creating Cal.com booking for:", startTimeISO);
+    // Convert scheduledTime to Date object for validation
+    let scheduledDate;
+    if (scheduledTime instanceof Date) {
+      scheduledDate = scheduledTime;
+    } else if (typeof scheduledTime === "string") {
+      scheduledDate = new Date(scheduledTime);
+    } else {
+      throw new Error("Scheduled time must be a Date object or ISO string");
+    }
 
-    // Create booking request body
+    // Validate that the scheduled time is valid
+    if (isNaN(scheduledDate.getTime())) {
+      throw new Error("Invalid scheduled time provided");
+    }
+
+    // Check if the scheduled time is in the past
+    const now = new Date();
+    const minFutureTime = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes from now
+
+    if (scheduledDate < minFutureTime) {
+      console.warn(
+        `⚠️ Scheduled time ${scheduledDate.toISOString()} is too soon or in the past. ` +
+          `Cal.com requires bookings to be at least 5 minutes in the future. ` +
+          `Adjusting to ${minFutureTime.toISOString()}`
+      );
+      scheduledDate = minFutureTime;
+    }
+
+    console.log("Fetching available slots for event type:", EVENT_TYPE_ID);
+    console.log("Requested time:", scheduledDate.toISOString());
+    console.log("Candidate:", candidateName, candidateEmail);
+
+    // Step 1: Fetch available slots (Cal.com requires this)
+    const slotsStartTime = now.toISOString();
+    const slotsEndTime = new Date(
+      scheduledDate.getTime() + 7 * 24 * 60 * 60 * 1000
+    ).toISOString(); // 7 days ahead
+
+    const slotsResp = await axios.get(
+      "https://api.cal.com/v2/slots/available",
+      {
+        params: {
+          startTime: slotsStartTime,
+          endTime: slotsEndTime,
+          eventTypeId: EVENT_TYPE_ID,
+        },
+        headers: {
+          Authorization: `Bearer ${CAL_SECRET_KEY}`,
+          "cal-api-version": CAL_API_VERSION,
+        },
+      }
+    );
+
+    const slots = slotsResp.data.data.slots;
+    let selectedSlot = null;
+
+    // Find the closest available slot to the requested time
+    const requestedTime = scheduledDate.getTime();
+    let closestDiff = Infinity;
+
+    for (const dateKey in slots) {
+      if (slots[dateKey] && slots[dateKey].length > 0) {
+        for (const slot of slots[dateKey]) {
+          const slotTime = new Date(slot.time).getTime();
+          const diff = Math.abs(slotTime - requestedTime);
+
+          // Prefer slots that are at or after the requested time
+          if (slotTime >= requestedTime && diff < closestDiff) {
+            closestDiff = diff;
+            selectedSlot = slot.time;
+          }
+        }
+      }
+    }
+
+    // If no future slot found, use the first available slot
+    if (!selectedSlot) {
+      for (const dateKey in slots) {
+        if (slots[dateKey] && slots[dateKey].length > 0) {
+          selectedSlot = slots[dateKey][0].time;
+          console.log(
+            `⚠️ No slot found after requested time. Using first available: ${selectedSlot}`
+          );
+          break;
+        }
+      }
+    }
+
+    if (!selectedSlot) {
+      throw new Error(
+        "No available slots found for the event type. Please check your Cal.com availability settings."
+      );
+    }
+
+    console.log(`✓ Selected slot: ${selectedSlot}`);
+
+    // Step 2: Create booking with the selected slot
     const requestBody = {
       eventTypeId: EVENT_TYPE_ID,
-      start: startTimeISO,
+      start: selectedSlot,
       location: "integrations:google_meet",
       attendee: {
         name: candidateName,
@@ -77,6 +172,36 @@ async function generateGoogleMeetLink(
     const bookingUid = createResp.data.data.uid;
     console.log("✓ Booking Created. UID:", bookingUid);
 
+    // Check if the creation response already contains the meeting link
+    const creationData = createResp.data.data;
+    let meetLinkFromCreation =
+      creationData.meetingUrl ||
+      creationData.location?.url ||
+      (creationData.location &&
+      typeof creationData.location === "string" &&
+      creationData.location.startsWith("http")
+        ? creationData.location
+        : null) ||
+      creationData.metadata?.videoCallUrl ||
+      null;
+
+    // If we got the link from creation, return it immediately
+    if (meetLinkFromCreation) {
+      try {
+        new URL(meetLinkFromCreation); // Validate it's a URL
+        console.log("✓ Google Meet link generated from creation response!");
+        console.log("📎 Meeting Link:", meetLinkFromCreation);
+        return meetLinkFromCreation;
+      } catch (urlError) {
+        console.warn(
+          "⚠️ Link from creation response is not a valid URL, fetching booking details..."
+        );
+      }
+    }
+
+    // Wait a moment for the booking to be fully processed
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     // Get booking details to retrieve the meeting link
     const getBookingResp = await axios.get(
       `https://api.cal.com/v2/bookings/${bookingUid}`,
@@ -90,36 +215,91 @@ async function generateGoogleMeetLink(
 
     const bookingData = getBookingResp.data.data;
 
-    // Extract meeting link from booking data
-    const meetLink =
-      bookingData.meetingUrl ||
-      bookingData.location?.url ||
-      bookingData.metadata?.videoCallUrl ||
-      null;
+    // Log only the relevant booking info, not the entire structure
+    console.log("Booking retrieved. Checking for meeting link...");
+
+    // Extract meeting link from booking data - check multiple possible locations
+    let meetLink = null;
+
+    // Check meetingUrl first
+    if (bookingData.meetingUrl) {
+      meetLink = bookingData.meetingUrl;
+    }
+    // Check location.url (if location is an object)
+    else if (bookingData.location?.url) {
+      meetLink = bookingData.location.url;
+    }
+    // Check if location is a direct URL string (starts with http)
+    else if (
+      bookingData.location &&
+      typeof bookingData.location === "string" &&
+      bookingData.location.startsWith("http")
+    ) {
+      meetLink = bookingData.location;
+    }
+    // Check metadata
+    else if (bookingData.metadata?.videoCallUrl) {
+      meetLink = bookingData.metadata.videoCallUrl;
+    }
+    // Check dynamicEventSlugRef
+    else if (bookingData.dynamicEventSlugRef?.meetingUrl) {
+      meetLink = bookingData.dynamicEventSlugRef.meetingUrl;
+    }
 
     if (!meetLink) {
       console.warn("⚠️ Meeting link not found in booking response");
-      return "No link generated";
+      console.warn(
+        "Full booking data structure:",
+        JSON.stringify(bookingData, null, 2)
+      );
+      throw new Error("Meeting link not found in booking response");
     }
 
-    console.log("✓ Google Meet link generated:", meetLink);
+    // Validate that the link is a valid URL
+    try {
+      new URL(meetLink);
+    } catch (urlError) {
+      console.error("❌ Generated link is not a valid URL:", meetLink);
+      throw new Error("Generated link is not a valid URL");
+    }
+
+    console.log("✓ Google Meet link generated successfully!");
+    console.log("📎 Meeting Link:", meetLink);
     return meetLink;
   } catch (error) {
     console.error("❌ Error generating Google Meet link:", error.message);
+    console.error("Error stack:", error.stack);
 
-    // Log detailed error if available
+    // Log detailed error if available (simplified to avoid huge output)
     if (error.response?.data) {
+      const errorData = error.response.data;
       console.error(
-        "API Error Details:",
-        JSON.stringify(error.response.data, null, 2)
+        "API Error:",
+        errorData.error?.message || errorData.message || "Unknown error"
       );
+      console.error("API Status:", error.response.status);
+
+      // Only log full error data if it's a small object
+      if (
+        errorData &&
+        typeof errorData === "object" &&
+        Object.keys(errorData).length < 10
+      ) {
+        console.error("Error Details:", JSON.stringify(errorData, null, 2));
+      }
     }
 
-    // Return error message on error
-    console.warn("⚠️ Unable to generate Google Meet link due to error");
-    return "Unable to generate link";
+    // Re-throw the error so the caller can handle it appropriately
+    throw error;
   }
 }
+
+const res = await generateGoogleMeetLink(
+  new Date(),
+  "Subham",
+  "subhamdey1114@gmail.com"
+);
+console.log("res", res);
 
 /**
  * Format date for email display
@@ -164,12 +344,27 @@ export async function sendEmail(
       );
     }
 
-    const meetLink = await generateGoogleMeetLink(
-      userScheduledAt,
-      "Candidate",
-      candidateEmail
-    );
+    // Generate Google Meet link with error handling
+    let meetLink;
+    let meetLinkError = null;
+    try {
+      meetLink = await generateGoogleMeetLink(
+        userScheduledAt,
+        "Candidate",
+        candidateEmail
+      );
+    } catch (error) {
+      console.error("Failed to generate Google Meet link:", error.message);
+      meetLinkError = error.message;
+      meetLink = null; // Set to null so we can handle it in the email template
+    }
+
     const formattedDate = formatDateForEmail(userScheduledAt);
+
+    // Determine what to show for the meeting link
+    const meetingLinkDisplay = meetLink || "Link will be sent separately";
+    const meetingLinkHref = meetLink || "#";
+    const showLinkError = meetLinkError ? ` (Error: ${meetLinkError})` : "";
 
     const mailOptions = {
       from: `"AI Recruitment Team" <${senderEmail}>`,
@@ -246,6 +441,9 @@ export async function sendEmail(
               
               <p>Please join the interview using the Google Meet link below:</p>
               
+              ${
+                meetLink
+                  ? `
               <div style="text-align: center;">
                 <a href="${meetLink}" class="meet-button">Join Google Meet</a>
               </div>
@@ -254,6 +452,16 @@ export async function sendEmail(
                 <strong>Meeting Link:</strong><br>
                 <a href="${meetLink}" style="color: #4285F4; word-break: break-all;">${meetLink}</a>
               </p>
+              `
+                  : `
+              <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                <strong>⚠️ Meeting Link:</strong><br>
+                ${meetingLinkDisplay}${showLinkError}
+                <br><br>
+                <small>We are working on generating your meeting link. You will receive a separate email with the link shortly.</small>
+              </div>
+              `
+              }
               
               <p>Please ensure you are available at the scheduled time. If you need to reschedule, please contact us as soon as possible.</p>
               
@@ -276,8 +484,14 @@ export async function sendEmail(
         
         Scheduled Time: ${formattedDate}
         
-        Please join the interview using the Google Meet link:
-        ${meetLink}
+        ${
+          meetLink
+            ? `Please join the interview using the Google Meet link:
+        ${meetLink}`
+            : `Meeting Link: ${meetingLinkDisplay}${showLinkError}
+        
+        We are working on generating your meeting link. You will receive a separate email with the link shortly.`
+        }
         
         Please ensure you are available at the scheduled time. If you need to reschedule, please contact us as soon as possible.
         
