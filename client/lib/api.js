@@ -182,4 +182,75 @@ export const bolnaAPI = {
       body: checkData,
     });
   },
+
+  stopCall: async (executionId) => {
+    return apiRequest(`/bolna/call/${executionId}/stop`, {
+      method: "POST",
+    });
+  },
+
+  stopAllCalls: async (jobId) => {
+    return apiRequest(`/bolna/job/${jobId}/stop-all`, {
+      method: "POST",
+    });
+  },
+
+  getCallStatus: async (executionId) => {
+    return apiRequest(`/bolna/call/${executionId}/status`, {
+      method: "GET",
+    });
+  },
+
+  getCallsByJob: async (jobId) => {
+    return apiRequest(`/bolna/job/${jobId}/calls`, {
+      method: "GET",
+    });
+  },
+};
+
+// Recruiter Availability API functions
+export const recruiterAvailabilityAPI = {
+  createOrUpdateAvailability: async (jobId, availabilitySlots) => {
+    return apiRequest("/recruiter-availability", {
+      method: "POST",
+      body: {
+        job_id: jobId,
+        availability_slots: availabilitySlots,
+      },
+    });
+  },
+
+  getAvailabilityByJob: async (jobId) => {
+    return apiRequest(`/recruiter-availability/job/${jobId}`, {
+      method: "GET",
+    });
+  },
+
+  getAllAvailabilityByJob: async (jobId) => {
+    return apiRequest(`/recruiter-availability/job/${jobId}/all`, {
+      method: "GET",
+    });
+  },
+
+  getMyAvailability: async () => {
+    return apiRequest("/recruiter-availability/recruiter/my-availability", {
+      method: "GET",
+    });
+  },
+
+  updateAvailabilitySlots: async (jobId, action, slot) => {
+    return apiRequest(`/recruiter-availability/job/${jobId}/slots`, {
+      method: "PATCH",
+      body: {
+        action,
+        slot,
+      },
+    });
+  },
+
+  deleteAvailability: async (jobId) => {
+    return apiRequest(`/recruiter-availability/job/${jobId}`, {
+      method: "DELETE",
+    });
+  },
 };

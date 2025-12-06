@@ -155,22 +155,30 @@ async function extractUserScheduledAt(transcript) {
     throw new Error("OPENAI_API_KEY is not configured");
   }
 
+  // Get current year to ensure correct year extraction
+  const currentYear = new Date().getFullYear();
+  const currentDate = new Date();
+
   const prompt = ChatPromptTemplate.fromMessages([
     {
       role: "system",
       content:
-        "You extract follow-up scheduling times from transcripts and respond only with valid JSON.",
+        "You extract follow-up scheduling times from transcripts and respond only with valid JSON. IMPORTANT: If the transcript mentions a date without a year, use the current year ({currentYear}). If the date mentioned is in the past relative to today ({currentDateISO}), assume it refers to the next occurrence of that date in the current year or future.",
     },
     {
       role: "user",
       content:
-        'Transcript:\n"""\n{transcript}\n"""\n\nReturn JSON with field user_scheduled_time (ISO 8601) or null if not present.',
+        'Transcript:\n"""\n{transcript}\n"""\n\nCurrent date: {currentDateISO}\nCurrent year: {currentYear}\n\nExtract the user-scheduled time from the transcript. If a date is mentioned without a year, use {currentYear}. If the date appears to be in the past, use the next occurrence of that date.\n\nReturn JSON with field user_scheduled_time (ISO 8601 format, e.g., "2024-12-08T10:00:00") or null if not present.',
     },
   ]);
 
   const chain = prompt.pipe(llmClient).pipe(new StringOutputParser());
 
-  let content = await chain.invoke({ transcript });
+  let content = await chain.invoke({ 
+    transcript,
+    currentYear: currentYear,
+    currentDateISO: currentDate.toISOString(),
+  });
 
   if (!content) return null;
 
@@ -257,7 +265,7 @@ export const scheduleBolnaCallsBatch = async (req, res) => {
     }
 
     const results = [];
-    const CALL_GAP_MINUTES = 5;
+    const CALL_GAP_MINUTES = 0; // 0 minutes gap between each call
 
     // Check which candidates are already scheduled for this job
     const candidateIds = candidates.map((c) => c.candidateId).filter(Boolean);
@@ -458,5 +466,279 @@ export const syncBolnaCall = async (executionId) => {
   } catch (error) {
     console.error("Error syncing Bolna call:", error);
     throw new Error(error.message || "Failed to sync Bolna call");
+  }
+};
+
+// Stop a single call by executionId
+export const stopBolnaCall = async (req, res) => {
+  try {
+    ensureBolnaConfig();
+
+    const { executionId } = req.params;
+
+    if (!executionId) {
+      return res.status(400).json({
+        message: "executionId is required",
+      });
+    }
+
+    // Find the call in database
+    const bolnaCall = await BolnaCall.findOne({ executionId });
+
+    if (!bolnaCall) {
+      return res.status(404).json({
+        message: "Call not found",
+      });
+    }
+
+    // Check if call can be stopped (not past scheduled time)
+    const now = new Date();
+    if (bolnaCall.callScheduledAt && now > bolnaCall.callScheduledAt) {
+      return res.status(400).json({
+        message: "Cannot stop call: scheduled time has already passed",
+        callScheduledAt: bolnaCall.callScheduledAt,
+      });
+    }
+
+    // Call Bolna API to stop the call
+    const response = await fetch(
+      `https://api.bolna.ai/call/${executionId}/stop`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${BOLNA_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        message: "Failed to stop call with Bolna API",
+        details: data,
+      });
+    }
+
+    // Update status in database
+    bolnaCall.status = "stopped" || data.status || "cancelled";
+    await bolnaCall.save();
+
+    res.status(200).json({
+      message: "Call stopped successfully",
+      bolnaResponse: data,
+      call: {
+        id: bolnaCall._id,
+        executionId: bolnaCall.executionId,
+        status: bolnaCall.status,
+      },
+    });
+  } catch (error) {
+    console.error("Error stopping Bolna call:", error);
+    res.status(500).json({
+      message: error.message || "Failed to stop call",
+    });
+  }
+};
+
+// Stop all calls for a job
+export const stopAllBolnaCalls = async (req, res) => {
+  try {
+    ensureBolnaConfig();
+
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        message: "jobId is required",
+      });
+    }
+
+    // Find all calls for this job that haven't passed scheduled time
+    const now = new Date();
+    const calls = await BolnaCall.find({
+      jobId,
+      callScheduledAt: { $gt: now }, // Only calls that haven't passed scheduled time
+    });
+
+    if (calls.length === 0) {
+      return res.status(200).json({
+        message: "No calls found that can be stopped",
+        stoppedCount: 0,
+      });
+    }
+
+    const results = [];
+    let successCount = 0;
+    let failCount = 0;
+
+    // Stop each call
+    for (const call of calls) {
+      try {
+        const response = await fetch(
+          `https://api.bolna.ai/call/${call.executionId}/stop`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${BOLNA_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (response.ok) {
+          call.status = "stopped" || data.status || "cancelled";
+          await call.save();
+          successCount++;
+          results.push({
+            executionId: call.executionId,
+            candidateId: call.candidateId,
+            success: true,
+          });
+        } else {
+          failCount++;
+          results.push({
+            executionId: call.executionId,
+            candidateId: call.candidateId,
+            success: false,
+            error: data.message || data.error || "Failed to stop call",
+          });
+        }
+      } catch (error) {
+        failCount++;
+        results.push({
+          executionId: call.executionId,
+          candidateId: call.candidateId,
+          success: false,
+          error: error.message || "Failed to stop call",
+        });
+      }
+    }
+
+    res.status(200).json({
+      message: `Stopped ${successCount} call(s), ${failCount} failed`,
+      stoppedCount: successCount,
+      failedCount: failCount,
+      totalCalls: calls.length,
+      results,
+    });
+  } catch (error) {
+    console.error("Error stopping all Bolna calls:", error);
+    res.status(500).json({
+      message: error.message || "Failed to stop calls",
+    });
+  }
+};
+
+// Get call status/details by executionId
+export const getBolnaCallStatus = async (req, res) => {
+  try {
+    const { executionId } = req.params;
+
+    if (!executionId) {
+      return res.status(400).json({
+        message: "executionId is required",
+      });
+    }
+
+    // Find call in database
+    const bolnaCall = await BolnaCall.findOne({ executionId })
+      .populate("candidateId", "name email phone")
+      .populate("jobId", "title company");
+
+    if (!bolnaCall) {
+      return res.status(404).json({
+        message: "Call not found",
+      });
+    }
+
+    // Fetch latest status from Bolna API
+    let executionData = null;
+    try {
+      executionData = await fetchBolnaExecution(executionId);
+      // Update status in database
+      bolnaCall.status = executionData.status || bolnaCall.status;
+      await bolnaCall.save();
+    } catch (error) {
+      console.error("Error fetching execution data:", error);
+      // Continue with database data if API fails
+    }
+
+    // Check if call can be stopped
+    const now = new Date();
+    const canStop = bolnaCall.callScheduledAt && now < bolnaCall.callScheduledAt;
+
+    res.status(200).json({
+      call: {
+        id: bolnaCall._id,
+        executionId: bolnaCall.executionId,
+        candidateId: bolnaCall.candidateId,
+        jobId: bolnaCall.jobId,
+        status: bolnaCall.status,
+        callScheduledAt: bolnaCall.callScheduledAt,
+        userScheduledAt: bolnaCall.userScheduledAt,
+        canStop,
+        createdAt: bolnaCall.createdAt,
+        updatedAt: bolnaCall.updatedAt,
+      },
+      execution: executionData,
+    });
+  } catch (error) {
+    console.error("Error getting call status:", error);
+    res.status(500).json({
+      message: error.message || "Failed to get call status",
+    });
+  }
+};
+
+// Get all calls for a job with status
+export const getBolnaCallsByJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        message: "jobId is required",
+      });
+    }
+
+    const calls = await BolnaCall.find({ jobId })
+      .populate("candidateId", "name email phone")
+      .populate("jobId", "title company")
+      .sort({ callScheduledAt: 1 });
+
+    const now = new Date();
+
+    const callsWithStatus = calls.map((call) => {
+      const canStop = call.callScheduledAt && now < call.callScheduledAt;
+      // Extract candidateId as string for easier frontend mapping
+      const candidateIdStr = call.candidateId?._id?.toString() || call.candidateId?.toString();
+      return {
+        id: call._id,
+        executionId: call.executionId,
+        candidateId: candidateIdStr,
+        candidateIdObj: call.candidateId, // Keep populated object for reference
+        jobId: call.jobId,
+        status: call.status,
+        callScheduledAt: call.callScheduledAt,
+        userScheduledAt: call.userScheduledAt,
+        canStop,
+        createdAt: call.createdAt,
+        updatedAt: call.updatedAt,
+      };
+    });
+
+    res.status(200).json({
+      count: callsWithStatus.length,
+      calls: callsWithStatus,
+    });
+  } catch (error) {
+    console.error("Error getting calls by job:", error);
+    res.status(500).json({
+      message: error.message || "Failed to get calls",
+    });
   }
 };
