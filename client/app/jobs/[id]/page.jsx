@@ -172,7 +172,13 @@ export default function JobDetailPage() {
               </p>
               <Button
                 className="mt-4 w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white"
-                onClick={() => router.push("/jobs")}
+                onClick={() => {
+                  if (user?.role) {
+                    router.push(`/dashboard/${user.role}/manage-job-posting`);
+                  } else {
+                    router.push("/jobs");
+                  }
+                }}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Job Postings
@@ -203,7 +209,13 @@ export default function JobDetailPage() {
               </p>
               <Button
                 className="mt-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white"
-                onClick={() => router.push("/jobs")}
+                onClick={() => {
+                  if (user?.role) {
+                    router.push(`/dashboard/${user.role}/manage-job-posting`);
+                  } else {
+                    router.push("/jobs");
+                  }
+                }}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Job Postings
@@ -267,7 +279,13 @@ export default function JobDetailPage() {
               <Button
                 variant="outline"
                 className="flex-1 lg:flex-initial border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 hover:scale-105 hover:shadow-md"
-                onClick={() => router.push("/jobs")}
+                onClick={() => {
+                  if (user?.role) {
+                    router.push(`/dashboard/${user.role}/manage-job-posting`);
+                  } else {
+                    router.push("/jobs");
+                  }
+                }}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
@@ -472,9 +490,17 @@ export default function JobDetailPage() {
           open={availabilityDialogOpen}
           onOpenChange={setAvailabilityDialogOpen}
         >
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>My Availability</DialogTitle>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200/50 dark:border-slate-800/50 shadow-2xl">
+            <DialogHeader className="pb-4 border-b border-slate-200 dark:border-slate-700">
+              <DialogTitle className="flex items-center gap-3 text-2xl bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
+                  <CalendarDays className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+                </div>
+                My Availability
+              </DialogTitle>
+              <DialogDescription className="text-slate-600 dark:text-slate-400 mt-2">
+                Set your available dates and times for this job posting
+              </DialogDescription>
             </DialogHeader>
             <RecruiterAvailability jobId={jobId} user={user} />
           </DialogContent>
