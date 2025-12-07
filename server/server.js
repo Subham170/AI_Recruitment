@@ -4,6 +4,7 @@ import express from "express";
 import bolnaRoutes from "./bolna/route.js";
 import candidateRoutes from "./candidates/route.js";
 import connectDB from "./config/database.js";
+import dashboardRoutes from "./dashboard/route.js";
 import jobPostingRoutes from "./job_posting/route.js";
 import matchingRoutes from "./matching/route.js";
 import recruiterAvailabilityRoutes from "./recruiter_availability/route.js";
@@ -65,6 +66,9 @@ app.use("/api/bolna", bolnaRoutes);
 
 // Recruiter availability routes
 app.use("/api/recruiter-availability", recruiterAvailabilityRoutes);
+
+// Dashboard routes
+app.use("/api/dashboard", dashboardRoutes);
 
 // TODO: Uncomment when these route files are created
 // app.use("/api/applications", applicationRoutes);

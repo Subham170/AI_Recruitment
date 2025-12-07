@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import Loading from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
+import { dashboardAPI } from "@/lib/api";
 import {
   BarChart3,
   Briefcase,
@@ -20,12 +21,19 @@ import {
   Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function RecruiterDashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const { sidebarOpen, setSidebarOpen } = useSidebarState();
+  const [stats, setStats] = useState({
+    activeJobs: 0,
+    applications: 0,
+    candidates: 0,
+    interviews: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -34,6 +42,26 @@ export default function RecruiterDashboardPage() {
       router.push(`/dashboard/${user.role}`);
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (user && user.role === "recruiter") {
+      fetchDashboardStats();
+    }
+  }, [user]);
+
+  const fetchDashboardStats = async () => {
+    try {
+      setLoadingStats(true);
+      const response = await dashboardAPI.getDashboardStats();
+      if (response.success && response.stats) {
+        setStats(response.stats);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -117,7 +145,11 @@ export default function RecruiterDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
-                    -
+                    {loadingStats ? (
+                      <span className="animate-pulse">-</span>
+                    ) : (
+                      stats.activeJobs
+                    )}
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
                     Job postings
@@ -136,7 +168,11 @@ export default function RecruiterDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
-                    -
+                    {loadingStats ? (
+                      <span className="animate-pulse">-</span>
+                    ) : (
+                      stats.applications
+                    )}
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
                     Total received
@@ -155,7 +191,11 @@ export default function RecruiterDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
-                    -
+                    {loadingStats ? (
+                      <span className="animate-pulse">-</span>
+                    ) : (
+                      stats.candidates
+                    )}
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
                     In pipeline
@@ -174,7 +214,11 @@ export default function RecruiterDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
-                    -
+                    {loadingStats ? (
+                      <span className="animate-pulse">-</span>
+                    ) : (
+                      stats.interviews
+                    )}
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
                     Scheduled

@@ -20,6 +20,7 @@ import { jobPostingAPI, userAPI } from "@/lib/api";
 import RecruiterAvailability from "@/components/RecruiterAvailability";
 import {
   ArrowLeft,
+  Briefcase,
   CalendarDays,
   Calendar,
   Clock,
@@ -59,6 +60,7 @@ export default function JobDetailPage() {
     role: [],
     ctc: "",
     exp_req: 0,
+    job_type: "Full time",
     skills: "",
     secondary_recruiter_id: [],
   });
@@ -116,6 +118,7 @@ export default function JobDetailPage() {
       role: jobPosting.role || [],
       ctc: jobPosting.ctc || "",
       exp_req: jobPosting.exp_req || 0,
+      job_type: jobPosting.job_type || "Full time",
       skills: (jobPosting.skills || []).join(", "),
       secondary_recruiter_id: secondaryIds,
     });
@@ -138,6 +141,7 @@ export default function JobDetailPage() {
         role: jobForm.role,
         ctc: jobForm.ctc || undefined,
         exp_req: jobForm.exp_req || 0,
+        job_type: jobForm.job_type || "Full time",
         skills: skillsArray,
         secondary_recruiter_id: jobForm.secondary_recruiter_id || [],
       };
@@ -360,6 +364,22 @@ export default function JobDetailPage() {
                         </div>
                       </div>
                     )}
+
+                  {jobPosting.job_type && (
+                    <div className="flex items-start gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+                      <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                        <Briefcase className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                          Job Type
+                        </p>
+                        <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                          {jobPosting.job_type}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {jobPosting.createdAt && (
                     <div className="flex items-start gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
@@ -659,16 +679,34 @@ export default function JobDetailPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="edit-skills">Skills (comma-separated)</Label>
-                  <Input
-                    id="edit-skills"
-                    value={jobForm.skills}
-                    onChange={(e) =>
-                      setJobForm({ ...jobForm, skills: e.target.value })
+                  <Label htmlFor="edit-job_type">Job Type</Label>
+                  <Select
+                    value={jobForm.job_type}
+                    onValueChange={(value) =>
+                      setJobForm({ ...jobForm, job_type: value })
                     }
-                    placeholder="e.g., React, Node.js, TypeScript"
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select job type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Full time">Full time</SelectItem>
+                      <SelectItem value="Internship">Internship</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-skills">Skills (comma-separated)</Label>
+                <Input
+                  id="edit-skills"
+                  value={jobForm.skills}
+                  onChange={(e) =>
+                    setJobForm({ ...jobForm, skills: e.target.value })
+                  }
+                  placeholder="e.g., React, Node.js, TypeScript"
+                />
               </div>
 
               {/* Secondary Recruiters */}
@@ -692,10 +730,10 @@ export default function JobDetailPage() {
                     }
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select recruiters to add" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[200px] overflow-y-auto">
                     {recruiters
                       .filter(
                         (recruiter) =>
@@ -712,8 +750,11 @@ export default function JobDetailPage() {
                             recruiter._id?.toString() ||
                             recruiter.id?.toString()
                           }
+                          className="truncate"
                         >
-                          {recruiter.name} ({recruiter.email})
+                          <span className="truncate block">
+                            {recruiter.name} ({recruiter.email})
+                          </span>
                         </SelectItem>
                       ))}
                     {recruiters.filter(
@@ -741,7 +782,7 @@ export default function JobDetailPage() {
                       return (
                         <span
                           key={recruiterId}
-                          className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 flex items-center gap-1"
+                          className="px-2 py-1 text-xs rounded-full bg-black text-white dark:bg-black/30 dark:text-white flex items-center gap-1"
                         >
                           {recruiter?.name || recruiterId}
                           <button
