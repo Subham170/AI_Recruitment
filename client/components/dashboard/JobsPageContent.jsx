@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetFooter, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { jobPostingAPI, userAPI } from "@/lib/api";
 import {
@@ -38,17 +38,20 @@ import {
   DollarSign,
   Edit,
   Eye,
+  Filter,
   Plus,
   Search,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 
 export default function JobsPageContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [jobPostings, setJobPostings] = useState({
@@ -61,6 +64,36 @@ export default function JobsPageContent() {
   const [error, setError] = useState(null);
   const [recruiters, setRecruiters] = useState([]);
   const [loadingRecruiters, setLoadingRecruiters] = useState(false);
+  
+  // Applied filters (used for API calls)
+  const [filters, setFilters] = useState({
+    job_type: "",
+    role: [],
+    min_exp: "",
+    max_exp: "",
+    min_ctc: "",
+    max_ctc: "",
+    company: "",
+    skills: [],
+    date_from: "",
+    date_to: "",
+  });
+  
+  // Temporary filters (for sidebar inputs, not applied until Apply is clicked)
+  const [tempFilters, setTempFilters] = useState({
+    job_type: "",
+    role: [],
+    min_exp: "",
+    max_exp: "",
+    min_ctc: "",
+    max_ctc: "",
+    company: "",
+    skills: [],
+    date_from: "",
+    date_to: "",
+  });
+  
+  const [showFilters, setShowFilters] = useState(false);
 
   // Form state
   const [jobForm, setJobForm] = useState({
@@ -91,6 +124,30 @@ export default function JobsPageContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]); // Removed router from dependencies to prevent re-renders
+
+  // Debounce search query
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // 500ms debounce
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  // Fetch jobs when filters or debounced search change
+  useEffect(() => {
+    if (user && !loading) {
+      fetchJobPostings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchQuery, filters, user, loading]);
+  
+  // Initialize tempFilters when sidebar opens
+  useEffect(() => {
+    if (showFilters) {
+      setTempFilters(filters);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFilters]);
 
   const fetchRecruiters = async () => {
     try {
@@ -125,11 +182,27 @@ export default function JobsPageContent() {
     }
   }, [loadingJobs, jobPostings]);
 
-  const fetchJobPostings = async () => {
+  const fetchJobPostings = useCallback(async () => {
     try {
       setLoadingJobs(true);
       setError(null);
-      const response = await jobPostingAPI.getAllJobPostings();
+      
+      // Build filter object
+      const filterParams = {
+        ...(debouncedSearchQuery && { search: debouncedSearchQuery }),
+        ...(filters.job_type && { job_type: filters.job_type }),
+        ...(filters.role.length > 0 && { role: filters.role }),
+        ...(filters.min_exp && { min_exp: filters.min_exp }),
+        ...(filters.max_exp && { max_exp: filters.max_exp }),
+        ...(filters.min_ctc && { min_ctc: filters.min_ctc }),
+        ...(filters.max_ctc && { max_ctc: filters.max_ctc }),
+        ...(filters.company && { company: filters.company }),
+        ...(filters.skills.length > 0 && { skills: filters.skills }),
+        ...(filters.date_from && { date_from: filters.date_from }),
+        ...(filters.date_to && { date_to: filters.date_to }),
+      };
+      
+      const response = await jobPostingAPI.getAllJobPostings(filterParams);
 
       if (user.role === "recruiter") {
         setJobPostings({
@@ -152,7 +225,7 @@ export default function JobsPageContent() {
     } finally {
       setLoadingJobs(false);
     }
-  };
+  }, [debouncedSearchQuery, filters, user]);
 
   const handleCreateJob = async () => {
     try {
@@ -266,7 +339,7 @@ export default function JobsPageContent() {
   };
 
   const handleJobClick = (jobId) => {
-    router.push(`/jobs/${jobId}`);
+    router.push(`/dashboard/${user.role}/manage-job-posting/${jobId}`);
   };
 
   if (!user) {
@@ -279,13 +352,63 @@ export default function JobsPageContent() {
 
   // Filter jobs based on search query
   const filterJobs = (jobs) => {
-    if (!searchQuery) return jobs;
-    const query = searchQuery.toLowerCase();
-    return jobs.filter(
-      (job) =>
-        job.title?.toLowerCase().includes(query) ||
-        job.company?.toLowerCase().includes(query) ||
-        job.description?.toLowerCase().includes(query)
+    // Backend handles most filtering now, but keep this for any client-side filtering if needed
+    return jobs;
+  };
+
+  const handleTempFilterChange = (key, value) => {
+    setTempFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const handleTempRoleToggle = (role) => {
+    setTempFilters((prev) => ({
+      ...prev,
+      role: prev.role.includes(role)
+        ? prev.role.filter((r) => r !== role)
+        : [...prev.role, role],
+    }));
+  };
+
+  const applyFilters = () => {
+    setFilters(tempFilters);
+    setShowFilters(false);
+  };
+
+  const clearFilters = () => {
+    const emptyFilters = {
+      job_type: "",
+      role: [],
+      min_exp: "",
+      max_exp: "",
+      min_ctc: "",
+      max_ctc: "",
+      company: "",
+      skills: [],
+      date_from: "",
+      date_to: "",
+    };
+    setTempFilters(emptyFilters);
+    setFilters(emptyFilters);
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+  };
+
+  const hasActiveFilters = () => {
+    return (
+      filters.job_type ||
+      filters.role.length > 0 ||
+      filters.min_exp ||
+      filters.max_exp ||
+      filters.min_ctc ||
+      filters.max_ctc ||
+      filters.company ||
+      filters.skills.length > 0 ||
+      filters.date_from ||
+      filters.date_to ||
+      searchQuery
     );
   };
 
@@ -486,28 +609,311 @@ export default function JobsPageContent() {
                 </div>
               )}
 
-              <div className="mb-6 flex gap-3 items-center">
-                <div className="relative flex-1 group">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-cyan-500 transition-colors" />
-                  <input
-                    type="text"
-                    placeholder="Search job postings..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all shadow-sm hover:shadow-md"
-                  />
-                </div>
-                {canCreate && (
-                  <div className="hidden lg:block">
-                    <Button
-                      className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
-                      onClick={openCreateDialog}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Job Posting
-                    </Button>
+              <div className="mb-6 space-y-4">
+                <div className="flex gap-3 items-center">
+                  <div className="relative flex-1 group">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-cyan-500 transition-colors" />
+                    <input
+                      type="text"
+                      placeholder="Search job postings..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all shadow-sm hover:shadow-md"
+                    />
                   </div>
-                )}
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-white ${
+                      hasActiveFilters()
+                        ? "border-cyan-500 dark:border-cyan-400 bg-cyan-50/50 dark:bg-cyan-950/20"
+                        : ""
+                    }`}
+                  >
+                    <Filter className="h-4 w-4 mr-2 text-white" />
+                    <span className="text-white">Filters</span>
+                    {hasActiveFilters() && (
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-cyan-500 text-white text-xs font-medium">
+                        {[
+                          filters.job_type,
+                          filters.role.length,
+                          filters.min_exp || filters.max_exp,
+                          filters.min_ctc || filters.max_ctc,
+                          filters.company,
+                          filters.skills.length,
+                          filters.date_from || filters.date_to,
+                        ].filter((v) => v && v !== "" && v !== 0).length}
+                      </span>
+                    )}
+                  </Button>
+                  {canCreate && (
+                    <div className="hidden lg:block">
+                      <Button
+                        className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
+                        onClick={openCreateDialog}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Job Posting
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Filter Sidebar */}
+                <Sheet open={showFilters} onOpenChange={setShowFilters}>
+                  <SheetContent 
+                    side="right" 
+                    className="w-full sm:w-[400px] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-0"
+                  >
+                    <SheetHeader className="border-b border-slate-200/50 dark:border-slate-800/50 pb-4 px-6 pt-6">
+                      <SheetTitle className="flex items-center gap-3 text-xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
+                          <Filter className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                        </div>
+                        Filter Jobs
+                      </SheetTitle>
+                    </SheetHeader>
+
+                    <div className="flex-1 py-6 px-6 space-y-6 overflow-y-auto">
+                      {/* Job Type */}
+                      <div>
+                        <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
+                          Job Type
+                        </Label>
+                        <Select
+                          value={tempFilters.job_type || undefined}
+                          onValueChange={(value) => handleTempFilterChange("job_type", value === "all" ? "" : value)}
+                        >
+                          <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white">
+                            <SelectValue placeholder="All Types" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Types</SelectItem>
+                            <SelectItem value="Full time">Full time</SelectItem>
+                            <SelectItem value="Internship">Internship</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Role - Multi-select Dropdown */}
+                      <div>
+                        <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
+                          Role
+                        </Label>
+                        <Select
+                          value={undefined}
+                          onValueChange={(value) => {
+                            if (!tempFilters.role.includes(value)) {
+                              handleTempFilterChange("role", [...tempFilters.role, value]);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="!w-full bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white">
+                            <SelectValue placeholder={tempFilters.role.length > 0 ? `${tempFilters.role.length} role(s) selected` : "Select roles"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["Frontend", "Backend", "Full-stack", "SDET", "QA", "DevOps"]
+                              .filter(role => !tempFilters.role.includes(role))
+                              .map((role) => (
+                                <SelectItem key={role} value={role}>
+                                  {role}
+                                </SelectItem>
+                              ))}
+                            {tempFilters.role.length === 6 && (
+                              <div className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">All roles selected</div>
+                            )}
+                            {tempFilters.role.length === 0 && (
+                              <div className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">No roles available</div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {tempFilters.role.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {tempFilters.role.map((role) => (
+                              <span
+                                key={role}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium"
+                              >
+                                {role}
+                                <button
+                                  type="button"
+                                  onClick={() => handleTempFilterChange("role", tempFilters.role.filter(r => r !== role))}
+                                  className="ml-0.5 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Experience Range */}
+                      <div>
+                        <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
+                          Experience (years)
+                        </Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            placeholder="Min"
+                            value={tempFilters.min_exp}
+                            onChange={(e) => handleTempFilterChange("min_exp", e.target.value)}
+                            className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400"
+                            min="0"
+                          />
+                          <Input
+                            type="number"
+                            placeholder="Max"
+                            value={tempFilters.max_exp}
+                            onChange={(e) => handleTempFilterChange("max_exp", e.target.value)}
+                            className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400"
+                            min="0"
+                          />
+                        </div>
+                      </div>
+
+                      {/* CTC Range */}
+                      <div>
+                        <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
+                          CTC (LPA)
+                        </Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            placeholder="Min"
+                            value={tempFilters.min_ctc}
+                            onChange={(e) => handleTempFilterChange("min_ctc", e.target.value)}
+                            className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400"
+                            min="0"
+                          />
+                          <Input
+                            type="number"
+                            placeholder="Max"
+                            value={tempFilters.max_ctc}
+                            onChange={(e) => handleTempFilterChange("max_ctc", e.target.value)}
+                            className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400"
+                            min="0"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Company */}
+                      <div>
+                        <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
+                          Company
+                        </Label>
+                          <Input
+                            type="text"
+                            placeholder="Filter by company..."
+                            value={tempFilters.company}
+                            onChange={(e) => handleTempFilterChange("company", e.target.value)}
+                            className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400"
+                          />
+                      </div>
+
+                      {/* Skills - Multi-select Dropdown */}
+                      <div>
+                        <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
+                          Skills
+                        </Label>
+                        <Select
+                          value={undefined}
+                          onValueChange={(value) => {
+                            if (!tempFilters.skills.includes(value)) {
+                              handleTempFilterChange("skills", [...tempFilters.skills, value]);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="!w-full bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white">
+                            <SelectValue placeholder={tempFilters.skills.length > 0 ? `${tempFilters.skills.length} skill(s) selected` : "Select skills"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[
+                              "React", "Next.js", "Node.js", "Express.js", "MongoDB", "SQL",
+                              "JavaScript", "TypeScript", "Python", "Java", "C++", "Go",
+                              "AWS", "Docker", "Kubernetes", "Git", "GraphQL", "Redis"
+                            ]
+                              .filter(skill => !tempFilters.skills.includes(skill))
+                              .map((skill) => (
+                                <SelectItem key={skill} value={skill}>
+                                  {skill}
+                                </SelectItem>
+                              ))}
+                            {tempFilters.skills.length === 18 && (
+                              <div className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">All skills selected</div>
+                            )}
+                            {tempFilters.skills.length === 0 && (
+                              <div className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">No skills available</div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {tempFilters.skills.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {tempFilters.skills.map((skill) => (
+                              <span
+                                key={skill}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium"
+                              >
+                                {skill}
+                                <button
+                                  type="button"
+                                  onClick={() => handleTempFilterChange("skills", tempFilters.skills.filter(s => s !== skill))}
+                                  className="ml-0.5 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Date From */}
+                      {/* <div>
+                        <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
+                          Posted From
+                        </Label>
+                        <Input
+                          type="date"
+                          value={tempFilters.date_from}
+                          onChange={(e) => handleTempFilterChange("date_from", e.target.value)}
+                          className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                        />
+                      </div> */}
+
+                      {/* Date To */}
+                      {/* <div>
+                        <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
+                          Posted To
+                        </Label>
+                        <Input
+                          type="date"
+                          value={tempFilters.date_to}
+                          onChange={(e) => handleTempFilterChange("date_to", e.target.value)}
+                          className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600"
+                        />
+                      </div> */}
+                    </div>
+
+                    <SheetFooter className="border-t border-slate-200/50 dark:border-slate-800/50 pt-4 px-6 pb-6 gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={clearFilters}
+                        className="flex-1 border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Clear All
+                      </Button>
+                      <Button
+                        onClick={applyFilters}
+                        className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25"
+                      >
+                        Apply Filters
+                      </Button>
+                    </SheetFooter>
+                  </SheetContent>
+                </Sheet>
               </div>
 
               {isRecruiter && (

@@ -120,12 +120,108 @@ export const getJobPostings = async (req, res) => {
     const currentUserId = req.user?.id; // Get current user ID from auth middleware (if authenticated)
     const userRole = req.user?.role;
 
+    // Extract filter parameters from query
+    const {
+      search,
+      job_type,
+      role,
+      min_exp,
+      max_exp,
+      min_ctc,
+      max_ctc,
+      company,
+      skills,
+      date_from,
+      date_to,
+    } = req.query;
+
+    // Build filter query
+    const filterQuery = {};
+
+    // Search filter (title, description, company)
+    if (search) {
+      filterQuery.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { company: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Job type filter
+    if (job_type) {
+      filterQuery.job_type = job_type;
+    }
+
+    // Role filter (array contains)
+    if (role) {
+      const roleArray = Array.isArray(role) ? role : [role];
+      filterQuery.role = { $in: roleArray };
+    }
+
+    // Experience filter
+    if (min_exp !== undefined || max_exp !== undefined) {
+      filterQuery.exp_req = {};
+      if (min_exp !== undefined) {
+        filterQuery.exp_req.$gte = parseFloat(min_exp);
+      }
+      if (max_exp !== undefined) {
+        filterQuery.exp_req.$lte = parseFloat(max_exp);
+      }
+    }
+
+    // CTC filter (parse numeric value from string like "12 LPA")
+    if (min_ctc !== undefined || max_ctc !== undefined) {
+      filterQuery.$expr = filterQuery.$expr || {};
+      // We'll filter this in JavaScript since CTC is stored as string
+    }
+
+    // Company filter
+    if (company) {
+      filterQuery.company = { $regex: company, $options: "i" };
+    }
+
+    // Skills filter (array contains any of the provided skills)
+    if (skills) {
+      const skillsArray = Array.isArray(skills) ? skills : [skills];
+      // Match if any skill in the job's skills array matches any of the filter skills (case-insensitive)
+      filterQuery.skills = { 
+        $in: skillsArray.map(s => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i"))
+      };
+    }
+
+    // Date range filter
+    if (date_from || date_to) {
+      filterQuery.createdAt = {};
+      if (date_from) {
+        filterQuery.createdAt.$gte = new Date(date_from);
+      }
+      if (date_to) {
+        const endDate = new Date(date_to);
+        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+        filterQuery.createdAt.$lte = endDate;
+      }
+    }
+
     // If user is a recruiter, categorize jobs
     if (userRole === "recruiter" && currentUserId) {
-      const allJobPostings = await JobPosting.find().populate(
-        "primary_recruiter_id",
-        "name email"
-      ).populate("secondary_recruiter_id", "name email");
+      let allJobPostings = await JobPosting.find(filterQuery)
+        .populate("primary_recruiter_id", "name email")
+        .populate("secondary_recruiter_id", "name email")
+        .sort({ createdAt: -1 }); // Sort by newest first
+
+      // Apply CTC filter in JavaScript if needed
+      if (min_ctc !== undefined || max_ctc !== undefined) {
+        allJobPostings = allJobPostings.filter((job) => {
+          if (!job.ctc) return false;
+          // Extract numeric value from CTC string (e.g., "12 LPA" -> 12)
+          const ctcMatch = job.ctc.match(/(\d+\.?\d*)/);
+          if (!ctcMatch) return false;
+          const ctcValue = parseFloat(ctcMatch[1]);
+          if (min_ctc !== undefined && ctcValue < parseFloat(min_ctc)) return false;
+          if (max_ctc !== undefined && ctcValue > parseFloat(max_ctc)) return false;
+          return true;
+        });
+      }
 
       const userIdStr = currentUserId.toString();
 
@@ -176,10 +272,24 @@ export const getJobPostings = async (req, res) => {
     }
 
     // For admin, manager, or unauthenticated users, return all jobs
-    const jobPostings = await JobPosting.find().populate(
-      "primary_recruiter_id",
-      "name email"
-    ).populate("secondary_recruiter_id", "name email");
+    let jobPostings = await JobPosting.find(filterQuery)
+      .populate("primary_recruiter_id", "name email")
+      .populate("secondary_recruiter_id", "name email")
+      .sort({ createdAt: -1 }); // Sort by newest first
+
+    // Apply CTC filter in JavaScript if needed
+    if (min_ctc !== undefined || max_ctc !== undefined) {
+      jobPostings = jobPostings.filter((job) => {
+        if (!job.ctc) return false;
+        // Extract numeric value from CTC string (e.g., "12 LPA" -> 12)
+        const ctcMatch = job.ctc.match(/(\d+\.?\d*)/);
+        if (!ctcMatch) return false;
+        const ctcValue = parseFloat(ctcMatch[1]);
+        if (min_ctc !== undefined && ctcValue < parseFloat(min_ctc)) return false;
+        if (max_ctc !== undefined && ctcValue > parseFloat(max_ctc)) return false;
+        return true;
+      });
+    }
 
     res.status(200).json({
       count: jobPostings.length,

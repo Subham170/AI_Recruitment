@@ -97,8 +97,35 @@ export const userAPI = {
 
 // Job Posting API functions
 export const jobPostingAPI = {
-  getAllJobPostings: async () => {
-    return apiRequest("/job-postings", {
+  getAllJobPostings: async (filters = {}) => {
+    const params = new URLSearchParams();
+    
+    if (filters.search) params.append("search", filters.search);
+    if (filters.job_type) params.append("job_type", filters.job_type);
+    if (filters.role) {
+      if (Array.isArray(filters.role)) {
+        filters.role.forEach(r => params.append("role", r));
+      } else {
+        params.append("role", filters.role);
+      }
+    }
+    if (filters.min_exp !== undefined) params.append("min_exp", filters.min_exp);
+    if (filters.max_exp !== undefined) params.append("max_exp", filters.max_exp);
+    if (filters.min_ctc !== undefined) params.append("min_ctc", filters.min_ctc);
+    if (filters.max_ctc !== undefined) params.append("max_ctc", filters.max_ctc);
+    if (filters.company) params.append("company", filters.company);
+    if (filters.skills) {
+      if (Array.isArray(filters.skills)) {
+        filters.skills.forEach(s => params.append("skills", s));
+      } else {
+        params.append("skills", filters.skills);
+      }
+    }
+    if (filters.date_from) params.append("date_from", filters.date_from);
+    if (filters.date_to) params.append("date_to", filters.date_to);
+    
+    const endpoint = `/job-postings${params.toString() ? `?${params.toString()}` : ""}`;
+    return apiRequest(endpoint, {
       method: "GET",
     });
   },
