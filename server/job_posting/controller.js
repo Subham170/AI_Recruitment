@@ -5,7 +5,7 @@ import JobPosting from "./model.js";
 // Create a new job posting
 export const createJobPosting = async (req, res) => {
   try {
-    const { id, title, description, company, role, ctc, exp_req, skills, secondary_recruiter_id } =
+    const { id, title, description, company, role, ctc, exp_req, job_type, skills, secondary_recruiter_id } =
       req.body;
 
     // Validate required fields
@@ -73,6 +73,7 @@ export const createJobPosting = async (req, res) => {
       role: role || [],
       ctc,
       exp_req: exp_req || 0,
+      job_type: job_type || "Full time",
       skills: skills || [],
       primary_recruiter_id: currentUserId || null, // Set creator as primary recruiter
       secondary_recruiter_id: validSecondaryRecruiters,
@@ -223,7 +224,7 @@ export const getJobPostingById = async (req, res) => {
 export const updateJobPosting = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, company, role, ctc, exp_req, skills, secondary_recruiter_id } = req.body;
+    const { title, description, company, role, ctc, exp_req, job_type, skills, secondary_recruiter_id } = req.body;
 
     // Check if id is a valid MongoDB ObjectId
     const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
@@ -306,6 +307,7 @@ export const updateJobPosting = async (req, res) => {
     if (role !== undefined) jobPosting.role = role;
     if (ctc !== undefined) jobPosting.ctc = ctc;
     if (exp_req !== undefined) jobPosting.exp_req = exp_req;
+    if (job_type !== undefined) jobPosting.job_type = job_type;
     if (skills !== undefined) jobPosting.skills = skills;
 
     await jobPosting.save();

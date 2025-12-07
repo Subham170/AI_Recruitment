@@ -40,6 +40,7 @@ import {
   Eye,
   Plus,
   Search,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -71,6 +72,7 @@ export default function JobsPageContent() {
     role: [],
     ctc: "",
     exp_req: 0,
+    job_type: "Full time",
     skills: "",
     secondary_recruiter_id: [],
   });
@@ -170,6 +172,7 @@ export default function JobsPageContent() {
         role: jobForm.role,
         ctc: jobForm.ctc || undefined,
         exp_req: jobForm.exp_req || 0,
+        job_type: jobForm.job_type || "Full time",
         skills: skillsArray,
         secondary_recruiter_id: jobForm.secondary_recruiter_id || [],
       };
@@ -201,6 +204,7 @@ export default function JobsPageContent() {
         role: jobForm.role,
         ctc: jobForm.ctc || undefined,
         exp_req: jobForm.exp_req || 0,
+        job_type: jobForm.job_type || "Full time",
         skills: skillsArray,
         secondary_recruiter_id: jobForm.secondary_recruiter_id || [],
       };
@@ -225,6 +229,7 @@ export default function JobsPageContent() {
       role: [],
       ctc: "",
       exp_req: 0,
+      job_type: "Full time",
       skills: "",
       secondary_recruiter_id: [],
     });
@@ -248,6 +253,7 @@ export default function JobsPageContent() {
       role: job.role || [],
       ctc: job.ctc || "",
       exp_req: job.exp_req || 0,
+      job_type: job.job_type || "Full time",
       skills: (job.skills || []).join(", "),
       secondary_recruiter_id: secondaryIds,
     });
@@ -721,16 +727,34 @@ export default function JobsPageContent() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="skills">Skills (comma-separated)</Label>
-                    <Input
-                      id="skills"
-                      value={jobForm.skills}
-                      onChange={(e) =>
-                        setJobForm({ ...jobForm, skills: e.target.value })
+                    <Label htmlFor="job_type">Job Type</Label>
+                    <Select
+                      value={jobForm.job_type}
+                      onValueChange={(value) =>
+                        setJobForm({ ...jobForm, job_type: value })
                       }
-                      placeholder="e.g., React, Node.js, TypeScript"
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select job type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Full time">Full time</SelectItem>
+                        <SelectItem value="Internship">Internship</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="skills">Skills (comma-separated)</Label>
+                  <Input
+                    id="skills"
+                    value={jobForm.skills}
+                    onChange={(e) =>
+                      setJobForm({ ...jobForm, skills: e.target.value })
+                    }
+                    placeholder="e.g., React, Node.js, TypeScript"
+                  />
                 </div>
 
                 {isRecruiter && (
@@ -754,10 +778,10 @@ export default function JobsPageContent() {
                         }
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select recruiters to add" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-[200px] overflow-y-auto">
                         {recruiters
                           .filter(
                             (recruiter) =>
@@ -775,8 +799,11 @@ export default function JobsPageContent() {
                                 recruiter._id?.toString() ||
                                 recruiter.id?.toString()
                               }
+                              className="truncate"
                             >
-                              {recruiter.name} ({recruiter.email})
+                              <span className="truncate block">
+                                {recruiter.name} ({recruiter.email})
+                              </span>
                             </SelectItem>
                           ))}
                         {recruiters.filter(
@@ -804,12 +831,13 @@ export default function JobsPageContent() {
                           return (
                             <span
                               key={recruiterId}
-                              className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 flex items-center gap-1"
+                              className="px-2 py-1 text-xs rounded-full bg-black/80 text-white hover:bg-black/80 dark:bg-black/30 dark:text-white flex items-center gap-1"
                             >
                               {recruiter?.name || recruiterId}
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setJobForm({
                                     ...jobForm,
                                     secondary_recruiter_id:
@@ -818,9 +846,9 @@ export default function JobsPageContent() {
                                       ),
                                   });
                                 }}
-                                className="ml-1 hover:text-purple-600"
+                                className="ml-1 hover:text-black/80"
                               >
-                                ×
+                                <X className="h-3.5 w-3.5 text-black/80" />
                               </button>
                             </span>
                           );
@@ -843,7 +871,7 @@ export default function JobsPageContent() {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-green-500 hover:bg-green-600 text-white"
+                  className="bg-black hover:bg-black/80 text-white"
                   onClick={editingJob ? handleUpdateJob : handleCreateJob}
                 >
                   {editingJob ? "Update Job" : "Create Job"}

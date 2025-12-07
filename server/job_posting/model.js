@@ -31,6 +31,11 @@ const jobPostingSchema = new mongoose.Schema(
       type: Number, // Experience required in years
       default: 0,
     },
+    job_type: {
+      type: String,
+      enum: ["Full time", "Internship"],
+      default: "Full time",
+    },
     skills: {
       type: [String], // Array of required skills
       default: [],

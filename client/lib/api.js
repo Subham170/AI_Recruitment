@@ -254,3 +254,12 @@ export const recruiterAvailabilityAPI = {
     });
   },
 };
+
+// Dashboard API functions
+export const dashboardAPI = {
+  getDashboardStats: async () => {
+    return apiRequest("/dashboard/stats", {
+      method: "GET",
+    });
+  },
+};
