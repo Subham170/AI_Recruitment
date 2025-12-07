@@ -35,7 +35,6 @@ import {
   Edit,
   Eye,
   EyeOff,
-  Filter,
   Mail,
   Search,
   Shield,
@@ -59,7 +58,6 @@ export default function UserManagementPage() {
   const [editingUser, setEditingUser] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({
     totalCount: 0,
@@ -72,7 +70,7 @@ export default function UserManagementPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "",
+    role: "recruiter", // Default to recruiter for managers
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -110,13 +108,6 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     if (user && user.role === "manager") {
-      setCurrentPage(1);
-      fetchUsers();
-    }
-  }, [roleFilter]);
-
-  useEffect(() => {
-    if (user && user.role === "manager") {
       fetchUsers();
     }
   }, [currentPage]);
@@ -125,7 +116,7 @@ export default function UserManagementPage() {
     try {
       setLoadingUsers(true);
       const response = await userAPI.getUsers({
-        filterRole: roleFilter || null,
+        filterRole: "recruiter", // Managers can only manage recruiters
         search: searchQuery,
         page: currentPage,
         pageSize: 7,
@@ -239,7 +230,7 @@ export default function UserManagementPage() {
       email: userToEdit.email || "",
       password: "",
       confirmPassword: "",
-      role: userToEdit.role || "",
+      role: "recruiter", // Managers can only edit recruiters
     });
     setError("");
     setSuccess("");
@@ -273,7 +264,7 @@ export default function UserManagementPage() {
       email: "",
       password: "",
       confirmPassword: "",
-      role: "",
+      role: "recruiter", // Default to recruiter for managers
     });
     setEditingUser(null);
     setError("");
@@ -395,14 +386,14 @@ export default function UserManagementPage() {
 
           <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header Section */}
-            <div className="mb-6">
+            {/* <div className="mb-6">
               <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
                 User Management
               </h2>
               <p className="text-slate-600 dark:text-slate-400">
-                Manage all users in the system
+                Manage recruiters in the system
               </p>
-            </div>
+            </div> */}
 
             {/* Search and Filter Section */}
             <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-800/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
@@ -414,35 +405,13 @@ export default function UserManagementPage() {
                     placeholder="Search by name or email..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400"
+                    className="pl-10 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
                   />
-                </div>
-
-                <div className="w-full sm:w-48">
-                  <Select
-                    value={roleFilter || "all"}
-                    onValueChange={(value) =>
-                      setRoleFilter(value === "all" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                        <SelectValue placeholder="All Roles" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Roles</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="recruiter">Recruiter</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <Button
                   onClick={openAddForm}
-                  className="gap-2 w-full sm:w-auto bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                  className="gap-2 w-full sm:w-auto bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
                 >
                   <UserPlus className="h-4 w-4" />
                   Add People
@@ -455,14 +424,13 @@ export default function UserManagementPage() {
                 <span>
                   Showing {users.length} of {pagination.totalCount} users
                 </span>
-                {(searchQuery || roleFilter) && (
+                {searchQuery && (
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-auto p-1 text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300"
                     onClick={() => {
                       setSearchQuery("");
-                      setRoleFilter("");
                       setCurrentPage(1);
                     }}
                   >
@@ -551,7 +519,9 @@ export default function UserManagementPage() {
                                   <div className="p-0.5 rounded bg-cyan-100/50 dark:bg-cyan-900/30 group-hover:bg-cyan-200/70 dark:group-hover:bg-cyan-800/50 transition-colors">
                                     <Edit className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
                                   </div>
-                                  <span className="font-medium">Edit</span>
+                                  <span className="font-medium text-slate-900 dark:text-white">
+                                    Edit
+                                  </span>
                                 </Button>
                                 <Button
                                   variant="outline"
@@ -671,7 +641,10 @@ export default function UserManagementPage() {
           </DialogHeader>
 
           {error && (
-            <Alert variant="destructive" className="mt-4 border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-950/20">
+            <Alert
+              variant="destructive"
+              className="mt-4 border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-950/20"
+            >
               <AlertDescription className="text-red-800 dark:text-red-200">
                 {error}
               </AlertDescription>
@@ -688,7 +661,10 @@ export default function UserManagementPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6 mt-6">
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-slate-900 dark:text-slate-100 font-medium">
+              <Label
+                htmlFor="name"
+                className="text-slate-900 dark:text-slate-100 font-medium"
+              >
                 Full Name <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -704,7 +680,10 @@ export default function UserManagementPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-900 dark:text-slate-100 font-medium">
+              <Label
+                htmlFor="email"
+                className="text-slate-900 dark:text-slate-100 font-medium"
+              >
                 Email Address <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -720,7 +699,10 @@ export default function UserManagementPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role" className="text-slate-900 dark:text-slate-100 font-medium">
+              <Label
+                htmlFor="role"
+                className="text-slate-900 dark:text-slate-100 font-medium"
+              >
                 Role <span className="text-red-500">*</span>
               </Label>
               <Select
@@ -728,22 +710,26 @@ export default function UserManagementPage() {
                 onValueChange={handleRoleChange}
                 required
               >
-                <SelectTrigger id="role" className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400">
+                <SelectTrigger
+                  id="role"
+                  className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400"
+                >
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="recruiter">Recruiter</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Select the role for the user
+                Managers can only create and manage recruiters
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-900 dark:text-slate-100 font-medium">
+              <Label
+                htmlFor="password"
+                className="text-slate-900 dark:text-slate-100 font-medium"
+              >
                 Password{" "}
                 {!editingUser && <span className="text-red-500">*</span>}
               </Label>
@@ -784,7 +770,10 @@ export default function UserManagementPage() {
 
             {formData.password && (
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-slate-900 dark:text-slate-100 font-medium">
+                <Label
+                  htmlFor="confirmPassword"
+                  className="text-slate-900 dark:text-slate-100 font-medium"
+                >
                   Confirm Password <span className="text-red-500">*</span>
                 </Label>
                 <div className="relative">
