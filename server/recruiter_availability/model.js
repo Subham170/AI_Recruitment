@@ -60,4 +60,3 @@ const RecruiterAvailability = mongoose.model(
 );
 
 export default RecruiterAvailability;
-
