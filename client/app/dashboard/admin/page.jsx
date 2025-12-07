@@ -16,9 +16,11 @@ import {
   Briefcase,
   ClipboardList,
   Database,
+  FileText,
   PieChart,
   Settings,
   Shield,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -235,7 +237,7 @@ export default function AdminDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card
                 className="group cursor-pointer border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 hover:scale-105 hover:border-cyan-300 dark:hover:border-cyan-700"
-                onClick={() => router.push("/dashboard/admin/users")}
+                onClick={() => router.push("/dashboard/admin/user-management")}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
@@ -252,34 +254,34 @@ export default function AdminDashboardPage() {
 
               <Card
                 className="group cursor-pointer border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 hover:scale-105 hover:border-cyan-300 dark:hover:border-cyan-700"
-                onClick={() => router.push("/dashboard/admin/applications")}
+                onClick={() => router.push("/dashboard/admin/top-applicants")}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
                     <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20 group-hover:from-cyan-400/30 group-hover:to-blue-500/30 transition-all">
-                      <ClipboardList className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                      <TrendingUp className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                     </div>
-                    All Applications
+                    Top Applicants
                   </CardTitle>
                   <CardDescription className="text-slate-600 dark:text-slate-400">
-                    View and manage all applications
+                    View top candidates
                   </CardDescription>
                 </CardHeader>
               </Card>
 
               <Card
                 className="group cursor-pointer border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 hover:scale-105 hover:border-cyan-300 dark:hover:border-cyan-700"
-                onClick={() => router.push("/dashboard/admin/analytics")}
+                onClick={() => router.push("/dashboard/admin/reports")}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
                     <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20 group-hover:from-cyan-400/30 group-hover:to-blue-500/30 transition-all">
-                      <PieChart className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                      <FileText className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                     </div>
-                    Platform Analytics
+                    Reports
                   </CardTitle>
                   <CardDescription className="text-slate-600 dark:text-slate-400">
-                    System-wide analytics and insights
+                    Generate reports
                   </CardDescription>
                 </CardHeader>
               </Card>
