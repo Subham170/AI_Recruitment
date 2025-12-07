@@ -299,14 +299,16 @@ export default function JobsPageContent() {
 
     return (
       <Card
-        className="hover:shadow-lg transition-shadow cursor-pointer"
+        className="group border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 hover:scale-[1.02] hover:border-cyan-300 dark:hover:border-cyan-700 cursor-pointer"
         onClick={() => handleJobClick(job._id)}
       >
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <CardTitle className="text-xl mb-2">{job.title}</CardTitle>
-              <CardDescription className="text-base font-semibold text-foreground">
+              <CardTitle className="text-xl mb-2 text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                {job.title}
+              </CardTitle>
+              <CardDescription className="text-base font-semibold text-slate-700 dark:text-slate-300">
                 {job.company}
               </CardDescription>
             </div>
@@ -319,7 +321,7 @@ export default function JobsPageContent() {
                 {job.role.map((r, idx) => (
                   <span
                     key={idx}
-                    className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                    className="px-2 py-1 text-xs rounded-full bg-gradient-to-r from-cyan-400/20 to-blue-500/20 text-cyan-700 dark:text-cyan-400 border border-cyan-300/30 dark:border-cyan-600/30"
                   >
                     {r}
                   </span>
@@ -327,20 +329,20 @@ export default function JobsPageContent() {
               </div>
             )}
             {job.ctc && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <DollarSign className="h-4 w-4" />
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                <DollarSign className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                 <span>{job.ctc}</span>
               </div>
             )}
             {job.exp_req !== undefined && job.exp_req > 0 && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                <Clock className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                 <span>{job.exp_req} years experience</span>
               </div>
             )}
             {job.createdAt && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="h-4 w-4" />
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                <Calendar className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                 <span>
                   Posted {new Date(job.createdAt).toLocaleDateString()}
                 </span>
@@ -348,24 +350,26 @@ export default function JobsPageContent() {
             )}
           </div>
 
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-4">
             {job.description}
           </p>
 
           {job.skills && job.skills.length > 0 && (
             <div className="mb-4">
-              <p className="text-xs text-muted-foreground mb-1">Skills:</p>
+              <p className="text-xs text-slate-500 dark:text-slate-500 mb-1">
+                Skills:
+              </p>
               <div className="flex flex-wrap gap-1">
                 {job.skills.slice(0, 5).map((skill, idx) => (
                   <span
                     key={idx}
-                    className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                    className="px-2 py-1 text-xs rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
                   >
                     {skill}
                   </span>
                 ))}
                 {job.skills.length > 5 && (
-                  <span className="px-2 py-1 text-xs text-muted-foreground">
+                  <span className="px-2 py-1 text-xs text-slate-500 dark:text-slate-500">
                     +{job.skills.length - 5} more
                   </span>
                 )}
@@ -373,10 +377,10 @@ export default function JobsPageContent() {
             </div>
           )}
 
-          <div className="pt-4 border-t space-y-2">
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
             <Button
               variant="outline"
-              className="w-full"
+              className="w-full border-slate-300 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all"
               onClick={(e) => {
                 e.stopPropagation();
                 handleJobClick(job._id);
@@ -388,7 +392,7 @@ export default function JobsPageContent() {
             {showEdit && isOwner && (
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full border-slate-300 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all"
                 onClick={(e) => {
                   e.stopPropagation();
                   openEditDialog(job);
@@ -405,8 +409,40 @@ export default function JobsPageContent() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white dark:bg-white">
-      <aside className="hidden lg:block">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative">
+      {/* Subtle radial gradient overlay */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute top-0 right-0 w-1/2 h-1/2"
+          style={{
+            background:
+              "radial-gradient(circle at top right, rgba(6, 182, 212, 0.05), transparent 70%)",
+          }}
+        ></div>
+        <div
+          className="absolute bottom-0 left-0 w-1/2 h-1/2"
+          style={{
+            background:
+              "radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.05), transparent 70%)",
+          }}
+        ></div>
+      </div>
+
+      {/* Subtle grid pattern */}
+      <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03] pointer-events-none">
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(14, 165, 233, 0.3) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(14, 165, 233, 0.3) 1px, transparent 1px)
+            `,
+            backgroundSize: "40px 40px",
+          }}
+        />
+      </div>
+
+      <aside className="hidden lg:block relative z-10">
         <Sidebar />
       </aside>
 
@@ -417,7 +453,7 @@ export default function JobsPageContent() {
         </SheetContent>
       </Sheet>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden relative z-10">
         <Navbar
           title="Job Postings"
           sidebarOpen={sidebarOpen}
@@ -434,7 +470,7 @@ export default function JobsPageContent() {
               {canCreate && (
                 <div className="lg:hidden mb-4">
                   <Button
-                    className="w-full bg-black hover:bg-gray-800 text-white"
+                    className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
                     onClick={openCreateDialog}
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -452,20 +488,20 @@ export default function JobsPageContent() {
               )}
 
               <div className="mb-6 flex gap-3 items-center">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <div className="relative flex-1 group">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-cyan-500 transition-colors" />
                   <input
                     type="text"
                     placeholder="Search job postings..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border-2 border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all shadow-sm hover:shadow-md"
                   />
                 </div>
                 {canCreate && (
                   <div className="hidden lg:block">
                     <Button
-                      className="bg-black hover:bg-gray-800 text-white"
+                      className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
                       onClick={openCreateDialog}
                     >
                       <Plus className="mr-2 h-4 w-4" />
@@ -478,7 +514,7 @@ export default function JobsPageContent() {
               {isRecruiter && (
                 <>
                   <div className="mb-8">
-                    <h2 className="text-2xl font-bold mb-4">
+                    <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
                       Your Job Postings
                     </h2>
                     {filterJobs(jobPostings.myJobPostings).length > 0 ? (
@@ -488,9 +524,9 @@ export default function JobsPageContent() {
                         ))}
                       </div>
                     ) : (
-                      <div className="bg-card border-2 rounded-lg p-8 text-center">
-                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-foreground font-medium">
+                      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
+                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
+                        <p className="text-slate-700 dark:text-slate-300 font-medium">
                           No job postings created by you yet.
                         </p>
                       </div>
@@ -498,7 +534,7 @@ export default function JobsPageContent() {
                   </div>
 
                   <div className="mb-8">
-                    <h2 className="text-2xl font-bold mb-4">
+                    <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
                       Job Postings (You are Secondary Recruiter)
                     </h2>
                     {filterJobs(jobPostings.secondaryJobPostings).length > 0 ? (
@@ -510,9 +546,9 @@ export default function JobsPageContent() {
                         )}
                       </div>
                     ) : (
-                      <div className="bg-card border-2 rounded-lg p-8 text-center">
-                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-foreground font-medium">
+                      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
+                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
+                        <p className="text-slate-700 dark:text-slate-300 font-medium">
                           You are not assigned as a secondary recruiter to any
                           job postings.
                         </p>
@@ -521,7 +557,7 @@ export default function JobsPageContent() {
                   </div>
 
                   <div className="mb-8">
-                    <h2 className="text-2xl font-bold mb-4">
+                    <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
                       Other Job Postings
                     </h2>
                     {filterJobs(jobPostings.remainingJobPostings).length > 0 ? (
@@ -533,9 +569,9 @@ export default function JobsPageContent() {
                         )}
                       </div>
                     ) : (
-                      <div className="bg-card border-2 rounded-lg p-8 text-center">
-                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-foreground font-medium">
+                      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
+                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
+                        <p className="text-slate-700 dark:text-slate-300 font-medium">
                           No other job postings available.
                         </p>
                       </div>
@@ -553,9 +589,9 @@ export default function JobsPageContent() {
                       ))}
                     </div>
                   ) : (
-                    <div className="bg-card border-2 rounded-lg p-8 text-center">
-                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-foreground font-medium">
+                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
+                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
+                      <p className="text-slate-700 dark:text-slate-300 font-medium">
                         No job postings available.
                       </p>
                     </div>

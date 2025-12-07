@@ -43,19 +43,19 @@ import {
   Clock,
   DollarSign,
   Eye,
+  Loader2,
   Mail,
   Phone,
   RefreshCw,
   Search,
+  StopCircle,
   User,
   X,
-  StopCircle,
-  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export default function TopApplicantsPageContent() {
+export default function TopApplicantsPageContent({ jobId: initialJobId }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -97,6 +97,18 @@ export default function TopApplicantsPageContent() {
     fetchJobs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]); // Removed router from dependencies to prevent re-renders
+
+  // Load job from URL if jobId is provided
+  useEffect(() => {
+    if (initialJobId && jobs.length > 0) {
+      const job = jobs.find((j) => j._id === initialJobId);
+      // Only load if job exists and is different from currently selected job
+      if (job && (!selectedJob || selectedJob._id !== initialJobId)) {
+        handleJobClick(job, false); // Don't navigate, we're already on the job page
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialJobId, jobs]);
 
   const fetchJobs = async () => {
     try {
@@ -152,7 +164,13 @@ export default function TopApplicantsPageContent() {
     }
   };
 
-  const handleJobClick = async (job) => {
+  const handleJobClick = async (job, shouldNavigate = true) => {
+    // Navigate to job URL if not already there
+    if (shouldNavigate) {
+      const role = user?.role || "recruiter";
+      router.push(`/dashboard/${role}/top-applicants/${job._id}`);
+    }
+
     setSelectedJob(job);
     setCandidates([]);
     setScheduledCandidateIds(new Set());
@@ -347,14 +365,14 @@ export default function TopApplicantsPageContent() {
       const candidatesToSchedule = candidates.filter((match) => {
         const candidateId = match.candidateId?._id?.toString();
         if (!candidateId) return false;
-        
+
         // Skip if already scheduled
         if (scheduledCandidateIds.has(candidateId)) return false;
-        
+
         // Skip if call is stopped
         const callStatus = callStatuses.get(candidateId);
         if (callStatus && callStatus.status === "stopped") return false;
-        
+
         return true;
       });
 
@@ -592,7 +610,7 @@ export default function TopApplicantsPageContent() {
       response.calls.forEach((call) => {
         // candidateId is already a string from backend
         const candidateId = call.candidateId;
-        
+
         if (candidateId) {
           statusMap.set(candidateId, {
             executionId: call.executionId,
@@ -646,7 +664,9 @@ export default function TopApplicantsPageContent() {
     if (!executionId) {
       // If no executionId, try to get it from callStatuses
       const candidateIdStr = candidateId?.toString();
-      const callStatus = candidateIdStr ? callStatuses.get(candidateIdStr) : null;
+      const callStatus = candidateIdStr
+        ? callStatuses.get(candidateIdStr)
+        : null;
       if (!callStatus?.executionId) {
         setNotification({
           variant: "info",
@@ -669,7 +689,8 @@ export default function TopApplicantsPageContent() {
       setNotification({
         variant: "error",
         title: "Failed to Load Call Details",
-        message: err.message || "Failed to load call details. Please try again.",
+        message:
+          err.message || "Failed to load call details. Please try again.",
         dismissible: true,
       });
       setCallDetailsDialogOpen(false);
@@ -711,7 +732,10 @@ export default function TopApplicantsPageContent() {
       // Refresh call statuses and call details if dialog is open
       if (selectedJob?._id) {
         await fetchCallStatuses(selectedJob._id);
-        if (callDetailsDialogOpen && selectedCallDetails?.call?.executionId === executionId) {
+        if (
+          callDetailsDialogOpen &&
+          selectedCallDetails?.call?.executionId === executionId
+        ) {
           // Refresh call details
           const response = await bolnaAPI.getCallStatus(executionId);
           setSelectedCallDetails(response);
@@ -759,8 +783,40 @@ export default function TopApplicantsPageContent() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white dark:bg-white">
-      <aside className="hidden lg:block">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative">
+      {/* Subtle radial gradient overlay */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div
+          className="absolute top-0 right-0 w-1/2 h-1/2"
+          style={{
+            background:
+              "radial-gradient(circle at top right, rgba(6, 182, 212, 0.05), transparent 70%)",
+          }}
+        ></div>
+        <div
+          className="absolute bottom-0 left-0 w-1/2 h-1/2"
+          style={{
+            background:
+              "radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.05), transparent 70%)",
+          }}
+        ></div>
+      </div>
+
+      {/* Subtle grid pattern */}
+      <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03] pointer-events-none">
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(14, 165, 233, 0.3) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(14, 165, 233, 0.3) 1px, transparent 1px)
+            `,
+            backgroundSize: "40px 40px",
+          }}
+        />
+      </div>
+
+      <aside className="hidden lg:block relative z-10">
         <Sidebar />
       </aside>
 
@@ -771,7 +827,7 @@ export default function TopApplicantsPageContent() {
         </SheetContent>
       </Sheet>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden relative z-10">
         <Navbar
           title="Top Applicants"
           sidebarOpen={sidebarOpen}
@@ -796,15 +852,22 @@ export default function TopApplicantsPageContent() {
                 />
               )}
 
+              {/* Title */}
+              {/* <div className="mb-4">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
+                  Top Applicants
+                </h1>
+              </div> */}
+
               {/* Search */}
-              <div className="relative mb-6">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="relative mb-6 group">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-cyan-500 transition-colors" />
                 <input
                   type="text"
-                  placeholder="Search candidates..."
+                  placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all shadow-sm hover:shadow-md"
                 />
               </div>
 
@@ -812,26 +875,28 @@ export default function TopApplicantsPageContent() {
                 <>
                   {/* Stats Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <div className="bg-card border rounded-lg p-6 hover:shadow-md transition-shadow">
-                      <div className="text-3xl font-bold mb-1">
+                    <div className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border rounded-lg p-6 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
+                      <div className="text-3xl font-bold mb-1 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
                         {jobs.length}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
                         Total Jobs
                       </p>
                     </div>
-                    <div className="bg-card border rounded-lg p-6 hover:shadow-md transition-shadow">
+                    <div className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border rounded-lg p-6 hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300 hover:scale-105">
                       <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-1">
                         {jobs.filter((j) => j.primary_recruiter_id).length}
                       </div>
-                      <p className="text-sm text-muted-foreground">Your Jobs</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Your Jobs
+                      </p>
                     </div>
-                    <div className="bg-card border rounded-lg p-6 hover:shadow-md transition-shadow">
-                      <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+                    <div className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border rounded-lg p-6 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent mb-1">
                         {jobs.length -
                           jobs.filter((j) => j.primary_recruiter_id).length}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
                         Secondary Jobs
                       </p>
                     </div>
@@ -842,14 +907,14 @@ export default function TopApplicantsPageContent() {
                     {filteredJobs.map((job) => (
                       <div
                         key={job._id}
-                        className="bg-card border rounded-lg p-6 hover:shadow-lg hover:border-primary/50 transition-all cursor-pointer group"
+                        className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border rounded-lg p-6 hover:shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 hover:scale-[1.02] hover:border-cyan-300 dark:hover:border-cyan-700 cursor-pointer group"
                         onClick={() => handleJobClick(job)}
                       >
                         <div className="mb-4">
-                          <h3 className="text-lg font-semibold mb-1 group-hover:text-primary transition-colors">
+                          <h3 className="text-lg font-semibold mb-1 text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
                             {job.title}
                           </h3>
-                          <p className="text-sm font-medium text-muted-foreground">
+                          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                             {job.company}
                           </p>
                         </div>
@@ -859,32 +924,35 @@ export default function TopApplicantsPageContent() {
                               {job.role.map((r, idx) => (
                                 <span
                                   key={idx}
-                                  className="px-2.5 py-1 text-xs rounded-md bg-primary/10 text-primary border border-primary/20"
+                                  className="px-2.5 py-1 text-xs rounded-full bg-gradient-to-r from-cyan-400/20 to-blue-500/20 text-cyan-700 dark:text-cyan-400 border border-cyan-300/30 dark:border-cyan-600/30"
                                 >
                                   {r}
                                 </span>
                               ))}
                             </div>
                           )}
-                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap gap-4 text-sm text-slate-600 dark:text-slate-400">
                             {job.ctc && (
                               <div className="flex items-center gap-1.5">
-                                <DollarSign className="h-3.5 w-3.5" />
+                                <DollarSign className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
                                 <span>{job.ctc}</span>
                               </div>
                             )}
                             {job.exp_req !== undefined && job.exp_req > 0 && (
                               <div className="flex items-center gap-1.5">
-                                <Clock className="h-3.5 w-3.5" />
+                                <Clock className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
                                 <span>{job.exp_req} years</span>
                               </div>
                             )}
                           </div>
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                        <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-4">
                           {job.description}
                         </p>
-                        <Button className="w-full" variant="outline">
+                        <Button
+                          className="w-full border-slate-300 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all"
+                          variant="outline"
+                        >
                           <Eye className="mr-2 h-4 w-4" />
                           View Top Candidates
                         </Button>
@@ -893,9 +961,9 @@ export default function TopApplicantsPageContent() {
                   </div>
 
                   {filteredJobs.length === 0 && (
-                    <div className="bg-card border rounded-lg p-12 text-center">
-                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">
+                    <div className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border rounded-lg p-12 text-center">
+                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
+                      <p className="text-slate-600 dark:text-slate-400">
                         {jobs.length === 0
                           ? "No job postings available. Create a job posting to see top applicants."
                           : "No jobs found matching your search criteria."}
@@ -906,13 +974,13 @@ export default function TopApplicantsPageContent() {
               ) : (
                 <>
                   {/* Selected Job Header */}
-                  <div className="bg-card border rounded-lg p-6 mb-6">
+                  <div className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border rounded-lg p-6 mb-6">
                     <div className="flex items-start justify-between gap-4 mb-4">
                       <div className="flex-1">
-                        <h2 className="text-2xl font-bold mb-2">
+                        <h2 className="text-2xl font-bold mb-2 text-slate-900 dark:text-white">
                           {selectedJob.title}
                         </h2>
-                        <p className="text-lg text-muted-foreground">
+                        <p className="text-lg text-slate-600 dark:text-slate-400">
                           {selectedJob.company}
                         </p>
                       </div>
@@ -936,7 +1004,7 @@ export default function TopApplicantsPageContent() {
                                   checkingScheduled ||
                                   allScheduled
                                 }
-                                className="bg-black hover:bg-black/80 cursor-pointer text-white disabled:opacity-50"
+                                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-cyan-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                 title={
                                   allScheduled
                                     ? "All candidates are already scheduled"
@@ -960,13 +1028,13 @@ export default function TopApplicantsPageContent() {
                           })()}
                         {/* Stop All Calls Button - Show if there are scheduled calls that can be stopped */}
                         {(() => {
-                          const scheduledCallsCount = Array.from(callStatuses.values()).filter(
-                            (status) => status.canStop
-                          ).length;
+                          const scheduledCallsCount = Array.from(
+                            callStatuses.values()
+                          ).filter((status) => status.canStop).length;
                           return scheduledCallsCount > 0 ? (
                             <Button
                               variant="outline"
-                              className="bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400"
+                              className="bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 transition-all duration-200 hover:scale-105 hover:shadow-md hover:shadow-red-500/20"
                               onClick={() => setStopAllDialogOpen(true)}
                               disabled={stoppingCalls}
                             >
@@ -977,7 +1045,10 @@ export default function TopApplicantsPageContent() {
                         })()}
                         <Button
                           variant="outline"
+                          className="border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 hover:scale-105 hover:shadow-md"
                           onClick={() => {
+                            const role = user?.role || "recruiter";
+                            router.push(`/dashboard/${role}/top-applicants`);
                             setSelectedJob(null);
                             setCandidates([]);
                           }}
@@ -986,6 +1057,7 @@ export default function TopApplicantsPageContent() {
                         </Button>
                         <Button
                           variant="outline"
+                          className="border-slate-300 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all duration-200 hover:scale-105 hover:shadow-md hover:shadow-cyan-500/20"
                           onClick={handleRefresh}
                           disabled={refreshing}
                         >
@@ -1011,7 +1083,7 @@ export default function TopApplicantsPageContent() {
                         <div className="mt-6 pt-6 border-t">
                           <div className="flex items-start gap-4">
                             <div className="flex-1">
-                              <label className="text-sm font-semibold text-foreground mb-2 block">
+                              <label className="text-sm font-semibold text-slate-900 dark:text-white mb-2 block">
                                 Secondary Recruiters
                               </label>
                               <div className="flex flex-wrap gap-2 mb-3">
@@ -1058,7 +1130,7 @@ export default function TopApplicantsPageContent() {
                                     return (
                                       <div
                                         key={recruiterIdStr}
-                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-black text-white border border-gray-700"
+                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-gradient-to-r from-slate-800 to-slate-900 dark:from-slate-700 dark:to-slate-800 text-white border border-slate-600 dark:border-slate-700 hover:from-slate-700 hover:to-slate-800 dark:hover:from-slate-600 dark:hover:to-slate-700 hover:border-cyan-500/50 hover:shadow-md hover:shadow-cyan-500/20 transition-all duration-200 hover:scale-105"
                                       >
                                         <User className="h-3.5 w-3.5" />
                                         <span className="text-sm font-medium">
@@ -1071,7 +1143,7 @@ export default function TopApplicantsPageContent() {
                                             )
                                           }
                                           disabled={updatingRecruiters}
-                                          className="ml-1 hover:bg-gray-800 rounded-full p-0.5 transition-colors disabled:opacity-50"
+                                          className="ml-1 hover:bg-red-500/20 hover:text-red-400 rounded-full p-0.5 transition-all duration-200 disabled:opacity-50 hover:scale-110"
                                           title="Remove recruiter"
                                         >
                                           <X className="h-3 w-3" />
@@ -1087,10 +1159,13 @@ export default function TopApplicantsPageContent() {
                                   updatingRecruiters || loadingRecruiters
                                 }
                               >
-                                <SelectTrigger className="w-full max-w-md">
-                                  <SelectValue placeholder="Add Secondary Recruiter" />
+                                <SelectTrigger className="w-full max-w-md border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-900 hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 hover:shadow-md hover:shadow-cyan-500/10">
+                                  <SelectValue
+                                    placeholder="Add Secondary Recruiter"
+                                    className="dark:text-white"
+                                  />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200 dark:border-slate-700 shadow-xl text-slate-900 dark:text-white">
                                   {recruiters
                                     .filter((recruiter) => {
                                       // Exclude primary recruiter and already added secondary recruiters
@@ -1116,10 +1191,11 @@ export default function TopApplicantsPageContent() {
                                       <SelectItem
                                         key={recruiter._id}
                                         value={recruiter._id}
+                                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400 cursor-pointer transition-all duration-200 focus:bg-cyan-50 dark:focus:bg-cyan-950/30 focus:text-cyan-600 dark:focus:text-cyan-400"
                                       >
                                         <div className="flex items-center gap-2">
-                                          <User className="h-4 w-4" />
-                                          <span>
+                                          <User className="h-4 w-4 text-slate-900 dark:text-white" />
+                                          <span className="text-slate-900 dark:text-white">
                                             {recruiter.name || recruiter.email}
                                           </span>
                                         </div>
@@ -1144,7 +1220,7 @@ export default function TopApplicantsPageContent() {
                                     });
                                     return !isPrimary && !isSecondary;
                                   }).length === 0 && (
-                                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                    <div className="px-2 py-1.5 text-sm text-slate-600 dark:text-white">
                                       No available recruiters
                                     </div>
                                   )}
@@ -1170,7 +1246,7 @@ export default function TopApplicantsPageContent() {
 
                         return (
                           <Button
-                            className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                             variant="default"
                             onClick={handleScheduleAllCalls}
                             disabled={
@@ -1201,12 +1277,12 @@ export default function TopApplicantsPageContent() {
                       })()}
                     {/* Stop All Calls Button - Mobile */}
                     {(() => {
-                      const scheduledCallsCount = Array.from(callStatuses.values()).filter(
-                        (status) => status.canStop
-                      ).length;
+                      const scheduledCallsCount = Array.from(
+                        callStatuses.values()
+                      ).filter((status) => status.canStop).length;
                       return scheduledCallsCount > 0 ? (
                         <Button
-                          className="w-full bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400"
+                          className="w-full bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:shadow-red-500/20"
                           variant="outline"
                           onClick={() => setStopAllDialogOpen(true)}
                           disabled={stoppingCalls}
@@ -1217,7 +1293,7 @@ export default function TopApplicantsPageContent() {
                       ) : null;
                     })()}
                     <Button
-                      className="w-full"
+                      className="w-full border-slate-300 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:shadow-cyan-500/20"
                       variant="outline"
                       onClick={handleRefresh}
                       disabled={refreshing}
@@ -1233,32 +1309,46 @@ export default function TopApplicantsPageContent() {
 
                   {/* Candidates List */}
                   {loadingCandidates ? (
-                    <div className="bg-card border rounded-lg p-12 text-center">
-                      <RefreshCw className="h-12 w-12 mx-auto mb-4 animate-spin text-muted-foreground" />
-                      <p className="text-muted-foreground">
+                    <div className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border rounded-lg p-12 text-center">
+                      <RefreshCw className="h-12 w-12 mx-auto mb-4 animate-spin text-slate-400 dark:text-slate-500" />
+                      <p className="text-slate-600 dark:text-slate-400">
                         Loading top candidates...
                       </p>
                     </div>
                   ) : candidates.length > 0 ? (
                     <>
                       <div className="mb-6">
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-slate-900 dark:text-white">
                           Showing top {candidates.length} candidates sorted by
                           match score
                         </p>
                       </div>
-                      <div className="bg-card border rounded-lg overflow-hidden">
+                      <div className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border rounded-lg overflow-hidden">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Candidate</TableHead>
-                              <TableHead>Role</TableHead>
-                              <TableHead>Match Score</TableHead>
-                              <TableHead>Email</TableHead>
-                              <TableHead>Phone</TableHead>
-                              <TableHead>Experience</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-right">
+                              <TableHead className="text-slate-900 dark:text-slate-100">
+                                Candidate
+                              </TableHead>
+                              <TableHead className="text-slate-900 dark:text-slate-100">
+                                Role
+                              </TableHead>
+                              <TableHead className="text-slate-900 dark:text-slate-100">
+                                Match Score
+                              </TableHead>
+                              <TableHead className="text-slate-900 dark:text-slate-100">
+                                Email
+                              </TableHead>
+                              <TableHead className="text-slate-900 dark:text-slate-100">
+                                Phone
+                              </TableHead>
+                              <TableHead className="text-slate-900 dark:text-slate-100">
+                                Experience
+                              </TableHead>
+                              <TableHead className="text-slate-900 dark:text-slate-100">
+                                Status
+                              </TableHead>
+                              <TableHead className="text-right text-slate-900 dark:text-slate-100">
                                 Actions
                               </TableHead>
                             </TableRow>
@@ -1279,16 +1369,16 @@ export default function TopApplicantsPageContent() {
                               return (
                                 <TableRow
                                   key={candidate._id || index}
-                                  className={
+                                  className={`transition-all duration-200 ${
                                     isScheduled
                                       ? "bg-green-50 dark:bg-green-950/20"
-                                      : ""
-                                  }
+                                      : "hover:bg-slate-50/50 dark:hover:bg-slate-800/50"
+                                  } hover:shadow-md hover:scale-[1.01] cursor-pointer`}
                                 >
-                                  <TableCell>
+                                  <TableCell className="text-slate-900 dark:text-white">
                                     <div className="flex items-center gap-3">
-                                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                                        <span className="text-sm font-semibold text-primary">
+                                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 dark:from-cyan-400 dark:to-blue-500 shadow-lg shadow-cyan-500/30 border-2 border-cyan-300/30 dark:border-cyan-500/30">
+                                        <span className="text-sm font-bold text-white">
                                           {candidate.name
                                             ?.split(" ")
                                             .map((n) => n[0])
@@ -1297,23 +1387,23 @@ export default function TopApplicantsPageContent() {
                                         </span>
                                       </div>
                                       <div>
-                                        <div className="font-semibold">
+                                        <div className="font-semibold text-slate-900 dark:text-white">
                                           {candidate.name || "Unknown"}
                                         </div>
                                         {candidate.bio && (
-                                          <div className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
+                                          <div className="text-xs text-slate-600 dark:text-slate-300 line-clamp-1 max-w-[200px]">
                                             {candidate.bio}
                                           </div>
                                         )}
                                       </div>
                                     </div>
                                   </TableCell>
-                                  <TableCell>
+                                  <TableCell className="text-slate-900 dark:text-white">
                                     {candidate.role && candidate.role.length > 0
                                       ? candidate.role.join(", ")
                                       : "N/A"}
                                   </TableCell>
-                                  <TableCell>
+                                  <TableCell className="text-slate-900 dark:text-white">
                                     <div
                                       className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
                                         match.matchScore || 0
@@ -1322,53 +1412,56 @@ export default function TopApplicantsPageContent() {
                                       {matchScore}%
                                     </div>
                                   </TableCell>
-                                  <TableCell>
+                                  <TableCell className="text-slate-900 dark:text-white">
                                     {candidate.email ? (
                                       <div className="flex items-center gap-2">
-                                        <Mail className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-sm">
+                                        <Mail className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                                        <span className="text-sm text-slate-900 dark:text-white">
                                           {candidate.email}
                                         </span>
                                       </div>
                                     ) : (
-                                      <span className="text-sm text-muted-foreground">
+                                      <span className="text-sm text-slate-600 dark:text-slate-400">
                                         N/A
                                       </span>
                                     )}
                                   </TableCell>
-                                  <TableCell>
+                                  <TableCell className="text-slate-900 dark:text-white">
                                     {candidate.phone_no ? (
                                       <div className="flex items-center gap-2">
-                                        <Phone className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-sm">
+                                        <Phone className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                                        <span className="text-sm text-slate-900 dark:text-white">
                                           {candidate.phone_no}
                                         </span>
                                       </div>
                                     ) : (
-                                      <span className="text-sm text-muted-foreground">
+                                      <span className="text-sm text-slate-600 dark:text-slate-400">
                                         N/A
                                       </span>
                                     )}
                                   </TableCell>
-                                  <TableCell>
+                                  <TableCell className="text-slate-900 dark:text-white">
                                     {candidate.experience !== undefined ? (
                                       <div className="flex items-center gap-2">
-                                        <Briefcase className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-sm">
+                                        <Briefcase className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                                        <span className="text-sm text-slate-900 dark:text-white">
                                           {candidate.experience} years
                                         </span>
                                       </div>
                                     ) : (
-                                      <span className="text-sm text-muted-foreground">
+                                      <span className="text-sm text-slate-600 dark:text-slate-400">
                                         N/A
                                       </span>
                                     )}
                                   </TableCell>
-                                  <TableCell>
+                                  <TableCell className="text-slate-900 dark:text-white">
                                     {(() => {
-                                      const candidateIdStr = candidate._id?.toString();
-                                      const callStatus = candidateIdStr ? callStatuses.get(candidateIdStr) : null;
-                                      
+                                      const candidateIdStr =
+                                        candidate._id?.toString();
+                                      const callStatus = candidateIdStr
+                                        ? callStatuses.get(candidateIdStr)
+                                        : null;
+
                                       if (isScheduled && callStatus) {
                                         const statusColors = {
                                           scheduled: "bg-blue-500",
@@ -1378,15 +1471,19 @@ export default function TopApplicantsPageContent() {
                                           cancelled: "bg-gray-500",
                                           failed: "bg-red-600",
                                         };
-                                        const statusColor = statusColors[callStatus.status?.toLowerCase()] || "bg-blue-500";
-                                        const statusText = callStatus.status || "Scheduled";
-                                        
+                                        const statusColor =
+                                          statusColors[
+                                            callStatus.status?.toLowerCase()
+                                          ] || "bg-blue-500";
+                                        const statusText =
+                                          callStatus.status || "Scheduled";
+
                                         return (
-                                          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${statusColor} text-white`}>
+                                          <div
+                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${statusColor} text-white`}
+                                          >
                                             <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
-                                            <span>
-                                              {statusText}
-                                            </span>
+                                            <span>{statusText}</span>
                                           </div>
                                         );
                                       } else if (isScheduled) {
@@ -1398,14 +1495,14 @@ export default function TopApplicantsPageContent() {
                                         );
                                       } else {
                                         return (
-                                          <span className="text-sm text-muted-foreground">
+                                          <span className="text-sm text-slate-600 dark:text-white">
                                             Not Scheduled
                                           </span>
                                         );
                                       }
                                     })()}
                                   </TableCell>
-                                  <TableCell className="text-right">
+                                  <TableCell className="text-right text-slate-900 dark:text-white">
                                     <div className="flex items-center justify-end gap-2">
                                       <Button
                                         variant="outline"
@@ -1413,14 +1510,20 @@ export default function TopApplicantsPageContent() {
                                         onClick={() =>
                                           handleViewProfile(candidate)
                                         }
+                                        className="hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:border-cyan-300 dark:hover:border-cyan-600 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all duration-200 hover:scale-110"
                                       >
                                         <Eye className="h-4 w-4" />
                                       </Button>
                                       {(() => {
-                                        const candidateIdStr = candidate._id?.toString();
-                                        const callStatus = candidateIdStr ? callStatuses.get(candidateIdStr) : null;
-                                        const isStopping = stoppingCallId === callStatus?.executionId;
-                                        
+                                        const candidateIdStr =
+                                          candidate._id?.toString();
+                                        const callStatus = candidateIdStr
+                                          ? callStatuses.get(candidateIdStr)
+                                          : null;
+                                        const isStopping =
+                                          stoppingCallId ===
+                                          callStatus?.executionId;
+
                                         // Show stop button only if canStop is true AND status is not stopped/cancelled/completed
                                         if (
                                           callStatus &&
@@ -1431,7 +1534,7 @@ export default function TopApplicantsPageContent() {
                                         ) {
                                           return (
                                             <Button
-                                              className="bg-red-500 hover:bg-red-600 text-white"
+                                              className="bg-red-500 hover:bg-red-600 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-red-500/50"
                                               size="sm"
                                               onClick={() =>
                                                 handleViewCallDetails(
@@ -1447,7 +1550,7 @@ export default function TopApplicantsPageContent() {
                                         } else if (callStatus) {
                                           return (
                                             <Button
-                                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                                              className="bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50"
                                               size="sm"
                                               onClick={() =>
                                                 handleViewCallDetails(
@@ -1463,10 +1566,12 @@ export default function TopApplicantsPageContent() {
                                         } else if (isScheduled) {
                                           return (
                                             <Button
-                                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                                              className="bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50"
                                               size="sm"
                                               onClick={() =>
-                                                handleViewCallDetails(candidateIdStr)
+                                                handleViewCallDetails(
+                                                  candidateIdStr
+                                                )
                                               }
                                               title="View call details"
                                             >
@@ -1476,7 +1581,7 @@ export default function TopApplicantsPageContent() {
                                         } else {
                                           return (
                                             <Button
-                                              className="bg-black hover:bg-black/80 text-white"
+                                              className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-cyan-500/50"
                                               size="sm"
                                               disabled
                                               title="No call scheduled"
@@ -1496,13 +1601,17 @@ export default function TopApplicantsPageContent() {
                       </div>
                     </>
                   ) : (
-                    <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 border-2">
+                    <Card className="bg-green-50/80 dark:bg-green-950/30 backdrop-blur-sm border-green-200 dark:border-green-800 border-2 rounded-lg">
                       <CardContent className="pt-6 text-center">
-                        <User className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                        <p className="text-green-900 dark:text-green-100 mb-4">
+                        <User className="h-12 w-12 mx-auto mb-4 text-green-500 dark:text-green-400" />
+                        <p className="text-green-900 dark:text-green-100 mb-4 font-medium">
                           No candidates found for this job posting.
                         </p>
-                        <Button onClick={handleRefresh} disabled={refreshing}>
+                        <Button
+                          className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-cyan-500/50"
+                          onClick={handleRefresh}
+                          disabled={refreshing}
+                        >
                           <RefreshCw
                             className={`mr-2 h-4 w-4 ${
                               refreshing ? "animate-spin" : ""
@@ -1526,7 +1635,8 @@ export default function TopApplicantsPageContent() {
           <DialogHeader>
             <DialogTitle>Stop All Scheduled Calls</DialogTitle>
             <DialogDescription>
-              Are you sure you want to stop all scheduled calls for this job? This action cannot be undone.
+              Are you sure you want to stop all scheduled calls for this job?
+              This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1537,7 +1647,8 @@ export default function TopApplicantsPageContent() {
               return (
                 <div className="space-y-2">
                   <p className="text-sm font-medium">
-                    The following {stoppableCalls.length} call(s) will be stopped:
+                    The following {stoppableCalls.length} call(s) will be
+                    stopped:
                   </p>
                   <div className="max-h-48 overflow-y-auto space-y-2 border rounded-md p-3">
                     {stoppableCalls.map((callStatus, idx) => (
@@ -1550,7 +1661,9 @@ export default function TopApplicantsPageContent() {
                           <p className="text-xs text-muted-foreground">
                             Scheduled:{" "}
                             {callStatus.callScheduledAt
-                              ? new Date(callStatus.callScheduledAt).toLocaleString()
+                              ? new Date(
+                                  callStatus.callScheduledAt
+                                ).toLocaleString()
                               : "N/A"}
                           </p>
                         </div>
