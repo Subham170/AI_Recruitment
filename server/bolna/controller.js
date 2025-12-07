@@ -122,6 +122,8 @@ async function formatRecruiterAvailabilityWithLLM(availabilities) {
       availabilityData: JSON.stringify(availabilityData, null, 2),
     });
 
+    console.log("formattedText---->", formattedText);
+
     return formattedText.trim();
   } catch (error) {
     console.error("Error formatting recruiter availability with LLM:", error);
@@ -433,6 +435,8 @@ export const scheduleBolnaCallsBatch = async (req, res) => {
         .populate("recruiter_id", "name email")
         .sort({ recruiter_type: 1 }); // Primary first, then secondary
 
+        console.log("availabilities--->", availabilities);
+
       if (availabilities && availabilities.length > 0) {
         // Use LLM to format availability into a natural paragraph
         recruiterAvailabilityText = await formatRecruiterAvailabilityWithLLM(availabilities);
@@ -453,7 +457,7 @@ export const scheduleBolnaCallsBatch = async (req, res) => {
       try {
         // Prepare user_data with recruiter availability
         const userData = candidate.user_data || {};
-        console.log("recruiterAvailabilityText", recruiterAvailabilityText);
+        console.log("recruiterAvailabilityText--->", recruiterAvailabilityText);
         if (recruiterAvailabilityText) {
           userData.recruiter_availability = recruiterAvailabilityText;
         }
@@ -470,6 +474,8 @@ export const scheduleBolnaCallsBatch = async (req, res) => {
           from_phone_number: BOLNA_FROM_PHONE,
         };
 
+        console.log("callData--->", callData);
+        
         const response = await fetch(BOLNA_API_URL, {
           method: "POST",
           headers: {
