@@ -262,4 +262,10 @@ export const dashboardAPI = {
       method: "GET",
     });
   },
+
+  getUserAnalytics: async (userId) => {
+    return apiRequest(`/dashboard/analytics/${userId}`, {
+      method: "GET",
+    });
+  },
 };
