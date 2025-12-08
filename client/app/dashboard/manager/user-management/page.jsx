@@ -367,31 +367,29 @@ export default function UserManagementPage() {
             </div> */}
 
             {/* Search and Filter Section */}
-            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-800/50 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div className="flex-1 relative w-full">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
-                  <Input
-                    type="text"
-                    placeholder="Search by name or email..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
-                  />
-                </div>
-
-                <Button
-                  onClick={openAddForm}
-                  className="gap-2 w-full sm:w-auto bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Add People
-                </Button>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-6">
+              <div className="flex-1 relative w-full">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-white border-slate-200 focus:border-cyan-500 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
+                />
               </div>
+
+              <Button
+                onClick={openAddForm}
+                className="gap-2 w-full sm:w-auto bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
+              >
+                <UserPlus className="h-4 w-4" />
+                Add People
+              </Button>
             </div>
 
             {!loadingUsers && (
-              <div className="mb-4 text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+              <div className="mb-4 text-sm text-slate-600 flex items-center gap-2">
                 <span>
                   Showing {users.length} of {pagination.totalCount} users
                 </span>
@@ -399,7 +397,7 @@ export default function UserManagementPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-1 text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300"
+                    className="h-auto p-1 text-xs text-cyan-600 hover:text-cyan-700"
                     onClick={() => {
                       setSearchQuery("");
                       setCurrentPage(1);
