@@ -661,13 +661,46 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
 
   // Fetch and show call details for a candidate
   const handleViewCallDetails = async (candidateId, executionId) => {
+    const candidateIdStr = candidateId?.toString();
+
+    // If no executionId, try to get it from callStatuses or API
     if (!executionId) {
-      // If no executionId, try to get it from callStatuses
-      const candidateIdStr = candidateId?.toString();
       const callStatus = candidateIdStr
         ? callStatuses.get(candidateIdStr)
         : null;
-      if (!callStatus?.executionId) {
+
+      if (callStatus?.executionId) {
+        executionId = callStatus.executionId;
+      } else if (selectedJob?._id && candidateIdStr) {
+        // Try to fetch call details from API if we have job and candidate ID
+        try {
+          const response = await bolnaAPI.getCallsByJob(selectedJob._id);
+          const call = response.calls?.find(
+            (c) => c.candidateId === candidateIdStr
+          );
+          if (call?.executionId) {
+            executionId = call.executionId;
+          } else {
+            setNotification({
+              variant: "info",
+              title: "No Call Information",
+              message: "No call information available for this candidate.",
+              dismissible: true,
+            });
+            return;
+          }
+        } catch (err) {
+          console.error("Error fetching call details:", err);
+          setNotification({
+            variant: "error",
+            title: "Failed to Load Call Details",
+            message:
+              err.message || "Failed to load call details. Please try again.",
+            dismissible: true,
+          });
+          return;
+        }
+      } else {
         setNotification({
           variant: "info",
           title: "No Call Information",
@@ -676,9 +709,9 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
         });
         return;
       }
-      executionId = callStatus.executionId;
     }
 
+    // Now fetch and display the call details
     try {
       setLoadingCallDetails(true);
       setCallDetailsDialogOpen(true);
@@ -1700,41 +1733,41 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
         open={callDetailsDialogOpen}
         onOpenChange={setCallDetailsDialogOpen}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200/50 dark:border-slate-800/50 shadow-2xl">
-          <DialogHeader className="pb-4 border-b border-slate-200 dark:border-slate-700">
-            <DialogTitle className="flex items-center gap-3 text-2xl bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
-                <Phone className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-slate-300 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
+              <div className="p-2 rounded-lg bg-cyan-50 border border-cyan-200">
+                <Phone className="h-6 w-6 text-cyan-600" />
               </div>
               Call Details
             </DialogTitle>
-            <DialogDescription className="text-slate-600 dark:text-slate-400 mt-2">
+            <DialogDescription className="text-slate-600 mt-2">
               View detailed information about the scheduled call
             </DialogDescription>
           </DialogHeader>
 
           {loadingCallDetails ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-cyan-600 dark:text-cyan-400" />
+              <Loader2 className="h-8 w-8 animate-spin text-cyan-600" />
             </div>
           ) : selectedCallDetails ? (
             <div className="space-y-6 mt-6">
               {/* Call Status */}
-              <div className="p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-gradient-to-br from-slate-50/50 to-slate-100/30 dark:from-slate-800/50 dark:to-slate-900/30 backdrop-blur-sm">
+              <div className="p-5 rounded-xl border border-slate-200 bg-slate-50">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
                     Call Status
                   </h3>
                   <div
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
                       selectedCallDetails.call?.status === "completed"
-                        ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                        ? "bg-green-500 text-white"
                         : selectedCallDetails.call?.status === "stopped" ||
                           selectedCallDetails.call?.status === "cancelled"
-                        ? "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+                        ? "bg-red-500 text-white"
                         : selectedCallDetails.call?.status === "in_progress"
-                        ? "bg-gradient-to-r from-yellow-500 to-amber-500 text-white"
-                        : "bg-gradient-to-r from-blue-500 to-cyan-500 text-white"
+                        ? "bg-yellow-500 text-white"
+                        : "bg-blue-500 text-white"
                     }`}
                   >
                     {selectedCallDetails.call?.status || "Unknown"}
@@ -1742,24 +1775,24 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 mb-1.5 font-medium">
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
                       Execution ID
                     </p>
-                    <p className="text-sm font-mono text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <p className="text-sm font-mono text-slate-900 bg-white px-3 py-2 rounded-lg border border-slate-200">
                       {selectedCallDetails.call?.executionId || "N/A"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 mb-1.5 font-medium">
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
                       Can Stop
                     </p>
                     <p className="text-sm">
                       {selectedCallDetails.call?.canStop ? (
-                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium border border-green-200 dark:border-green-800">
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-green-100 text-green-700 font-medium border border-green-200">
                           Yes
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-medium border border-red-200 dark:border-red-800">
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-red-100 text-red-700 font-medium border border-red-200">
                           No
                         </span>
                       )}
@@ -1769,20 +1802,20 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
               </div>
 
               {/* Schedule Information */}
-              <div className="p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/30 backdrop-blur-sm">
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 uppercase tracking-wide">
+              <div className="p-5 rounded-xl border border-slate-200 bg-white">
+                <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">
                   Schedule Information
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {selectedCallDetails.call?.callScheduledAt && (
                     <div>
                       <div className="flex items-center gap-2 mb-1.5">
-                        <Calendar className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-                        <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                        <Calendar className="h-4 w-4 text-cyan-600" />
+                        <p className="text-xs text-slate-600 font-medium">
                           Scheduled Time
                         </p>
                       </div>
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      <p className="text-sm font-medium text-slate-900">
                         {new Date(
                           selectedCallDetails.call.callScheduledAt
                         ).toLocaleString()}
@@ -1792,12 +1825,12 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                   {selectedCallDetails.call?.userScheduledAt && (
                     <div>
                       <div className="flex items-center gap-2 mb-1.5">
-                        <Clock className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-                        <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                        <Clock className="h-4 w-4 text-cyan-600" />
+                        <p className="text-xs text-slate-600 font-medium">
                           User Scheduled Time
                         </p>
                       </div>
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                      <p className="text-sm font-medium text-slate-900">
                         {new Date(
                           selectedCallDetails.call.userScheduledAt
                         ).toLocaleString()}
@@ -1806,10 +1839,10 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                   )}
                   {selectedCallDetails.call?.createdAt && (
                     <div>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 mb-1.5 font-medium">
+                      <p className="text-xs text-slate-600 mb-1.5 font-medium">
                         Created At
                       </p>
-                      <p className="text-sm text-slate-900 dark:text-slate-100">
+                      <p className="text-sm text-slate-900">
                         {new Date(
                           selectedCallDetails.call.createdAt
                         ).toLocaleString()}
@@ -1818,10 +1851,10 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                   )}
                   {selectedCallDetails.call?.updatedAt && (
                     <div>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 mb-1.5 font-medium">
+                      <p className="text-xs text-slate-600 mb-1.5 font-medium">
                         Last Updated
                       </p>
-                      <p className="text-sm text-slate-900 dark:text-slate-100">
+                      <p className="text-sm text-slate-900">
                         {new Date(
                           selectedCallDetails.call.updatedAt
                         ).toLocaleString()}
@@ -1833,37 +1866,37 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
 
               {/* Execution Details */}
               {selectedCallDetails.execution && (
-                <div className="p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/30 backdrop-blur-sm">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 uppercase tracking-wide">
+                <div className="p-5 rounded-xl border border-slate-200 bg-white">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">
                     Execution Details
                   </h3>
                   <div className="space-y-4">
                     {selectedCallDetails.execution.transcript && (
                       <div>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-2 font-medium">
+                        <p className="text-xs text-slate-600 mb-2 font-medium">
                           Transcript
                         </p>
-                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-sm max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
+                        <div className="p-4 bg-slate-50 rounded-lg text-sm max-h-40 overflow-y-auto border border-slate-200 text-slate-900">
                           {selectedCallDetails.execution.transcript}
                         </div>
                       </div>
                     )}
                     {selectedCallDetails.execution.duration && (
                       <div>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-1.5 font-medium">
+                        <p className="text-xs text-slate-600 mb-1.5 font-medium">
                           Duration
                         </p>
-                        <p className="text-sm text-slate-900 dark:text-slate-100 font-medium">
+                        <p className="text-sm text-slate-900 font-medium">
                           {selectedCallDetails.execution.duration} seconds
                         </p>
                       </div>
                     )}
                     {selectedCallDetails.execution.start_time && (
                       <div>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-1.5 font-medium">
+                        <p className="text-xs text-slate-600 mb-1.5 font-medium">
                           Start Time
                         </p>
-                        <p className="text-sm text-slate-900 dark:text-slate-100">
+                        <p className="text-sm text-slate-900">
                           {new Date(
                             selectedCallDetails.execution.start_time
                           ).toLocaleString()}
@@ -1872,10 +1905,10 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                     )}
                     {selectedCallDetails.execution.end_time && (
                       <div>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-1.5 font-medium">
+                        <p className="text-xs text-slate-600 mb-1.5 font-medium">
                           End Time
                         </p>
-                        <p className="text-sm text-slate-900 dark:text-slate-100">
+                        <p className="text-sm text-slate-900">
                           {new Date(
                             selectedCallDetails.execution.end_time
                           ).toLocaleString()}
@@ -1891,7 +1924,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                 selectedCallDetails.call?.status !== "stopped" &&
                 selectedCallDetails.call?.status !== "cancelled" &&
                 selectedCallDetails.call?.status !== "completed" && (
-                  <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
+                  <div className="flex justify-end pt-4 border-t border-slate-200">
                     <Button
                       className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
                       onClick={() =>
@@ -1930,63 +1963,63 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
 
       {/* Candidate Profile Dialog */}
       <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200/50 dark:border-slate-800/50 shadow-2xl">
-          <DialogHeader className="pb-4 border-b border-slate-200 dark:border-slate-700">
-            <DialogTitle className="flex items-center gap-3 text-2xl bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
-                <User className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white border-slate-300 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
+              <div className="p-2 rounded-lg bg-cyan-50 border border-cyan-200">
+                <User className="h-6 w-6 text-cyan-600" />
               </div>
               {selectedCandidate?.name || "Candidate Profile"}
             </DialogTitle>
-            <DialogDescription className="text-slate-600 dark:text-slate-400 mt-2">
+            <DialogDescription className="text-slate-600 mt-2">
               {selectedCandidate?.email || "View full candidate details"}
             </DialogDescription>
           </DialogHeader>
 
           {loadingCandidateDetails ? (
             <div className="flex items-center justify-center py-12">
-              <RefreshCw className="h-8 w-8 animate-spin text-cyan-600 dark:text-cyan-400" />
+              <RefreshCw className="h-8 w-8 animate-spin text-cyan-600" />
             </div>
           ) : candidateDetails ? (
             <div className="space-y-6 mt-6">
               {/* Basic Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-gradient-to-br from-slate-50/50 to-slate-100/30 dark:from-slate-800/50 dark:to-slate-900/30 backdrop-blur-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 rounded-xl border border-slate-200 bg-white">
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                  <h3 className="text-sm font-semibold text-slate-600 mb-2">
                     Name
                   </h3>
-                  <p className="text-base text-slate-900 dark:text-slate-100 font-medium">
+                  <p className="text-base text-slate-900 font-medium">
                     {candidateDetails.name || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                  <h3 className="text-sm font-semibold text-slate-600 mb-2">
                     Email
                   </h3>
-                  <p className="text-base text-slate-900 dark:text-slate-100 font-medium">
+                  <p className="text-base text-slate-900 font-medium">
                     {candidateDetails.email || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                  <h3 className="text-sm font-semibold text-slate-600 mb-2">
                     Phone
                   </h3>
-                  <p className="text-base text-slate-900 dark:text-slate-100 font-medium">
+                  <p className="text-base text-slate-900 font-medium">
                     {candidateDetails.phone_no || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                  <h3 className="text-sm font-semibold text-slate-600 mb-2">
                     Experience
                   </h3>
-                  <p className="text-base text-slate-900 dark:text-slate-100 font-medium">
+                  <p className="text-base text-slate-900 font-medium">
                     {candidateDetails.experience !== undefined
                       ? `${candidateDetails.experience} years`
                       : "N/A"}
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                  <h3 className="text-sm font-semibold text-slate-600 mb-2">
                     Role
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -1995,28 +2028,26 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                       candidateDetails.role.map((r, idx) => (
                         <span
                           key={idx}
-                          className="px-3 py-1.5 text-xs rounded-lg bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/30 dark:to-blue-950/30 text-cyan-700 dark:text-cyan-300 border border-cyan-200/50 dark:border-cyan-800/50 font-medium"
+                          className="px-3 py-1.5 text-xs rounded-lg bg-cyan-50 text-cyan-700 border border-cyan-200 font-medium"
                         >
                           {r}
                         </span>
                       ))
                     ) : (
-                      <span className="text-base text-slate-900 dark:text-slate-100">
-                        N/A
-                      </span>
+                      <span className="text-base text-slate-900">N/A</span>
                     )}
                   </div>
                 </div>
                 {candidateDetails.resume_url && (
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                    <h3 className="text-sm font-semibold text-slate-600 mb-2">
                       Resume
                     </h3>
                     <a
                       href={candidateDetails.resume_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-base font-medium text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 hover:underline transition-colors"
+                      className="inline-flex items-center gap-2 text-base font-medium text-cyan-600 hover:text-cyan-700 hover:underline transition-colors"
                     >
                       <FileText className="h-4 w-4" />
                       View Resume
@@ -2027,11 +2058,11 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
 
               {/* Bio */}
               {candidateDetails.bio && (
-                <div className="p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/30 backdrop-blur-sm">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                <div className="p-5 rounded-xl border border-slate-200 bg-white">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3">
                     Bio
                   </h3>
-                  <p className="text-base leading-relaxed text-slate-900 dark:text-slate-100">
+                  <p className="text-base leading-relaxed text-slate-900">
                     {candidateDetails.bio}
                   </p>
                 </div>
@@ -2040,15 +2071,15 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
               {/* Skills */}
               {candidateDetails.skills &&
                 candidateDetails.skills.length > 0 && (
-                  <div className="p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/30 backdrop-blur-sm">
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                  <div className="p-5 rounded-xl border border-slate-200 bg-white">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-3">
                       Skills
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {candidateDetails.skills.map((skill, idx) => (
                         <span
                           key={idx}
-                          className="px-3 py-1.5 text-sm bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-600 font-medium shadow-sm"
+                          className="px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-lg border border-slate-300 font-medium shadow-sm"
                         >
                           {skill}
                         </span>
@@ -2060,8 +2091,8 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
               {/* Social Links */}
               {candidateDetails.social_links &&
                 Object.keys(candidateDetails.social_links).length > 0 && (
-                  <div className="p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/30 backdrop-blur-sm">
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                  <div className="p-5 rounded-xl border border-slate-200 bg-white">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-3">
                       Social Links
                     </h3>
                     <div className="flex flex-wrap gap-3">
@@ -2070,7 +2101,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                           href={candidateDetails.social_links.linkedin}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 text-blue-600 dark:text-blue-400 hover:from-blue-100 hover:to-cyan-100 dark:hover:from-blue-900/40 dark:hover:to-cyan-900/40 border border-blue-200/50 dark:border-blue-800/50 font-medium transition-all duration-200 hover:shadow-sm"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 font-medium transition-all duration-200 hover:shadow-sm"
                         >
                           <Briefcase className="h-4 w-4" />
                           LinkedIn
@@ -2081,7 +2112,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                           href={candidateDetails.social_links.github}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 text-slate-700 dark:text-slate-300 hover:from-slate-100 hover:to-gray-100 dark:hover:from-slate-700 dark:hover:to-gray-700 border border-slate-200/50 dark:border-slate-700/50 font-medium transition-all duration-200 hover:shadow-sm"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 font-medium transition-all duration-200 hover:shadow-sm"
                         >
                           <Briefcase className="h-4 w-4" />
                           GitHub
@@ -2092,7 +2123,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                           href={candidateDetails.social_links.portfolio}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 text-purple-600 dark:text-purple-400 hover:from-purple-100 hover:to-pink-100 dark:hover:from-purple-900/40 dark:hover:to-pink-900/40 border border-purple-200/50 dark:border-purple-800/50 font-medium transition-all duration-200 hover:shadow-sm"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200 font-medium transition-all duration-200 hover:shadow-sm"
                         >
                           <Briefcase className="h-4 w-4" />
                           Portfolio
@@ -2103,17 +2134,17 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                 )}
 
               {/* Additional Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
                 {candidateDetails.is_active !== undefined && (
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                    <h3 className="text-sm font-semibold text-slate-600 mb-2">
                       Status
                     </h3>
                     <span
                       className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
                         candidateDetails.is_active
-                          ? "bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800"
-                          : "bg-gradient-to-r from-slate-100 to-gray-100 dark:from-slate-800 dark:to-gray-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                          ? "bg-green-100 text-green-700 border border-green-200"
+                          : "bg-slate-100 text-slate-700 border border-slate-300"
                       }`}
                     >
                       {candidateDetails.is_active ? "Active" : "Inactive"}
@@ -2122,10 +2153,10 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                 )}
                 {candidateDetails.createdAt && (
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                    <h3 className="text-sm font-semibold text-slate-600 mb-2">
                       Created
                     </h3>
-                    <p className="text-base text-slate-900 dark:text-slate-100">
+                    <p className="text-base text-slate-900">
                       {new Date(
                         candidateDetails.createdAt
                       ).toLocaleDateString()}
@@ -2135,7 +2166,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
               </div>
             </div>
           ) : (
-            <div className="py-12 text-center text-slate-600 dark:text-slate-400">
+            <div className="py-12 text-center text-slate-600">
               <p>No candidate details available</p>
             </div>
           )}

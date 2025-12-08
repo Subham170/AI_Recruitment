@@ -2,7 +2,6 @@
 
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -88,9 +87,9 @@ export default function ManagerDashboardPage() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6 bg-white">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-8 flex items-start justify-between gap-4">
+            <div className="mb-8">
               <div>
-                <p className="text-sm text-slate-500">Dashboard</p>
+                {/* <p className="text-sm text-slate-500">Dashboard</p> */}
                 <h2 className="text-3xl font-bold mb-2 text-slate-900">
                   Welcome, {user.name}
                 </h2>
@@ -98,13 +97,6 @@ export default function ManagerDashboardPage() {
                   Manage your recruitment team and operations
                 </p>
               </div>
-              <Button
-                variant="secondary"
-                className="bg-slate-900 text-white hover:bg-slate-800 hidden lg:inline-flex"
-                onClick={() => setSidebarOpen(true)}
-              >
-                Open Menu
-              </Button>
             </div>
 
             {/* Quick Stats */}
