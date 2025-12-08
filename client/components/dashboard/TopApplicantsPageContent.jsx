@@ -805,7 +805,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
           onSidebarToggle={setSidebarOpen}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6 bg-white">
           {loading || loadingJobs ? (
             <div className="flex items-center justify-center min-h-[400px]">
               <Loading />
@@ -869,11 +869,11 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
 
                   {/* Jobs Table */}
                   {filteredJobs.length > 0 ? (
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-md overflow-hidden">
+                    <div className="bg-white border border-slate-300 rounded-2xl shadow-sm overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead>
-                            <tr className="border-b border-slate-200 bg-slate-100/80">
+                            <tr className="border-b-2 border-slate-300 bg-slate-50">
                               <th className="text-left p-4 font-semibold text-slate-800">
                                 Job Role
                               </th>
@@ -895,7 +895,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                             {filteredJobs.map((job) => (
                               <tr
                                 key={job._id}
-                                className="border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors duration-150"
+                                className="border-b border-slate-200 bg-white hover:bg-slate-50/80 transition-colors duration-150"
                               >
                                 <td className="p-4">
                                   <div>
@@ -963,13 +963,13 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
               ) : (
                 <>
                   {/* Selected Job Header */}
-                  <div className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border rounded-lg p-6 mb-6">
+                  <div className="border-slate-300 bg-white border rounded-lg p-6 mb-6 shadow-sm">
                     <div className="flex items-start justify-between gap-4 mb-4">
                       <div className="flex-1">
-                        <h2 className="text-2xl font-bold mb-2 text-slate-900 dark:text-white">
+                        <h2 className="text-2xl font-bold mb-2 text-slate-900">
                           {selectedJob.title}
                         </h2>
-                        <p className="text-lg text-slate-600 dark:text-slate-400">
+                        <p className="text-lg text-slate-600">
                           {selectedJob.company}
                         </p>
                       </div>
@@ -1034,7 +1034,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                         })()}
                         <Button
                           variant="outline"
-                          className="border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 hover:scale-105 hover:shadow-md"
+                          className="border-slate-300 hover:bg-slate-50 hover:border-slate-400 text-slate-900 transition-all duration-200 hover:shadow-sm"
                           onClick={() => {
                             const role = user?.role || "recruiter";
                             router.push(`/dashboard/${role}/top-applicants`);
@@ -1148,13 +1148,13 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                   updatingRecruiters || loadingRecruiters
                                 }
                               >
-                                <SelectTrigger className="w-full max-w-md border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-900 hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 hover:shadow-md hover:shadow-cyan-500/10">
+                                <SelectTrigger className="w-full max-w-md border-slate-300 bg-white text-slate-900 hover:bg-slate-50 hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200 hover:shadow-md hover:shadow-cyan-500/10">
                                   <SelectValue
                                     placeholder="Add Secondary Recruiter"
-                                    className="dark:text-white"
+                                    className="text-slate-600"
                                   />
                                 </SelectTrigger>
-                                <SelectContent className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200 dark:border-slate-700 shadow-xl text-slate-900 dark:text-white">
+                                <SelectContent className="bg-white border-slate-300 shadow-xl text-slate-900">
                                   {recruiters
                                     .filter((recruiter) => {
                                       // Exclude primary recruiter and already added secondary recruiters
@@ -1180,11 +1180,11 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                       <SelectItem
                                         key={recruiter._id}
                                         value={recruiter._id}
-                                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400 cursor-pointer transition-all duration-200 focus:bg-cyan-50 dark:focus:bg-cyan-950/30 focus:text-cyan-600 dark:focus:text-cyan-400"
+                                        className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600 cursor-pointer transition-all duration-200 focus:bg-cyan-50 focus:text-cyan-600"
                                       >
                                         <div className="flex items-center gap-2">
-                                          <User className="h-4 w-4 text-slate-900 dark:text-white" />
-                                          <span className="text-slate-900 dark:text-white">
+                                          <User className="h-4 w-4 text-slate-900" />
+                                          <span className="text-slate-900">
                                             {recruiter.name || recruiter.email}
                                           </span>
                                         </div>
@@ -1209,7 +1209,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                     });
                                     return !isPrimary && !isSecondary;
                                   }).length === 0 && (
-                                    <div className="px-2 py-1.5 text-sm text-slate-600 dark:text-white">
+                                    <div className="px-2 py-1.5 text-sm text-slate-600">
                                       No available recruiters
                                     </div>
                                   )}
@@ -1298,46 +1298,46 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
 
                   {/* Candidates List */}
                   {loadingCandidates ? (
-                    <div className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border rounded-lg p-12 text-center">
-                      <RefreshCw className="h-12 w-12 mx-auto mb-4 animate-spin text-slate-400 dark:text-slate-500" />
-                      <p className="text-slate-600 dark:text-slate-400">
+                    <div className="border-slate-300 bg-white border rounded-lg p-12 text-center shadow-sm">
+                      <RefreshCw className="h-12 w-12 mx-auto mb-4 animate-spin text-slate-400" />
+                      <p className="text-slate-600">
                         Loading top candidates...
                       </p>
                     </div>
                   ) : candidates.length > 0 ? (
                     <>
                       <div className="mb-6">
-                        <p className="text-sm text-slate-900 dark:text-white">
+                        <p className="text-sm text-slate-900">
                           Showing top {candidates.length} candidates sorted by
                           match score
                         </p>
                       </div>
-                      <div className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border rounded-lg overflow-hidden">
+                      <div className="border-slate-300 bg-white border rounded-lg overflow-hidden shadow-sm">
                         <Table>
                           <TableHeader>
-                            <TableRow>
-                              <TableHead className="text-slate-900 dark:text-slate-100">
+                            <TableRow className="bg-slate-50 border-b-2 border-slate-300 hover:bg-slate-100">
+                              <TableHead className="text-slate-900 font-semibold">
                                 Candidate
                               </TableHead>
-                              <TableHead className="text-slate-900 dark:text-slate-100">
+                              <TableHead className="text-slate-900 font-semibold">
                                 Role
                               </TableHead>
-                              <TableHead className="text-slate-900 dark:text-slate-100">
+                              <TableHead className="text-slate-900 font-semibold">
                                 Match Score
                               </TableHead>
-                              <TableHead className="text-slate-900 dark:text-slate-100">
+                              <TableHead className="text-slate-900 font-semibold">
                                 Email
                               </TableHead>
-                              <TableHead className="text-slate-900 dark:text-slate-100">
+                              <TableHead className="text-slate-900 font-semibold">
                                 Phone
                               </TableHead>
-                              <TableHead className="text-slate-900 dark:text-slate-100">
+                              <TableHead className="text-slate-900 font-semibold">
                                 Experience
                               </TableHead>
-                              <TableHead className="text-slate-900 dark:text-slate-100">
+                              <TableHead className="text-slate-900 font-semibold">
                                 Status
                               </TableHead>
-                              <TableHead className="text-right text-slate-900 dark:text-slate-100">
+                              <TableHead className="text-right text-slate-900 font-semibold">
                                 Actions
                               </TableHead>
                             </TableRow>
@@ -1358,15 +1358,15 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                               return (
                                 <TableRow
                                   key={candidate._id || index}
-                                  className={`transition-all duration-200 ${
+                                  className={`transition-all duration-200 border-b border-slate-200 ${
                                     isScheduled
-                                      ? "bg-green-50 dark:bg-green-950/20"
-                                      : "hover:bg-slate-50/50 dark:hover:bg-slate-800/50"
-                                  } hover:shadow-md hover:scale-[1.01] cursor-pointer`}
+                                      ? "bg-green-50"
+                                      : "bg-white hover:bg-slate-50/80"
+                                  } hover:shadow-sm cursor-pointer`}
                                 >
-                                  <TableCell className="text-slate-900 dark:text-white">
+                                  <TableCell className="text-slate-900">
                                     <div className="flex items-center gap-3">
-                                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 dark:from-cyan-400 dark:to-blue-500 shadow-lg shadow-cyan-500/30 border-2 border-cyan-300/30 dark:border-cyan-500/30">
+                                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30 border-2 border-cyan-300/30">
                                         <span className="text-sm font-bold text-white">
                                           {candidate.name
                                             ?.split(" ")
@@ -1376,23 +1376,23 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                         </span>
                                       </div>
                                       <div>
-                                        <div className="font-semibold text-slate-900 dark:text-white">
+                                        <div className="font-semibold text-slate-900">
                                           {candidate.name || "Unknown"}
                                         </div>
                                         {candidate.bio && (
-                                          <div className="text-xs text-slate-600 dark:text-slate-300 line-clamp-1 max-w-[200px]">
+                                          <div className="text-xs text-slate-600 line-clamp-1 max-w-[200px]">
                                             {candidate.bio}
                                           </div>
                                         )}
                                       </div>
                                     </div>
                                   </TableCell>
-                                  <TableCell className="text-slate-900 dark:text-white">
+                                  <TableCell className="text-slate-900">
                                     {candidate.role && candidate.role.length > 0
                                       ? candidate.role.join(", ")
                                       : "N/A"}
                                   </TableCell>
-                                  <TableCell className="text-slate-900 dark:text-white">
+                                  <TableCell className="text-slate-900">
                                     <div
                                       className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
                                         match.matchScore || 0
@@ -1401,49 +1401,49 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                       {matchScore}%
                                     </div>
                                   </TableCell>
-                                  <TableCell className="text-slate-900 dark:text-white">
+                                  <TableCell className="text-slate-900">
                                     {candidate.email ? (
                                       <div className="flex items-center gap-2">
-                                        <Mail className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                                        <span className="text-sm text-slate-900 dark:text-white">
+                                        <Mail className="h-4 w-4 text-slate-500" />
+                                        <span className="text-sm text-slate-900">
                                           {candidate.email}
                                         </span>
                                       </div>
                                     ) : (
-                                      <span className="text-sm text-slate-600 dark:text-slate-400">
+                                      <span className="text-sm text-slate-600">
                                         N/A
                                       </span>
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-slate-900 dark:text-white">
+                                  <TableCell className="text-slate-900">
                                     {candidate.phone_no ? (
                                       <div className="flex items-center gap-2">
-                                        <Phone className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                                        <span className="text-sm text-slate-900 dark:text-white">
+                                        <Phone className="h-4 w-4 text-slate-500" />
+                                        <span className="text-sm text-slate-900">
                                           {candidate.phone_no}
                                         </span>
                                       </div>
                                     ) : (
-                                      <span className="text-sm text-slate-600 dark:text-slate-400">
+                                      <span className="text-sm text-slate-600">
                                         N/A
                                       </span>
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-slate-900 dark:text-white">
+                                  <TableCell className="text-slate-900">
                                     {candidate.experience !== undefined ? (
                                       <div className="flex items-center gap-2">
-                                        <Briefcase className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                                        <span className="text-sm text-slate-900 dark:text-white">
+                                        <Briefcase className="h-4 w-4 text-slate-500" />
+                                        <span className="text-sm text-slate-900">
                                           {candidate.experience} years
                                         </span>
                                       </div>
                                     ) : (
-                                      <span className="text-sm text-slate-600 dark:text-slate-400">
+                                      <span className="text-sm text-slate-600">
                                         N/A
                                       </span>
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-slate-900 dark:text-white">
+                                  <TableCell className="text-slate-900">
                                     {(() => {
                                       const candidateIdStr =
                                         candidate._id?.toString();
@@ -1484,14 +1484,14 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                         );
                                       } else {
                                         return (
-                                          <span className="text-sm text-slate-600 dark:text-white">
+                                          <span className="text-sm text-slate-600">
                                             Not Scheduled
                                           </span>
                                         );
                                       }
                                     })()}
                                   </TableCell>
-                                  <TableCell className="text-right text-slate-900 dark:text-white">
+                                  <TableCell className="text-right text-slate-900">
                                     <div className="flex items-center justify-end gap-2">
                                       <Button
                                         variant="outline"
@@ -1499,7 +1499,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                         onClick={() =>
                                           handleViewProfile(candidate)
                                         }
-                                        className="hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:border-cyan-300 dark:hover:border-cyan-600 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all duration-200 hover:scale-110"
+                                        className="hover:bg-cyan-50 hover:border-cyan-300 hover:text-cyan-600 transition-all duration-200 hover:scale-110"
                                       >
                                         <Eye className="h-4 w-4" />
                                       </Button>
