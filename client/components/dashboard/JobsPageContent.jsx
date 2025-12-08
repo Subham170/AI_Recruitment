@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export default function JobsPageContent() {
   const { user, loading } = useAuth();
@@ -275,9 +276,10 @@ export default function JobsPageContent() {
       setEditingJob(null);
       setShowCreateDialog(false);
       fetchJobPostings();
+      toast.success("Job posting created successfully!");
     } catch (err) {
       console.error("Error creating job posting:", err);
-      alert(err.message || "Failed to create job posting");
+      toast.error(err.message || "Failed to create job posting");
     }
   };
 
@@ -307,9 +309,11 @@ export default function JobsPageContent() {
       setEditingJob(null);
       setShowCreateDialog(false);
       fetchJobPostings();
+      toast.success("Job posting updated successfully!");
     } catch (err) {
       console.error("Error updating job posting:", err);
-      alert(err.message || "Failed to update job posting");
+      const errorMessage = err.message || "Failed to update job posting";
+      toast.error(errorMessage);
     }
   };
 
@@ -412,9 +416,12 @@ export default function JobsPageContent() {
         secondary_recruiter_id: tempSecondaryRecruiters,
       };
       setViewingJob(updatedJob);
+      toast.success("Secondary recruiters updated successfully!");
     } catch (err) {
       console.error("Error updating secondary recruiters:", err);
-      alert(err.message || "Failed to update secondary recruiters");
+      const errorMessage =
+        err.message || "Failed to update secondary recruiters";
+      toast.error(errorMessage);
     } finally {
       setSavingRecruiters(false);
     }

@@ -50,7 +50,6 @@ export default function Sidebar({
             />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm text-slate-300">TalentForce</span>
             <h2 className="text-lg font-semibold text-white">AI Recruitment</h2>
           </div>
         </div>
