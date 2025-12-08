@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export default function TopApplicantsPage() {
   const { user, loading } = useAuth();
@@ -207,10 +208,19 @@ export default function TopApplicantsPage() {
 
       if (failCount === 0) {
         setError(null);
-        alert(`Successfully scheduled ${successCount} calls!`);
+        toast.success(
+          `Successfully scheduled ${successCount} call${
+            successCount !== 1 ? "s" : ""
+          }!`
+        );
       } else {
         setError(
           `Scheduled ${successCount} calls successfully. ${failCount} failed. Check console for details.`
+        );
+        toast.warning(
+          `Scheduled ${successCount} call${
+            successCount !== 1 ? "s" : ""
+          } successfully. ${failCount} failed.`
         );
       }
     } catch (err) {

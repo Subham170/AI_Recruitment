@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export default function JobsPage() {
   const { user, loading } = useAuth();
@@ -173,9 +174,10 @@ export default function JobsPage() {
       setEditingJob(null);
       setShowCreateDialog(false);
       fetchJobPostings();
+      toast.success("Job posting created successfully!");
     } catch (err) {
       console.error("Error creating job posting:", err);
-      alert(err.message || "Failed to create job posting");
+      toast.error(err.message || "Failed to create job posting");
     }
   };
 
@@ -204,9 +206,10 @@ export default function JobsPage() {
       setEditingJob(null);
       setShowCreateDialog(false);
       fetchJobPostings();
+      toast.success("Job posting updated successfully!");
     } catch (err) {
       console.error("Error updating job posting:", err);
-      alert(err.message || "Failed to update job posting");
+      toast.error(err.message || "Failed to update job posting");
     }
   };
 

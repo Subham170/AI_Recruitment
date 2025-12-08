@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export default function JobDetailPage() {
   const { user, loading: authLoading } = useAuth();
@@ -144,9 +145,10 @@ export default function JobDetailPage() {
       await jobPostingAPI.updateJobPosting(jobId, jobData);
       setEditDialogOpen(false);
       fetchJobPosting(); // Refresh the job posting
+      toast.success("Job posting updated successfully!");
     } catch (err) {
       console.error("Error updating job posting:", err);
-      alert(err.message || "Failed to update job posting");
+      toast.error(err.message || "Failed to update job posting");
     }
   };
 
