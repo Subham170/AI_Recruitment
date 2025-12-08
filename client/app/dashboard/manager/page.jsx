@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -78,153 +79,117 @@ export default function ManagerDashboardPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative">
-      {/* Subtle radial gradient overlay */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div
-          className="absolute top-0 right-0 w-1/2 h-1/2"
-          style={{
-            background:
-              "radial-gradient(circle at top right, rgba(6, 182, 212, 0.05), transparent 70%)",
-          }}
-        ></div>
-        <div
-          className="absolute bottom-0 left-0 w-1/2 h-1/2"
-          style={{
-            background:
-              "radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.05), transparent 70%)",
-          }}
-        ></div>
-      </div>
-
-      {/* Subtle grid pattern */}
-      <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03] pointer-events-none">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(14, 165, 233, 0.3) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(14, 165, 233, 0.3) 1px, transparent 1px)
-            `,
-            backgroundSize: "40px 40px",
-          }}
-        />
-      </div>
-
+    <div className="flex h-screen overflow-hidden bg-white">
       <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
-      <div className="flex flex-1 flex-col overflow-hidden relative z-10">
-        <Navbar
-          title="Manager Dashboard"
-          subtitle="Overview of recruitment operations"
-          showLogout={true}
-          sidebarOpen={sidebarOpen}
-          onSidebarToggle={setSidebarOpen}
-        />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Navbar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 bg-white">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
-                Welcome, {user.name}
-              </h2>
-              <p className="text-slate-600 dark:text-slate-400">
-                Manage your recruitment team and operations
-              </p>
+            <div className="mb-8 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm text-slate-500">Dashboard</p>
+                <h2 className="text-3xl font-bold mb-2 text-slate-900">
+                  Welcome, {user.name}
+                </h2>
+                <p className="text-slate-600">
+                  Manage your recruitment team and operations
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                className="bg-slate-900 text-white hover:bg-slate-800 hidden lg:inline-flex"
+                onClick={() => setSidebarOpen(true)}
+              >
+                Open Menu
+              </Button>
             </div>
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <Card className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
+              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <CardTitle className="text-sm font-medium text-slate-900">
                     Recruiters
                   </CardTitle>
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
-                    <Users className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                  <div className="p-2 rounded-lg bg-slate-100">
+                    <Users className="h-4 w-4 text-slate-700" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
+                  <div className="text-2xl font-bold text-slate-900">
                     {loadingStats ? (
                       <span className="animate-pulse">-</span>
                     ) : (
                       stats.totalRecruiters || 0
                     )}
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Team members
-                  </p>
+                  <p className="text-xs text-slate-600">Team members</p>
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
+              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <CardTitle className="text-sm font-medium text-slate-900">
                     Job Postings
                   </CardTitle>
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
-                    <Briefcase className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                  <div className="p-2 rounded-lg bg-slate-100">
+                    <Briefcase className="h-4 w-4 text-slate-700" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
+                  <div className="text-2xl font-bold text-slate-900">
                     {loadingStats ? (
                       <span className="animate-pulse">-</span>
                     ) : (
                       stats.activeJobs
                     )}
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Active jobs
-                  </p>
+                  <p className="text-xs text-slate-600">Active jobs</p>
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
+              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <CardTitle className="text-sm font-medium text-slate-900">
                     Applications
                   </CardTitle>
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
-                    <ClipboardList className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                  <div className="p-2 rounded-lg bg-slate-100">
+                    <ClipboardList className="h-4 w-4 text-slate-700" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
+                  <div className="text-2xl font-bold text-slate-900">
                     {loadingStats ? (
                       <span className="animate-pulse">-</span>
                     ) : (
                       stats.applications
                     )}
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Total received
-                  </p>
+                  <p className="text-xs text-slate-600">Total received</p>
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 hover:scale-105">
+              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <CardTitle className="text-sm font-medium text-slate-900">
                     Interviews
                   </CardTitle>
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
-                    <Calendar className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                  <div className="p-2 rounded-lg bg-slate-100">
+                    <Calendar className="h-4 w-4 text-slate-700" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
+                  <div className="text-2xl font-bold text-slate-900">
                     {loadingStats ? (
                       <span className="animate-pulse">-</span>
                     ) : (
                       stats.interviews
                     )}
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Scheduled
-                  </p>
+                  <p className="text-xs text-slate-600">Scheduled</p>
                 </CardContent>
               </Card>
             </div>
