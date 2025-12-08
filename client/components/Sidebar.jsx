@@ -60,7 +60,35 @@ export default function Sidebar({
         <nav className="p-2 space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.path;
+            // Check if this menu item should be active
+            // Priority: exact match > specific path match > top-applicants special case
+            let isActive = false;
+
+            // Exact match
+            if (pathname === item.path) {
+              isActive = true;
+            }
+            // Check if pathname starts with this item's path followed by "/"
+            // But only if no other menu item has a longer matching path
+            else if (pathname.startsWith(item.path + "/")) {
+              // Check if any other menu item has a longer path that also matches
+              const hasLongerMatch = menuItems.some(
+                (otherItem) =>
+                  otherItem.path !== item.path &&
+                  otherItem.path.startsWith(item.path + "/") &&
+                  pathname.startsWith(otherItem.path)
+              );
+              // Only activate if no longer match exists
+              isActive = !hasLongerMatch;
+            }
+            // Special case: handle /top-applicants/123 when menu path is /dashboard/recruiter/top-applicants
+            else if (
+              item.path.includes("top-applicants") &&
+              pathname.startsWith("/top-applicants")
+            ) {
+              isActive = true;
+            }
+
             return (
               <Link
                 key={item.id}
