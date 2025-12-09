@@ -16,19 +16,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Loading from "@/components/ui/loading";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { candidateAPI } from "@/lib/api";
 import {
-  Briefcase,
+  CheckCircle2,
   FileText,
+  Loader2,
   Plus,
   Search,
   Upload,
@@ -47,12 +41,16 @@ export default function CandidatesPage() {
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
   const [error, setError] = useState("");
+  const [parseResumeFile, setParseResumeFile] = useState(null);
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resumeFile, setResumeFile] = useState(null);
   const [resumeFileName, setResumeFileName] = useState("");
+  const [parseResumeModalOpen, setParseResumeModalOpen] = useState(false);
+  const [isParsingResume, setIsParsingResume] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [parsedResumeData, setParsedResumeData] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -149,6 +147,106 @@ export default function CandidatesPage() {
       ...prev,
       resume_url: "",
     }));
+  };
+
+  const validateResumeFile = (file) => {
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      setError("Please upload a PDF or Word document");
+      return false;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("File size must be less than 5MB");
+      return false;
+    }
+    return true;
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (validateResumeFile(file)) {
+        setParseResumeFile(file);
+        setError("");
+      }
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (validateResumeFile(file)) {
+        setParseResumeFile(file);
+        setError("");
+      }
+    }
+  };
+
+  const handleParseResume = async () => {
+    if (!parseResumeFile) {
+      setError("Please select a resume file");
+      return;
+    }
+
+    setIsParsingResume(true);
+    setError("");
+    setSuccess("");
+    setParsedResumeData(null);
+
+    try {
+      // Simulate parsing with animation (2-3 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+
+      // TODO: Replace with actual API call
+      // const formData = new FormData();
+      // formData.append("resume", parseResumeFile);
+      // const response = await candidateAPI.parseResume(formData);
+      // setParsedResumeData(response);
+
+      // Mock parsed data for now
+      const mockParsedData = {
+        name: "John Doe",
+        email: "john.doe@example.com",
+        phone: "+1234567890",
+        skills: ["React", "Node.js", "Python", "JavaScript"],
+        experience: 5,
+        education: "Bachelor's in Computer Science",
+      };
+
+      setParsedResumeData(mockParsedData);
+      setSuccess("Resume parsed successfully!");
+    } catch (err) {
+      setError(err.message || "Failed to parse resume. Please try again.");
+    } finally {
+      setIsParsingResume(false);
+    }
+  };
+
+  const resetParseResumeModal = () => {
+    setParseResumeFile(null);
+    setParsedResumeData(null);
+    setError("");
+    setSuccess("");
+    setDragActive(false);
+    setIsParsingResume(false);
   };
 
   const validateForm = () => {
@@ -250,13 +348,7 @@ export default function CandidatesPage() {
         skill.toLowerCase().includes(searchQuery.toLowerCase())
       );
 
-    const matchesRole =
-      !roleFilter ||
-      candidate.role?.includes(roleFilter) ||
-      (roleFilter === "none" &&
-        (!candidate.role || candidate.role.length === 0));
-
-    return matchesSearch && matchesRole;
+    return matchesSearch;
   });
 
   const validRoles = [
@@ -315,7 +407,18 @@ export default function CandidatesPage() {
           )}
 
           <div className="space-y-6 max-w-7xl mx-auto">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  type="text"
+                  placeholder="Search by name, email, or skills..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-white border-slate-200 focus:border-cyan-500 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-cyan-500/20 focus:shadow-lg focus:shadow-cyan-500/10 transition-all duration-200"
+                />
+              </div>
+
               <Button
                 onClick={openAddForm}
                 className="gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
@@ -323,45 +426,20 @@ export default function CandidatesPage() {
                 <Plus className="h-4 w-4" />
                 Add Candidate
               </Button>
-            </div>
 
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div className="flex-1 relative w-full">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search by name, email, or skills..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-white border-slate-200 focus:border-cyan-500 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-cyan-500/20 focus:shadow-lg focus:shadow-cyan-500/10 transition-all duration-200"
-                  />
-                </div>
-
-                <div className="w-full sm:w-48">
-                  <Select
-                    value={roleFilter || "all"}
-                    onValueChange={(value) =>
-                      setRoleFilter(value === "all" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger className="bg-white border-slate-200 text-slate-900">
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="h-4 w-4 text-slate-400" />
-                        <SelectValue placeholder="All Roles" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border-slate-200">
-                      <SelectItem value="all">All Roles</SelectItem>
-                      {validRoles.map((role) => (
-                        <SelectItem key={role} value={role}>
-                          {role}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="none">No Role</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 border-slate-200 hover:bg-cyan-50 hover:border-cyan-300 hover:text-cyan-700"
+                  onClick={() => {
+                    resetParseResumeModal();
+                    setParseResumeModalOpen(true);
+                  }}
+                >
+                  <Upload className="h-4 w-4" />
+                  Parse Resume
+                </Button>
               </div>
             </div>
 
@@ -371,14 +449,13 @@ export default function CandidatesPage() {
                   Showing {filteredCandidates.length} of {candidates.length}{" "}
                   candidates
                 </span>
-                {(searchQuery || roleFilter) && (
+                {searchQuery && (
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-auto p-1 text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300"
                     onClick={() => {
                       setSearchQuery("");
-                      setRoleFilter("");
                     }}
                   >
                     Clear filters
@@ -480,15 +557,15 @@ export default function CandidatesPage() {
 
       {/* Add Candidate Dialog - Same as before */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200/50 dark:border-slate-800/50 shadow-2xl">
-          <DialogHeader className="pb-4 border-b border-slate-200 dark:border-slate-700">
-            <DialogTitle className="flex items-center gap-3 text-2xl bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-slate-200 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
               <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
-                <UserPlus className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+                <UserPlus className="h-6 w-6 text-cyan-600" />
               </div>
               Add New Candidate
             </DialogTitle>
-            <DialogDescription className="text-slate-600 dark:text-slate-400 mt-2">
+            <DialogDescription className="text-slate-600 mt-2">
               Fill in the details to create a new candidate profile
             </DialogDescription>
           </DialogHeader>
@@ -496,17 +573,17 @@ export default function CandidatesPage() {
           {error && (
             <Alert
               variant="destructive"
-              className="mt-4 border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-950/20"
+              className="mt-4 border-red-200 bg-red-50"
             >
-              <AlertDescription className="text-red-800 dark:text-red-200">
+              <AlertDescription className="text-red-800">
                 {error}
               </AlertDescription>
             </Alert>
           )}
 
           {success && (
-            <Alert className="mt-4 bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800">
-              <AlertDescription className="text-green-800 dark:text-green-200">
+            <Alert className="mt-4 bg-green-50 border-green-200">
+              <AlertDescription className="text-green-800">
                 {success}
               </AlertDescription>
             </Alert>
@@ -514,10 +591,7 @@ export default function CandidatesPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6 mt-6">
             <div className="space-y-2">
-              <Label
-                htmlFor="name"
-                className="text-slate-900 dark:text-slate-100 font-medium"
-              >
+              <Label htmlFor="name" className="text-slate-900 font-medium">
                 Full Name <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -528,15 +602,12 @@ export default function CandidatesPage() {
                 onChange={handleChange}
                 placeholder="Enter full name"
                 required
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
               />
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="email"
-                className="text-slate-900 dark:text-slate-100 font-medium"
-              >
+              <Label htmlFor="email" className="text-slate-900 font-medium">
                 Email Address <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -547,15 +618,12 @@ export default function CandidatesPage() {
                 onChange={handleChange}
                 placeholder="Enter email address"
                 required
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
               />
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="phone_no"
-                className="text-slate-900 dark:text-slate-100 font-medium"
-              >
+              <Label htmlFor="phone_no" className="text-slate-900 font-medium">
                 Phone Number
               </Label>
               <Input
@@ -565,14 +633,14 @@ export default function CandidatesPage() {
                 value={formData.phone_no}
                 onChange={handleChange}
                 placeholder="Enter phone number"
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
               />
             </div>
 
             <div className="space-y-2">
               <Label
                 htmlFor="experience"
-                className="text-slate-900 dark:text-slate-100 font-medium"
+                className="text-slate-900 font-medium"
               >
                 Experience (Years)
               </Label>
@@ -584,14 +652,12 @@ export default function CandidatesPage() {
                 value={formData.experience}
                 onChange={handleChange}
                 placeholder="Enter years of experience"
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-900 dark:text-slate-100 font-medium">
-                Roles
-              </Label>
+              <Label className="text-slate-900 font-medium">Roles</Label>
               <div className="flex flex-wrap gap-2">
                 {validRoles.map((role) => (
                   <Button
@@ -611,16 +677,13 @@ export default function CandidatesPage() {
                   </Button>
                 ))}
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500">
                 Select one or more roles for this candidate
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="skills"
-                className="text-slate-900 dark:text-slate-100 font-medium"
-              >
+              <Label htmlFor="skills" className="text-slate-900 font-medium">
                 Skills
               </Label>
               <Input
@@ -630,18 +693,15 @@ export default function CandidatesPage() {
                 value={formData.skills}
                 onChange={handleChange}
                 placeholder="Enter skills separated by commas (e.g., React, Node.js, Python)"
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
               />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500">
                 Separate multiple skills with commas
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="bio"
-                className="text-slate-900 dark:text-slate-100 font-medium"
-              >
+              <Label htmlFor="bio" className="text-slate-900 font-medium">
                 Bio
               </Label>
               <textarea
@@ -651,12 +711,12 @@ export default function CandidatesPage() {
                 onChange={handleChange}
                 placeholder="Enter a short bio about the candidate"
                 rows={3}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-cyan-500 focus:ring-cyan-500/20"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-900 dark:text-slate-100 font-medium">
+              <Label className="text-slate-900 font-medium">
                 Resume Upload
               </Label>
               {resumeFileName ? (
@@ -699,7 +759,7 @@ export default function CandidatesPage() {
                   </Label>
                 </div>
               )}
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500">
                 Maximum file size: 5MB. Supported formats: PDF, DOC, DOCX
               </p>
             </div>
@@ -707,7 +767,7 @@ export default function CandidatesPage() {
             <div className="space-y-2">
               <Label
                 htmlFor="resume_url"
-                className="text-slate-900 dark:text-slate-100 font-medium"
+                className="text-slate-900 font-medium"
               >
                 Resume URL (Alternative)
               </Label>
@@ -718,14 +778,14 @@ export default function CandidatesPage() {
                 value={formData.resume_url}
                 onChange={handleChange}
                 placeholder="Or enter a resume URL"
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
               />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500">
                 If you have a resume URL, you can enter it here instead
               </p>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-700">
+            <DialogFooter className="pt-4 border-t border-slate-200">
               <Button
                 type="button"
                 variant="outline"
@@ -733,7 +793,7 @@ export default function CandidatesPage() {
                   setFormOpen(false);
                   resetForm();
                 }}
-                className="border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="border-slate-200 hover:bg-slate-50"
               >
                 Cancel
               </Button>
@@ -746,6 +806,225 @@ export default function CandidatesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Parse Resume Dialog */}
+      <Dialog
+        open={parseResumeModalOpen}
+        onOpenChange={(open) => {
+          setParseResumeModalOpen(open);
+          if (!open) {
+            resetParseResumeModal();
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl bg-white border-slate-200 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
+                <FileText className="h-6 w-6 text-cyan-600" />
+              </div>
+              Parse Resume
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              Upload a resume file to automatically extract candidate
+              information
+            </DialogDescription>
+          </DialogHeader>
+
+          {error && (
+            <Alert
+              variant="destructive"
+              className="mt-4 border-red-200 bg-red-50"
+            >
+              <AlertDescription className="text-red-800">
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {success && (
+            <Alert className="mt-4 bg-green-50 border-green-200">
+              <AlertDescription className="text-green-800">
+                {success}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="mt-6 space-y-6">
+            {/* Drag and Drop Zone */}
+            <div
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              className={`relative border-2 border-dashed rounded-xl p-12 transition-all duration-300 ${
+                dragActive
+                  ? "border-cyan-500 bg-cyan-50/50 scale-[1.02]"
+                  : "border-slate-300 bg-slate-50/50 hover:border-cyan-400 hover:bg-cyan-50/30"
+              }`}
+            >
+              <input
+                type="file"
+                id="parse-resume-file-input"
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+
+              {isParsingResume ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="relative">
+                    <Loader2 className="h-16 w-16 text-cyan-600 animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-12 w-12 border-4 border-cyan-200 border-t-cyan-600 rounded-full animate-spin"></div>
+                    </div>
+                  </div>
+                  <p className="mt-6 text-lg font-medium text-slate-700 animate-pulse">
+                    Parsing resume...
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Extracting information from your document
+                  </p>
+                </div>
+              ) : parsedResumeData ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="p-4 rounded-full bg-green-100 mb-4 animate-bounce">
+                    <CheckCircle2 className="h-12 w-12 text-green-600" />
+                  </div>
+                  <p className="text-lg font-medium text-slate-700">
+                    Resume Parsed Successfully!
+                  </p>
+                  <div className="mt-6 w-full space-y-3">
+                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                      <p className="text-sm font-medium text-slate-600 mb-2">
+                        Extracted Information:
+                      </p>
+                      <div className="space-y-2 text-sm text-slate-700">
+                        <p>
+                          <span className="font-semibold">Name:</span>{" "}
+                          {parsedResumeData.name}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Email:</span>{" "}
+                          {parsedResumeData.email}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Phone:</span>{" "}
+                          {parsedResumeData.phone}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Skills:</span>{" "}
+                          {parsedResumeData.skills?.join(", ")}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Experience:</span>{" "}
+                          {parsedResumeData.experience} years
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : parseResumeFile ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="p-4 rounded-full bg-cyan-100 mb-4">
+                    <FileText className="h-12 w-12 text-cyan-600" />
+                  </div>
+                  <p className="text-lg font-medium text-slate-700 mb-2">
+                    {parseResumeFile.name}
+                  </p>
+                  <p className="text-sm text-slate-500 mb-6">
+                    {(parseResumeFile.size / 1024).toFixed(2)} KB
+                  </p>
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setParseResumeFile(null)}
+                      className="border-slate-200 hover:bg-slate-50"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Remove
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleParseResume}
+                      className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                    >
+                      Parse Resume
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center">
+                  <div className="p-4 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/20 mb-6">
+                    <Upload className="h-12 w-12 text-cyan-600" />
+                  </div>
+                  <p className="text-lg font-medium text-slate-700 mb-2">
+                    Drag and drop your resume here
+                  </p>
+                  <p className="text-sm text-slate-500 mb-6">
+                    or click to browse from your device
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      document
+                        .getElementById("parse-resume-file-input")
+                        ?.click();
+                    }}
+                    className="border-slate-200 hover:bg-cyan-50 hover:border-cyan-300"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Select File
+                  </Button>
+                  <p className="mt-4 text-xs text-slate-500">
+                    Supported formats: PDF, DOC, DOCX (Max 5MB)
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="pt-4 border-t border-slate-200 mt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setParseResumeModalOpen(false);
+                resetParseResumeModal();
+              }}
+              className="border-slate-200 hover:bg-slate-50"
+            >
+              {parsedResumeData ? "Close" : "Cancel"}
+            </Button>
+            {parsedResumeData && (
+              <Button
+                type="button"
+                onClick={() => {
+                  // Auto-populate the add candidate form
+                  setFormData((prev) => ({
+                    ...prev,
+                    name: parsedResumeData.name || prev.name,
+                    email: parsedResumeData.email || prev.email,
+                    phone_no: parsedResumeData.phone || prev.phone_no,
+                    skills: parsedResumeData.skills?.join(", ") || prev.skills,
+                    experience:
+                      parsedResumeData.experience?.toString() ||
+                      prev.experience,
+                  }));
+                  setParseResumeModalOpen(false);
+                  setFormOpen(true);
+                  resetParseResumeModal();
+                }}
+                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+              >
+                Use This Data
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
