@@ -203,6 +203,12 @@ export const candidateAPI = {
       body: candidateData,
     });
   },
+
+  getCandidateMatchedJobs: async (candidateId) => {
+    return apiRequest(`/matching/candidate/${candidateId}/jobs`, {
+      method: "GET",
+    });
+  },
 };
 
 // Bolna API functions
