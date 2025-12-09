@@ -12,6 +12,7 @@ const candidateSchema = new mongoose.Schema(
       unique: true,
     },
     phone_no: {
+      required: true,
       type: String,
     },
     image: {

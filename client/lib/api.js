@@ -211,6 +211,41 @@ export const candidateAPI = {
   },
 };
 
+// Resume Parser API functions
+export const resumeParserAPI = {
+  parseFromUrl: async (url, saveToDatabase = false) => {
+    return apiRequest("/resume-parser/url", {
+      method: "POST",
+      body: { url, saveToDatabase },
+    });
+  },
+
+  parseFromFile: async (file, filename, saveToDatabase = false) => {
+    // Convert file to base64
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result.split(",")[1]; // Remove data:application/pdf;base64, prefix
+          const response = await apiRequest("/resume-parser/upload", {
+            method: "POST",
+            body: {
+              file: base64,
+              filename: filename || file.name,
+              saveToDatabase,
+            },
+          });
+          resolve(response);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  },
+};
+
 // Bolna API functions
 export const bolnaAPI = {
   scheduleCall: async (callData) => {

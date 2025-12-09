@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import Loading from "@/components/ui/loading";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
-import { candidateAPI } from "@/lib/api";
+import { candidateAPI, resumeParserAPI } from "@/lib/api";
 import {
   CheckCircle2,
   FileText,
@@ -200,7 +200,7 @@ export default function CandidatesPage() {
     }
   };
 
-  const handleParseResume = async () => {
+  const handleParseResume = async (saveToDatabase = false) => {
     if (!parseResumeFile) {
       setError("Please select a resume file");
       return;
@@ -212,27 +212,37 @@ export default function CandidatesPage() {
     setParsedResumeData(null);
 
     try {
-      // Simulate parsing with animation (2-3 seconds)
-      await new Promise((resolve) => setTimeout(resolve, 2500));
+      const response = await resumeParserAPI.parseFromFile(
+        parseResumeFile,
+        parseResumeFile.name,
+        saveToDatabase
+      );
 
-      // TODO: Replace with actual API call
-      // const formData = new FormData();
-      // formData.append("resume", parseResumeFile);
-      // const response = await candidateAPI.parseResume(formData);
-      // setParsedResumeData(response);
+      if (response.success) {
+        // Use formatted data for display
+        setParsedResumeData(response.data.formatted);
+        setSuccess(response.message || "Resume parsed successfully!");
 
-      // Mock parsed data for now
-      const mockParsedData = {
-        name: "John Doe",
-        email: "john.doe@example.com",
-        phone: "+1234567890",
-        skills: ["React", "Node.js", "Python", "JavaScript"],
-        experience: 5,
-        education: "Bachelor's in Computer Science",
-      };
-
-      setParsedResumeData(mockParsedData);
-      setSuccess("Resume parsed successfully!");
+        // If saved to database, refresh candidates list
+        if (saveToDatabase && response.data.candidate) {
+          fetchCandidates();
+        }
+      } else {
+        // Handle missing required fields
+        if (response.data?.missingFields) {
+          const missing = [];
+          if (response.data.missingFields.name) missing.push("Name");
+          if (response.data.missingFields.email) missing.push("Email");
+          setError(
+            `Required fields missing: ${missing.join(
+              ", "
+            )}. Cannot save candidate without these fields.`
+          );
+          setParsedResumeData(response.data.formatted);
+        } else {
+          setError(response.message || "Failed to parse resume");
+        }
+      }
     } catch (err) {
       setError(err.message || "Failed to parse resume. Please try again.");
     } finally {
@@ -904,26 +914,56 @@ export default function CandidatesPage() {
                       <div className="space-y-2 text-sm text-slate-700">
                         <p>
                           <span className="font-semibold">Name:</span>{" "}
-                          {parsedResumeData.name}
+                          {parsedResumeData.name || (
+                            <span className="text-red-500 italic">Missing</span>
+                          )}
                         </p>
                         <p>
                           <span className="font-semibold">Email:</span>{" "}
-                          {parsedResumeData.email}
+                          {parsedResumeData.email || (
+                            <span className="text-red-500 italic">Missing</span>
+                          )}
                         </p>
                         <p>
                           <span className="font-semibold">Phone:</span>{" "}
-                          {parsedResumeData.phone}
+                          {parsedResumeData.phone_no || (
+                            <span className="text-slate-400 italic">
+                              Not provided
+                            </span>
+                          )}
                         </p>
                         <p>
                           <span className="font-semibold">Skills:</span>{" "}
-                          {parsedResumeData.skills?.join(", ")}
+                          {parsedResumeData.skills?.length > 0 ? (
+                            parsedResumeData.skills.join(", ")
+                          ) : (
+                            <span className="text-slate-400 italic">
+                              Not provided
+                            </span>
+                          )}
                         </p>
                         <p>
                           <span className="font-semibold">Experience:</span>{" "}
-                          {parsedResumeData.experience} years
+                          {parsedResumeData.experience || 0} years
                         </p>
+                        {parsedResumeData.bio && (
+                          <p>
+                            <span className="font-semibold">Bio:</span>{" "}
+                            {parsedResumeData.bio}
+                          </p>
+                        )}
                       </div>
                     </div>
+                    {(!parsedResumeData.name || !parsedResumeData.email) && (
+                      <Alert variant="destructive" className="mt-4">
+                        <AlertDescription>
+                          <strong>Required fields missing:</strong>{" "}
+                          {!parsedResumeData.name && "Name "}
+                          {!parsedResumeData.email && "Email "}- Cannot save
+                          candidate without these fields.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                   </div>
                 </div>
               ) : parseResumeFile ? (
@@ -949,7 +989,7 @@ export default function CandidatesPage() {
                     </Button>
                     <Button
                       type="button"
-                      onClick={handleParseResume}
+                      onClick={() => handleParseResume(false)}
                       className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
                     >
                       Parse Resume
@@ -1001,28 +1041,63 @@ export default function CandidatesPage() {
               {parsedResumeData ? "Close" : "Cancel"}
             </Button>
             {parsedResumeData && (
-              <Button
-                type="button"
-                onClick={() => {
-                  // Auto-populate the add candidate form
-                  setFormData((prev) => ({
-                    ...prev,
-                    name: parsedResumeData.name || prev.name,
-                    email: parsedResumeData.email || prev.email,
-                    phone_no: parsedResumeData.phone || prev.phone_no,
-                    skills: parsedResumeData.skills?.join(", ") || prev.skills,
-                    experience:
-                      parsedResumeData.experience?.toString() ||
-                      prev.experience,
-                  }));
-                  setParseResumeModalOpen(false);
-                  setFormOpen(true);
-                  resetParseResumeModal();
-                }}
-                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
-              >
-                Use This Data
-              </Button>
+              <>
+                {parsedResumeData.name && parsedResumeData.email ? (
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setIsParsingResume(true);
+                        await handleParseResume(true);
+                        setSuccess("Candidate saved successfully!");
+                        setTimeout(() => {
+                          setParseResumeModalOpen(false);
+                          resetParseResumeModal();
+                        }, 2000);
+                      } catch (err) {
+                        setError(err.message || "Failed to save candidate");
+                      } finally {
+                        setIsParsingResume(false);
+                      }
+                    }}
+                    disabled={isParsingResume}
+                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                  >
+                    {isParsingResume ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save to Database"
+                    )}
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  onClick={() => {
+                    // Auto-populate the add candidate form
+                    setFormData((prev) => ({
+                      ...prev,
+                      name: parsedResumeData.name || prev.name,
+                      email: parsedResumeData.email || prev.email,
+                      phone_no: parsedResumeData.phone_no || prev.phone_no,
+                      skills:
+                        parsedResumeData.skills?.join(", ") || prev.skills,
+                      experience:
+                        parsedResumeData.experience?.toString() ||
+                        prev.experience,
+                      bio: parsedResumeData.bio || prev.bio,
+                    }));
+                    setParseResumeModalOpen(false);
+                    setFormOpen(true);
+                    resetParseResumeModal();
+                  }}
+                  className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                >
+                  Use This Data
+                </Button>
+              </>
             )}
           </DialogFooter>
         </DialogContent>
