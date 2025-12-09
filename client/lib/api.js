@@ -1,6 +1,5 @@
 // API configuration
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Helper function to make API requests
 export const apiRequest = async (endpoint, options = {}) => {
@@ -63,12 +62,12 @@ export const userAPI = {
   getUsers: async (options = {}) => {
     const { filterRole = null, search = "", page = 1, pageSize = 7 } = options;
     const params = new URLSearchParams();
-    
+
     if (filterRole) params.append("role", filterRole);
     if (search) params.append("search", search);
     params.append("page", page.toString());
     params.append("pageSize", pageSize.toString());
-    
+
     const endpoint = `/users?${params.toString()}`;
     return apiRequest(endpoint, {
       method: "GET",
@@ -99,32 +98,38 @@ export const userAPI = {
 export const jobPostingAPI = {
   getAllJobPostings: async (filters = {}) => {
     const params = new URLSearchParams();
-    
+
     if (filters.search) params.append("search", filters.search);
     if (filters.job_type) params.append("job_type", filters.job_type);
     if (filters.role) {
       if (Array.isArray(filters.role)) {
-        filters.role.forEach(r => params.append("role", r));
+        filters.role.forEach((r) => params.append("role", r));
       } else {
         params.append("role", filters.role);
       }
     }
-    if (filters.min_exp !== undefined) params.append("min_exp", filters.min_exp);
-    if (filters.max_exp !== undefined) params.append("max_exp", filters.max_exp);
-    if (filters.min_ctc !== undefined) params.append("min_ctc", filters.min_ctc);
-    if (filters.max_ctc !== undefined) params.append("max_ctc", filters.max_ctc);
+    if (filters.min_exp !== undefined)
+      params.append("min_exp", filters.min_exp);
+    if (filters.max_exp !== undefined)
+      params.append("max_exp", filters.max_exp);
+    if (filters.min_ctc !== undefined)
+      params.append("min_ctc", filters.min_ctc);
+    if (filters.max_ctc !== undefined)
+      params.append("max_ctc", filters.max_ctc);
     if (filters.company) params.append("company", filters.company);
     if (filters.skills) {
       if (Array.isArray(filters.skills)) {
-        filters.skills.forEach(s => params.append("skills", s));
+        filters.skills.forEach((s) => params.append("skills", s));
       } else {
         params.append("skills", filters.skills);
       }
     }
     if (filters.date_from) params.append("date_from", filters.date_from);
     if (filters.date_to) params.append("date_to", filters.date_to);
-    
-    const endpoint = `/job-postings${params.toString() ? `?${params.toString()}` : ""}`;
+
+    const endpoint = `/job-postings${
+      params.toString() ? `?${params.toString()}` : ""
+    }`;
     return apiRequest(endpoint, {
       method: "GET",
     });
@@ -183,6 +188,19 @@ export const candidateAPI = {
   getCandidates: async () => {
     return apiRequest("/candidates", {
       method: "GET",
+    });
+  },
+
+  getCandidatesByRole: async (role) => {
+    return apiRequest(`/candidates/role/${role}`, {
+      method: "GET",
+    });
+  },
+
+  createCandidate: async (candidateData) => {
+    return apiRequest("/candidates", {
+      method: "POST",
+      body: candidateData,
     });
   },
 };
