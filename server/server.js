@@ -8,6 +8,7 @@ import dashboardRoutes from "./dashboard/route.js";
 import jobPostingRoutes from "./job_posting/route.js";
 import matchingRoutes from "./matching/route.js";
 import recruiterAvailabilityRoutes from "./recruiter_availability/route.js";
+import resumeParserRoutes from "./resume_parser/route.js";
 import userRoutes from "./user/route.js";
 
 // TODO: Uncomment when these route files are created
@@ -32,7 +33,7 @@ connectDB();
 setTimeout(async () => {
   const { startCronJobs } = await import("./services/cronJobs.js");
   await startCronJobs();
-  
+
   // const { startMatchingCronJobs } = await import("./services/matchingCronJobs.js");
   // await startMatchingCronJobs();
 }, 2000); // Wait 2 seconds for DB connection to establish
@@ -69,6 +70,9 @@ app.use("/api/recruiter-availability", recruiterAvailabilityRoutes);
 
 // Dashboard routes
 app.use("/api/dashboard", dashboardRoutes);
+
+// Resume parser routes
+app.use("/api/resume-parser", resumeParserRoutes);
 
 // TODO: Uncomment when these route files are created
 // app.use("/api/applications", applicationRoutes);
