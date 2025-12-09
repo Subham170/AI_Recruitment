@@ -115,10 +115,11 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
       setLoadingJobs(true);
       const response = await jobPostingAPI.getAllJobPostings();
 
-      if (user.role === "recruiter") {
-        const myJobs = response.myJobPostings || [];
-        const secondaryJobs = response.secondaryJobPostings || [];
-        setJobs([...myJobs, ...secondaryJobs]);
+      // For recruiters, API returns allJobPostings, myJobPostings, secondaryJobPostings, remainingJobPostings
+      // For managers/admins, API returns jobPostings
+      // Show all job postings for all roles
+      if (user?.role === "recruiter") {
+        setJobs(response.allJobPostings || []);
       } else {
         setJobs(response.jobPostings || []);
       }
@@ -133,6 +134,47 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
     } finally {
       setLoadingJobs(false);
     }
+  };
+
+  // Helper function to get recruiter's role for a job
+  const getRecruiterRole = (job) => {
+    if (!job || !user || user.role !== "recruiter") {
+      return null;
+    }
+
+    const userId = user.id?.toString();
+    const primaryRecruiterId =
+      job.primary_recruiter_id?._id?.toString() ||
+      job.primary_recruiter_id?.toString();
+    const secondaryRecruiterIds =
+      job.secondary_recruiter_id?.map(
+        (recruiter) => recruiter._id?.toString() || recruiter?.toString()
+      ) || [];
+
+    if (userId === primaryRecruiterId) {
+      return "primary";
+    } else if (secondaryRecruiterIds.includes(userId)) {
+      return "secondary";
+    }
+    return null; // No role assigned
+  };
+
+  // Helper function to check if current user is authorized for a job (can perform actions)
+  const isAuthorizedForJob = (job) => {
+    if (!job || !user) return false;
+
+    // Managers and admins are always authorized
+    if (user.role === "manager" || user.role === "admin") {
+      return true;
+    }
+
+    // For recruiters, check if they are the primary recruiter or a secondary recruiter
+    if (user.role === "recruiter") {
+      const role = getRecruiterRole(job);
+      return role === "primary" || role === "secondary";
+    }
+
+    return false;
   };
 
   const checkScheduledCalls = async (jobId, candidateIds) => {
@@ -218,6 +260,34 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
   const handleAddSecondaryRecruiter = async (recruiterId) => {
     if (!selectedJob || !recruiterId) return;
 
+    // Check authorization - only primary recruiter can add secondary recruiters
+    if (!isAuthorizedForJob(selectedJob)) {
+      setNotification({
+        variant: "error",
+        title: "Not Authorized",
+        message:
+          "You are not authorized to manage recruiters for this job posting.",
+        dismissible: true,
+      });
+      return;
+    }
+
+    // Additional check: only primary recruiter can add secondary recruiters
+    const primaryRecruiterId =
+      selectedJob.primary_recruiter_id?._id?.toString() ||
+      selectedJob.primary_recruiter_id?.toString();
+    const currentUserId = user.id?.toString();
+
+    if (primaryRecruiterId !== currentUserId) {
+      setNotification({
+        variant: "error",
+        title: "Not Authorized",
+        message: "Only the primary recruiter can add secondary recruiters.",
+        dismissible: true,
+      });
+      return;
+    }
+
     const currentSecondaryRecruiters = selectedJob.secondary_recruiter_id || [];
 
     // Convert to string IDs for comparison (handle both populated objects and ID strings)
@@ -290,6 +360,34 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
   const handleRemoveSecondaryRecruiter = async (recruiterId) => {
     if (!selectedJob) return;
 
+    // Check authorization - only primary recruiter can remove secondary recruiters
+    if (!isAuthorizedForJob(selectedJob)) {
+      setNotification({
+        variant: "error",
+        title: "Not Authorized",
+        message:
+          "You are not authorized to manage recruiters for this job posting.",
+        dismissible: true,
+      });
+      return;
+    }
+
+    // Additional check: only primary recruiter can remove secondary recruiters
+    const primaryRecruiterId =
+      selectedJob.primary_recruiter_id?._id?.toString() ||
+      selectedJob.primary_recruiter_id?.toString();
+    const currentUserId = user.id?.toString();
+
+    if (primaryRecruiterId !== currentUserId) {
+      setNotification({
+        variant: "error",
+        title: "Not Authorized",
+        message: "Only the primary recruiter can remove secondary recruiters.",
+        dismissible: true,
+      });
+      return;
+    }
+
     const currentSecondaryRecruiters = selectedJob.secondary_recruiter_id || [];
     // Handle both populated objects and ID strings
     const updatedSecondaryRecruiters = currentSecondaryRecruiters
@@ -357,6 +455,18 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
 
   const handleScheduleAllCalls = async () => {
     if (!selectedJob || candidates.length === 0) return;
+
+    // Check authorization
+    if (!isAuthorizedForJob(selectedJob)) {
+      setNotification({
+        variant: "error",
+        title: "Not Authorized",
+        message:
+          "You are not authorized to schedule calls for this job posting.",
+        dismissible: true,
+      });
+      return;
+    }
 
     try {
       setSchedulingCalls(true);
@@ -632,6 +742,17 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
   const handleStopAllCalls = async () => {
     if (!selectedJob?._id) return;
 
+    // Check authorization
+    if (!isAuthorizedForJob(selectedJob)) {
+      setNotification({
+        variant: "error",
+        title: "Not Authorized",
+        message: "You are not authorized to stop calls for this job posting.",
+        dismissible: true,
+      });
+      return;
+    }
+
     try {
       setStoppingCalls(true);
       const response = await bolnaAPI.stopAllCalls(selectedJob._id);
@@ -735,6 +856,17 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
   // Stop a single call
   const handleStopCall = async (executionId, candidateId) => {
     if (!executionId) return;
+
+    // Check authorization
+    if (!isAuthorizedForJob(selectedJob)) {
+      setNotification({
+        variant: "error",
+        title: "Not Authorized",
+        message: "You are not authorized to stop calls for this job posting.",
+        dismissible: true,
+      });
+      return;
+    }
 
     try {
       setStoppingCallId(executionId);
@@ -885,19 +1017,50 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                       </div>
                       <p className="text-sm text-slate-600">Total Jobs</p>
                     </div>
-                    <div className="border border-slate-200 bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
-                      <div className="text-3xl font-bold text-green-600 mb-1">
-                        {jobs.filter((j) => j.primary_recruiter_id).length}
-                      </div>
-                      <p className="text-sm text-slate-600">Your Jobs</p>
-                    </div>
-                    <div className="border border-slate-200 bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
-                      <div className="text-3xl font-bold text-cyan-600 mb-1">
-                        {jobs.length -
-                          jobs.filter((j) => j.primary_recruiter_id).length}
-                      </div>
-                      <p className="text-sm text-slate-600">Secondary Jobs</p>
-                    </div>
+                    {user?.role === "recruiter" && (
+                      <>
+                        <div className="border border-slate-200 bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                          <div className="text-3xl font-bold text-green-600 mb-1">
+                            {
+                              jobs.filter((j) => {
+                                const role = getRecruiterRole(j);
+                                return role === "primary";
+                              }).length
+                            }
+                          </div>
+                          <p className="text-sm text-slate-600">Your Jobs</p>
+                        </div>
+                        <div className="border border-slate-200 bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                          <div className="text-3xl font-bold text-cyan-600 mb-1">
+                            {
+                              jobs.filter((j) => {
+                                const role = getRecruiterRole(j);
+                                return role === "secondary";
+                              }).length
+                            }
+                          </div>
+                          <p className="text-sm text-slate-600">
+                            Secondary Jobs
+                          </p>
+                        </div>
+                      </>
+                    )}
+                    {user?.role !== "recruiter" && (
+                      <>
+                        <div className="border border-slate-200 bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                          <div className="text-3xl font-bold text-green-600 mb-1">
+                            {jobs.length}
+                          </div>
+                          <p className="text-sm text-slate-600">All Jobs</p>
+                        </div>
+                        <div className="border border-slate-200 bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                          <div className="text-3xl font-bold text-cyan-600 mb-1">
+                            {jobs.length}
+                          </div>
+                          <p className="text-sm text-slate-600">Available</p>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Jobs Table */}
@@ -919,6 +1082,11 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                               <th className="text-left p-4 font-semibold text-slate-800">
                                 Salary Range
                               </th>
+                              {user?.role === "recruiter" && (
+                                <th className="text-left p-4 font-semibold text-slate-800">
+                                  Your Role
+                                </th>
+                              )}
                               <th className="text-right p-4 font-semibold text-slate-800">
                                 Actions
                               </th>
@@ -961,6 +1129,33 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                     {job.ctc || "Not specified"}
                                   </span>
                                 </td>
+                                {user?.role === "recruiter" && (
+                                  <td className="p-4">
+                                    {(() => {
+                                      const role = getRecruiterRole(job);
+                                      if (role === "primary") {
+                                        return (
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white border border-cyan-600">
+                                            <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                                            Primary
+                                          </span>
+                                        );
+                                      } else if (role === "secondary") {
+                                        return (
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+                                            <span className="w-1.5 h-1.5 bg-slate-500 rounded-full"></span>
+                                            Secondary
+                                          </span>
+                                        );
+                                      }
+                                      return (
+                                        <span className="text-xs text-slate-400 italic">
+                                          Not assigned
+                                        </span>
+                                      );
+                                    })()}
+                                  </td>
+                                )}
                                 <td className="p-4">
                                   <div className="flex items-center justify-end">
                                     <Button
@@ -1007,64 +1202,69 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                         </p>
                       </div>
                       <div className="flex gap-2">
-                        {candidates.length > 0 &&
-                          (() => {
-                            const unscheduledCount = candidates.filter(
-                              (match) =>
-                                !scheduledCandidateIds.has(
-                                  match.candidateId?._id?.toString() || ""
-                                )
-                            ).length;
-                            const allScheduled = unscheduledCount === 0;
+                        {/* Only show action buttons if user is authorized (Primary/Secondary recruiter) */}
+                        {isAuthorizedForJob(selectedJob) && (
+                          <>
+                            {candidates.length > 0 &&
+                              (() => {
+                                const unscheduledCount = candidates.filter(
+                                  (match) =>
+                                    !scheduledCandidateIds.has(
+                                      match.candidateId?._id?.toString() || ""
+                                    )
+                                ).length;
+                                const allScheduled = unscheduledCount === 0;
 
-                            return (
-                              <Button
-                                variant="default"
-                                onClick={handleScheduleAllCalls}
-                                disabled={
-                                  schedulingCalls ||
-                                  checkingScheduled ||
-                                  allScheduled
-                                }
-                                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-cyan-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                title={
-                                  allScheduled
-                                    ? "All candidates are already scheduled"
-                                    : ""
-                                }
-                              >
-                                <Phone
-                                  className={`mr-2 h-4 w-4 ${
-                                    schedulingCalls ? "animate-pulse" : ""
-                                  }`}
-                                />
-                                {schedulingCalls
-                                  ? "Scheduling..."
-                                  : checkingScheduled
-                                  ? "Checking..."
-                                  : allScheduled
-                                  ? "All Scheduled"
-                                  : `Schedule All Calls (${unscheduledCount} remaining)`}
-                              </Button>
-                            );
-                          })()}
-                        {/* Stop All Calls Button - Show if there are scheduled calls that can be stopped */}
-                        {(() => {
-                          const scheduledCallsCount = Array.from(
-                            callStatuses.values()
-                          ).filter((status) => status.canStop).length;
-                          return scheduledCallsCount > 0 ? (
-                            <Button
-                              variant="outline"
-                              className="bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 transition-all duration-200 hover:scale-105 hover:shadow-md hover:shadow-red-500/20"
-                              onClick={() => setStopAllDialogOpen(true)}
-                              disabled={stoppingCalls}
-                            >
-                              <StopCircle className="mr-2 h-4 w-4" />
-                              Stop All Calls ({scheduledCallsCount})
-                            </Button>
-                          ) : null;
-                        })()}
+                                return (
+                                  <Button
+                                    variant="default"
+                                    onClick={handleScheduleAllCalls}
+                                    disabled={
+                                      schedulingCalls ||
+                                      checkingScheduled ||
+                                      allScheduled
+                                    }
+                                    className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-cyan-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={
+                                      allScheduled
+                                        ? "All candidates are already scheduled"
+                                        : ""
+                                    }
+                                  >
+                                    <Phone
+                                      className={`mr-2 h-4 w-4 ${
+                                        schedulingCalls ? "animate-pulse" : ""
+                                      }`}
+                                    />
+                                    {schedulingCalls
+                                      ? "Scheduling..."
+                                      : checkingScheduled
+                                      ? "Checking..."
+                                      : allScheduled
+                                      ? "All Scheduled"
+                                      : `Schedule All Calls (${unscheduledCount} remaining)`}
+                                  </Button>
+                                );
+                              })()}
+                            {/* Stop All Calls Button - Show if there are scheduled calls that can be stopped */}
+                            {(() => {
+                              const scheduledCallsCount = Array.from(
+                                callStatuses.values()
+                              ).filter((status) => status.canStop).length;
+                              return scheduledCallsCount > 0 ? (
+                                <Button
+                                  variant="outline"
+                                  className="bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 transition-all duration-200 hover:scale-105 hover:shadow-md hover:shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  onClick={() => setStopAllDialogOpen(true)}
+                                  disabled={stoppingCalls}
+                                >
+                                  <StopCircle className="mr-2 h-4 w-4" />
+                                  Stop All Calls ({scheduledCallsCount})
+                                </Button>
+                              ) : null;
+                            })()}
+                          </>
+                        )}
                         <Button
                           variant="outline"
                           className="border-slate-300 hover:bg-slate-50 hover:border-slate-400 text-slate-900 transition-all duration-200 hover:shadow-sm"
@@ -1256,64 +1456,69 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
 
                   {/* Mobile Action Buttons */}
                   <div className="lg:hidden mb-4 space-y-2">
-                    {candidates.length > 0 &&
-                      (() => {
-                        const unscheduledCount = candidates.filter(
-                          (match) =>
-                            !scheduledCandidateIds.has(
-                              match.candidateId?._id?.toString() || ""
-                            )
-                        ).length;
-                        const allScheduled = unscheduledCount === 0;
+                    {/* Only show action buttons if user is authorized (Primary/Secondary recruiter) */}
+                    {isAuthorizedForJob(selectedJob) && (
+                      <>
+                        {candidates.length > 0 &&
+                          (() => {
+                            const unscheduledCount = candidates.filter(
+                              (match) =>
+                                !scheduledCandidateIds.has(
+                                  match.candidateId?._id?.toString() || ""
+                                )
+                            ).length;
+                            const allScheduled = unscheduledCount === 0;
 
-                        return (
-                          <Button
-                            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            variant="default"
-                            onClick={handleScheduleAllCalls}
-                            disabled={
-                              schedulingCalls ||
-                              checkingScheduled ||
-                              allScheduled
-                            }
-                            title={
-                              allScheduled
-                                ? "All candidates are already scheduled"
-                                : ""
-                            }
-                          >
-                            <Phone
-                              className={`mr-2 h-4 w-4 ${
-                                schedulingCalls ? "animate-pulse" : ""
-                              }`}
-                            />
-                            {schedulingCalls
-                              ? "Scheduling..."
-                              : checkingScheduled
-                              ? "Checking..."
-                              : allScheduled
-                              ? "All Scheduled"
-                              : `Schedule All Calls (${unscheduledCount} remaining)`}
-                          </Button>
-                        );
-                      })()}
-                    {/* Stop All Calls Button - Mobile */}
-                    {(() => {
-                      const scheduledCallsCount = Array.from(
-                        callStatuses.values()
-                      ).filter((status) => status.canStop).length;
-                      return scheduledCallsCount > 0 ? (
-                        <Button
-                          className="w-full bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:shadow-red-500/20"
-                          variant="outline"
-                          onClick={() => setStopAllDialogOpen(true)}
-                          disabled={stoppingCalls}
-                        >
-                          <StopCircle className="mr-2 h-4 w-4" />
-                          Stop All Calls ({scheduledCallsCount})
-                        </Button>
-                      ) : null;
-                    })()}
+                            return (
+                              <Button
+                                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                variant="default"
+                                onClick={handleScheduleAllCalls}
+                                disabled={
+                                  schedulingCalls ||
+                                  checkingScheduled ||
+                                  allScheduled
+                                }
+                                title={
+                                  allScheduled
+                                    ? "All candidates are already scheduled"
+                                    : ""
+                                }
+                              >
+                                <Phone
+                                  className={`mr-2 h-4 w-4 ${
+                                    schedulingCalls ? "animate-pulse" : ""
+                                  }`}
+                                />
+                                {schedulingCalls
+                                  ? "Scheduling..."
+                                  : checkingScheduled
+                                  ? "Checking..."
+                                  : allScheduled
+                                  ? "All Scheduled"
+                                  : `Schedule All Calls (${unscheduledCount} remaining)`}
+                              </Button>
+                            );
+                          })()}
+                        {/* Stop All Calls Button - Mobile */}
+                        {(() => {
+                          const scheduledCallsCount = Array.from(
+                            callStatuses.values()
+                          ).filter((status) => status.canStop).length;
+                          return scheduledCallsCount > 0 ? (
+                            <Button
+                              className="w-full bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                              variant="outline"
+                              onClick={() => setStopAllDialogOpen(true)}
+                              disabled={stoppingCalls}
+                            >
+                              <StopCircle className="mr-2 h-4 w-4" />
+                              Stop All Calls ({scheduledCallsCount})
+                            </Button>
+                          ) : null;
+                        })()}
+                      </>
+                    )}
                     <Button
                       className="w-full border-slate-300 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:shadow-cyan-500/20"
                       variant="outline"
@@ -1536,83 +1741,85 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                       >
                                         <Eye className="h-4 w-4" />
                                       </Button>
-                                      {(() => {
-                                        const candidateIdStr =
-                                          candidate._id?.toString();
-                                        const callStatus = candidateIdStr
-                                          ? callStatuses.get(candidateIdStr)
-                                          : null;
-                                        const isStopping =
-                                          stoppingCallId ===
-                                          callStatus?.executionId;
+                                      {/* Only show call-related actions if user is authorized (Primary/Secondary recruiter) */}
+                                      {isAuthorizedForJob(selectedJob) &&
+                                        (() => {
+                                          const candidateIdStr =
+                                            candidate._id?.toString();
+                                          const callStatus = candidateIdStr
+                                            ? callStatuses.get(candidateIdStr)
+                                            : null;
+                                          const isStopping =
+                                            stoppingCallId ===
+                                            callStatus?.executionId;
 
-                                        // Show stop button only if canStop is true AND status is not stopped/cancelled/completed
-                                        if (
-                                          callStatus &&
-                                          callStatus.canStop &&
-                                          callStatus.status !== "stopped" &&
-                                          callStatus.status !== "cancelled" &&
-                                          callStatus.status !== "completed"
-                                        ) {
-                                          return (
-                                            <Button
-                                              className="bg-red-500 hover:bg-red-600 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-red-500/50"
-                                              size="sm"
-                                              onClick={() =>
-                                                handleViewCallDetails(
-                                                  candidateIdStr,
-                                                  callStatus.executionId
-                                                )
-                                              }
-                                              title={`View call details - Status: ${callStatus.status}`}
-                                            >
-                                              <StopCircle className="h-4 w-4" />
-                                            </Button>
-                                          );
-                                        } else if (callStatus) {
-                                          return (
-                                            <Button
-                                              className="bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50"
-                                              size="sm"
-                                              onClick={() =>
-                                                handleViewCallDetails(
-                                                  candidateIdStr,
-                                                  callStatus.executionId
-                                                )
-                                              }
-                                              title={`View call details - Status: ${callStatus.status}`}
-                                            >
-                                              <Calendar className="h-4 w-4" />
-                                            </Button>
-                                          );
-                                        } else if (isScheduled) {
-                                          return (
-                                            <Button
-                                              className="bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50"
-                                              size="sm"
-                                              onClick={() =>
-                                                handleViewCallDetails(
-                                                  candidateIdStr
-                                                )
-                                              }
-                                              title="View call details"
-                                            >
-                                              <Calendar className="h-4 w-4" />
-                                            </Button>
-                                          );
-                                        } else {
-                                          return (
-                                            <Button
-                                              className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-cyan-500/50"
-                                              size="sm"
-                                              disabled
-                                              title="No call scheduled"
-                                            >
-                                              <Calendar className="h-4 w-4" />
-                                            </Button>
-                                          );
-                                        }
-                                      })()}
+                                          // Show stop button only if canStop is true AND status is not stopped/cancelled/completed
+                                          if (
+                                            callStatus &&
+                                            callStatus.canStop &&
+                                            callStatus.status !== "stopped" &&
+                                            callStatus.status !== "cancelled" &&
+                                            callStatus.status !== "completed"
+                                          ) {
+                                            return (
+                                              <Button
+                                                className="bg-red-500 hover:bg-red-600 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-red-500/50"
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleViewCallDetails(
+                                                    candidateIdStr,
+                                                    callStatus.executionId
+                                                  )
+                                                }
+                                                title={`View call details - Status: ${callStatus.status}`}
+                                              >
+                                                <StopCircle className="h-4 w-4" />
+                                              </Button>
+                                            );
+                                          } else if (callStatus) {
+                                            return (
+                                              <Button
+                                                className="bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50"
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleViewCallDetails(
+                                                    candidateIdStr,
+                                                    callStatus.executionId
+                                                  )
+                                                }
+                                                title={`View call details - Status: ${callStatus.status}`}
+                                              >
+                                                <Calendar className="h-4 w-4" />
+                                              </Button>
+                                            );
+                                          } else if (isScheduled) {
+                                            return (
+                                              <Button
+                                                className="bg-blue-500 hover:bg-blue-600 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50"
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleViewCallDetails(
+                                                    candidateIdStr
+                                                  )
+                                                }
+                                                title="View call details"
+                                              >
+                                                <Calendar className="h-4 w-4" />
+                                              </Button>
+                                            );
+                                          } else {
+                                            return (
+                                              <Button
+                                                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-cyan-500/50"
+                                                size="sm"
+                                                disabled
+                                                title="No call scheduled"
+                                              >
+                                                <Calendar className="h-4 w-4" />
+                                              </Button>
+                                            );
+                                          }
+                                        })()}
                                     </div>
                                   </TableCell>
                                 </TableRow>
@@ -1926,7 +2133,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                 selectedCallDetails.call?.status !== "completed" && (
                   <div className="flex justify-end pt-4 border-t border-slate-200">
                     <Button
-                      className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                      className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() =>
                         handleStopCall(
                           selectedCallDetails.call.executionId,
@@ -1934,7 +2141,14 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                         )
                       }
                       disabled={
-                        stoppingCallId === selectedCallDetails.call.executionId
+                        stoppingCallId ===
+                          selectedCallDetails.call.executionId ||
+                        !isAuthorizedForJob(selectedJob)
+                      }
+                      title={
+                        !isAuthorizedForJob(selectedJob)
+                          ? "You are not authorized to stop calls for this job posting"
+                          : ""
                       }
                     >
                       {stoppingCallId ===

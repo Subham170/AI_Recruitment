@@ -11,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { candidateAPI } from "@/lib/api";
 import {
   ArrowLeft,
+  Briefcase,
+  ChevronRight,
   FileText,
   Github,
   Globe,
@@ -31,6 +33,8 @@ export default function CandidateDetailPage() {
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [matchedJobs, setMatchedJobs] = useState([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -48,12 +52,31 @@ export default function CandidateDetailPage() {
       setError(null);
       const response = await candidateAPI.getCandidateById(candidateId);
       setCandidate(response);
+      // Fetch matched jobs after candidate is loaded
+      fetchMatchedJobs();
     } catch (err) {
       console.error("Error fetching candidate:", err);
       setError(err.message || "Failed to load candidate");
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchMatchedJobs = async () => {
+    try {
+      setLoadingJobs(true);
+      const response = await candidateAPI.getCandidateMatchedJobs(candidateId);
+      setMatchedJobs(response.matches || []);
+    } catch (err) {
+      console.error("Error fetching matched jobs:", err);
+      // Don't show error for matched jobs, just log it
+    } finally {
+      setLoadingJobs(false);
+    }
+  };
+
+  const handleJobClick = (jobId) => {
+    router.push(`/dashboard/${user.role}/top-applicants/${jobId}`);
   };
 
   const getRoleBadgeVariant = (roles) => {
@@ -357,6 +380,90 @@ export default function CandidateDetailPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Best Fit Jobs */}
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                    <Briefcase className="h-5 w-5 text-cyan-600" />
+                    Best Fit Jobs
+                  </h2>
+                  {loadingJobs ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loading size="sm" />
+                    </div>
+                  ) : matchedJobs.length > 0 ? (
+                    <div className="space-y-3">
+                      {matchedJobs.map((match) => {
+                        const job = match.jobId;
+                        const matchPercentage = Math.round(
+                          match.matchScore * 100
+                        );
+                        return (
+                          <div
+                            key={match._id}
+                            onClick={() => handleJobClick(job._id)}
+                            className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 hover:border-cyan-300 transition-all cursor-pointer"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="font-semibold text-slate-900">
+                                    {job.title}
+                                  </h3>
+                                  <span
+                                    className={`text-sm font-medium px-2 py-1 rounded ${
+                                      matchPercentage >= 70
+                                        ? "bg-green-100 text-green-700"
+                                        : matchPercentage >= 50
+                                        ? "bg-yellow-100 text-yellow-700"
+                                        : "bg-orange-100 text-orange-700"
+                                    }`}
+                                  >
+                                    {matchPercentage}% Match
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-4 text-sm text-slate-600">
+                                  <span className="font-medium">
+                                    {job.company}
+                                  </span>
+                                  {job.ctc && (
+                                    <span className="flex items-center gap-1">
+                                      <span>₹{job.ctc}</span>
+                                    </span>
+                                  )}
+                                  {job.exp_req !== undefined && (
+                                    <span>
+                                      {job.exp_req}{" "}
+                                      {job.exp_req === 1 ? "year" : "years"} exp
+                                    </span>
+                                  )}
+                                </div>
+                                {job.role && job.role.length > 0 && (
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {job.role.map((role, idx) => (
+                                      <Badge
+                                        key={idx}
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
+                                        {role}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <ChevronRight className="h-5 w-5 text-slate-400 flex-shrink-0" />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 text-sm py-4">
+                      No matching jobs found
+                    </p>
+                  )}
+                </div>
 
                 {/* Timestamps */}
                 <div className="pt-4 border-t border-slate-200">
