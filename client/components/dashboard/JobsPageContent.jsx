@@ -52,12 +52,6 @@ export default function JobsPageContent() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
-  const [viewingJob, setViewingJob] = useState(null);
-  const [showViewDialog, setShowViewDialog] = useState(false);
-  const [editingSecondaryRecruiters, setEditingSecondaryRecruiters] =
-    useState(false);
-  const [tempSecondaryRecruiters, setTempSecondaryRecruiters] = useState([]);
-  const [savingRecruiters, setSavingRecruiters] = useState(false);
   const [jobPostings, setJobPostings] = useState({
     myJobPostings: [],
     secondaryJobPostings: [],
@@ -161,7 +155,6 @@ export default function JobsPageContent() {
   // Fetch recruiters when view dialog opens for recruiters
   useEffect(() => {
     if (
-      showViewDialog &&
       user &&
       user.role === "recruiter" &&
       recruiters.length === 0
@@ -169,7 +162,7 @@ export default function JobsPageContent() {
       fetchRecruiters();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showViewDialog, user]);
+  }, [user]);
 
   const fetchRecruiters = async () => {
     try {
@@ -368,64 +361,10 @@ export default function JobsPageContent() {
   };
 
   const handleViewDetails = (job) => {
-    setViewingJob(job);
-    // Initialize temp secondary recruiters from the job
-    const currentRecruiters = job.secondary_recruiter_id
-      ? Array.isArray(job.secondary_recruiter_id)
-        ? job.secondary_recruiter_id.map((r) => {
-            if (typeof r === "object" && r !== null) {
-              return r._id?.toString() || r.toString();
-            }
-            return r?.toString();
-          })
-        : []
-      : [];
-    setTempSecondaryRecruiters(currentRecruiters);
-    setEditingSecondaryRecruiters(false);
-    setShowViewDialog(true);
+    // Navigate to job detail page instead of opening modal
+    router.push(`/dashboard/${user.role}/manage-job-posting/${job._id || job.id}`);
   };
 
-  const handleAddSecondaryRecruiter = (recruiterId) => {
-    const recruiterIdStr = recruiterId.toString();
-    if (!tempSecondaryRecruiters.includes(recruiterIdStr)) {
-      setTempSecondaryRecruiters([...tempSecondaryRecruiters, recruiterIdStr]);
-    }
-  };
-
-  const handleRemoveSecondaryRecruiter = (recruiterId) => {
-    setTempSecondaryRecruiters(
-      tempSecondaryRecruiters.filter((id) => id !== recruiterId.toString())
-    );
-  };
-
-  const handleSaveSecondaryRecruiters = async () => {
-    if (!viewingJob) return;
-
-    try {
-      setSavingRecruiters(true);
-      const jobData = {
-        secondary_recruiter_id: tempSecondaryRecruiters,
-      };
-      await jobPostingAPI.updateJobPosting(viewingJob._id, jobData);
-      setEditingSecondaryRecruiters(false);
-      // Refresh job data
-      fetchJobPostings();
-      // Update viewing job with new data
-      const updatedJob = {
-        ...viewingJob,
-        secondary_recruiter_id: tempSecondaryRecruiters,
-      };
-      setViewingJob(updatedJob);
-      toast.success("Secondary recruiters updated successfully!");
-    } catch (err) {
-      console.error("Error updating secondary recruiters:", err);
-      const errorMessage =
-        err.message || "Failed to update secondary recruiters";
-      toast.error(errorMessage);
-    } finally {
-      setSavingRecruiters(false);
-    }
-  };
 
   if (!user) {
     return null;
@@ -615,7 +554,10 @@ export default function JobsPageContent() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleViewDetails(job)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewDetails(job);
+                          }}
                           className="border-slate-200 hover:bg-cyan-50 hover:border-cyan-300 hover:text-cyan-700"
                           title="View Details"
                         >
@@ -1597,357 +1539,6 @@ export default function JobsPageContent() {
             </DialogContent>
           </Dialog>
 
-          {/* Job Details View Dialog */}
-          <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
-              {viewingJob && (
-                <>
-                  <DialogHeader className="pb-4 border-b border-slate-200">
-                    <DialogTitle className="text-3xl font-bold text-slate-900">
-                      {viewingJob.title}
-                    </DialogTitle>
-                    <DialogDescription className="text-slate-600 mt-1">
-                      Complete job posting details
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="space-y-6 py-4">
-                    {/* Basic Information Grid */}
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-1">
-                        <Label className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                          Company
-                        </Label>
-                        <p className="text-base text-slate-900 font-medium">
-                          {typeof viewingJob.company === "string"
-                            ? viewingJob.company
-                            : viewingJob.company?.name || "N/A"}
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                          Job Type
-                        </Label>
-                        <p className="text-base text-slate-900 font-medium">
-                          {viewingJob.job_type || "Full time"}
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                          Salary (CTC)
-                        </Label>
-                        <p className="text-base text-slate-900 font-medium">
-                          {viewingJob.ctc || "Not specified"}
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                          Experience Required
-                        </Label>
-                        <p className="text-base text-slate-900 font-medium">
-                          {viewingJob.exp_req !== undefined &&
-                          viewingJob.exp_req > 0
-                            ? `${viewingJob.exp_req} years`
-                            : "Not specified"}
-                        </p>
-                      </div>
-                      {viewingJob.createdAt && (
-                        <div className="space-y-1">
-                          <Label className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                            Posted Date
-                          </Label>
-                          <p className="text-base text-slate-900 font-medium">
-                            {new Date(
-                              viewingJob.createdAt
-                            ).toLocaleDateString()}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Roles */}
-                    {viewingJob.role && viewingJob.role.length > 0 && (
-                      <div className="space-y-3">
-                        <Label className="text-sm font-semibold text-slate-700 uppercase tracking-wide block">
-                          Roles
-                        </Label>
-                        <div className="flex flex-wrap gap-2">
-                          {viewingJob.role.map((r, idx) => (
-                            <span
-                              key={idx}
-                              className="px-3 py-1.5 text-sm font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200"
-                            >
-                              {typeof r === "string" ? r : r?.name || String(r)}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Description */}
-                    {viewingJob.description && (
-                      <div className="space-y-3">
-                        <Label className="text-sm font-semibold text-slate-700 uppercase tracking-wide block">
-                          Description
-                        </Label>
-                        <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                          <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">
-                            {viewingJob.description}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Skills */}
-                    {viewingJob.skills && viewingJob.skills.length > 0 && (
-                      <div className="space-y-3">
-                        <Label className="text-sm font-semibold text-slate-700 uppercase tracking-wide block">
-                          Required Skills
-                        </Label>
-                        <div className="flex flex-wrap gap-2">
-                          {viewingJob.skills.map((skill, idx) => (
-                            <span
-                              key={idx}
-                              className="px-3 py-1.5 text-sm font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200"
-                            >
-                              {typeof skill === "string"
-                                ? skill
-                                : skill?.name || String(skill)}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Secondary Recruiters */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                          Secondary Recruiters
-                        </Label>
-                        {isRecruiter &&
-                          viewingJob.primary_recruiter_id &&
-                          viewingJob.primary_recruiter_id._id?.toString() ===
-                            user.id?.toString() && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setEditingSecondaryRecruiters(
-                                  !editingSecondaryRecruiters
-                                )
-                              }
-                              className="h-8 text-xs"
-                            >
-                              {editingSecondaryRecruiters ? (
-                                <>
-                                  <X className="h-3 w-3 mr-1" />
-                                  Cancel
-                                </>
-                              ) : (
-                                <>
-                                  <Edit className="h-3 w-3 mr-1" />
-                                  Edit
-                                </>
-                              )}
-                            </Button>
-                          )}
-                      </div>
-
-                      {editingSecondaryRecruiters ? (
-                        <div className="space-y-3">
-                          <div className="flex flex-wrap gap-2">
-                            {tempSecondaryRecruiters.map((recruiterId, idx) => {
-                              const recruiterIdStr = recruiterId.toString();
-                              const recruiter = recruiters.find(
-                                (r) => r._id?.toString() === recruiterIdStr
-                              );
-                              return (
-                                <span
-                                  key={idx}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200"
-                                >
-                                  {recruiter?.name || recruiterIdStr}
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleRemoveSecondaryRecruiter(
-                                        recruiterIdStr
-                                      )
-                                    }
-                                    className="hover:bg-cyan-100 rounded-full p-0.5 transition-colors"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </span>
-                              );
-                            })}
-                          </div>
-
-                          {isRecruiter && recruiters.length > 0 && (
-                            <Select
-                              value=""
-                              onValueChange={(value) => {
-                                handleAddSecondaryRecruiter(value);
-                              }}
-                            >
-                              <SelectTrigger className="bg-white border-slate-200">
-                                <SelectValue placeholder="Add a recruiter..." />
-                              </SelectTrigger>
-                              <SelectContent className="bg-white">
-                                {recruiters
-                                  .filter((recruiter) => {
-                                    const recruiterIdStr =
-                                      recruiter._id?.toString();
-                                    return (
-                                      recruiterIdStr !== user.id?.toString() &&
-                                      !tempSecondaryRecruiters.includes(
-                                        recruiterIdStr
-                                      ) &&
-                                      viewingJob.primary_recruiter_id?._id?.toString() !==
-                                        recruiterIdStr
-                                    );
-                                  })
-                                  .map((recruiter) => (
-                                    <SelectItem
-                                      key={recruiter._id}
-                                      value={recruiter._id?.toString()}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <Users className="h-4 w-4 text-slate-500" />
-                                        <span>{recruiter.name}</span>
-                                        <span className="text-xs text-slate-500">
-                                          ({recruiter.email})
-                                        </span>
-                                      </div>
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={handleSaveSecondaryRecruiters}
-                              disabled={savingRecruiters}
-                              className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white"
-                            >
-                              {savingRecruiters ? "Saving..." : "Save Changes"}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                // Reset to original values
-                                const currentRecruiters =
-                                  viewingJob.secondary_recruiter_id
-                                    ? Array.isArray(
-                                        viewingJob.secondary_recruiter_id
-                                      )
-                                      ? viewingJob.secondary_recruiter_id.map(
-                                          (r) => {
-                                            if (
-                                              typeof r === "object" &&
-                                              r !== null
-                                            ) {
-                                              return (
-                                                r._id?.toString() ||
-                                                r.toString()
-                                              );
-                                            }
-                                            return r?.toString();
-                                          }
-                                        )
-                                      : []
-                                    : [];
-                                setTempSecondaryRecruiters(currentRecruiters);
-                                setEditingSecondaryRecruiters(false);
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap gap-2">
-                          {(() => {
-                            const currentRecruiters =
-                              viewingJob.secondary_recruiter_id
-                                ? Array.isArray(
-                                    viewingJob.secondary_recruiter_id
-                                  )
-                                  ? viewingJob.secondary_recruiter_id
-                                  : []
-                                : [];
-                            return currentRecruiters.length > 0 ? (
-                              currentRecruiters.map((recruiterId, idx) => {
-                                const recruiterIdStr =
-                                  typeof recruiterId === "object" &&
-                                  recruiterId !== null
-                                    ? recruiterId._id?.toString() ||
-                                      recruiterId.toString()
-                                    : recruiterId?.toString();
-                                const recruiterName =
-                                  typeof recruiterId === "object" &&
-                                  recruiterId !== null
-                                    ? recruiterId.name
-                                    : null;
-                                const recruiter = recruiters.find(
-                                  (r) => r._id?.toString() === recruiterIdStr
-                                );
-                                return (
-                                  <span
-                                    key={idx}
-                                    className="px-3 py-1.5 text-sm font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200"
-                                  >
-                                    {recruiter?.name ||
-                                      recruiterName ||
-                                      recruiterIdStr ||
-                                      "Unknown"}
-                                  </span>
-                                );
-                              })
-                            ) : (
-                              <span className="text-sm text-slate-500 italic">
-                                No secondary recruiters assigned
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <DialogFooter className="border-t border-slate-200 pt-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowViewDialog(false);
-                        setEditingSecondaryRecruiters(false);
-                      }}
-                    >
-                      Close
-                    </Button>
-                    {isRecruiter &&
-                      viewingJob.primary_recruiter_id &&
-                      viewingJob.primary_recruiter_id._id?.toString() ===
-                        user.id?.toString() && (
-                        <Button
-                          onClick={() => {
-                            setShowViewDialog(false);
-                            setEditingSecondaryRecruiters(false);
-                            openEditDialog(viewingJob);
-                          }}
-                          className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white"
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit Job
-                        </Button>
-                      )}
-                  </DialogFooter>
-                </>
-              )}
-            </DialogContent>
-          </Dialog>
         </main>
       </div>
     </div>

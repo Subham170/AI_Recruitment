@@ -34,11 +34,14 @@
     "googleapis": "^166.0.0",
     "jsonwebtoken": "^9.0.2",
     "langchain": "^0.2.20",
+    "mammoth": "^1.11.0",
     "mongodb": "^7.0.0",
     "mongoose": "^8.19.3",
+    "multer": "^2.0.2",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.10.1",
     "open": "^11.0.0",
+    "pdf-parse": "^2.4.5",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

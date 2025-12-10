@@ -45,8 +45,6 @@ export default function CandidatesPage() {
   const [parseResumeFile, setParseResumeFile] = useState(null);
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [resumeFile, setResumeFile] = useState(null);
-  const [resumeFileName, setResumeFileName] = useState("");
   const [parseResumeModalOpen, setParseResumeModalOpen] = useState(false);
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -60,7 +58,6 @@ export default function CandidatesPage() {
     experience: "",
     role: [],
     bio: "",
-    resume_url: "",
   });
 
   useEffect(() => {
@@ -111,42 +108,6 @@ export default function CandidatesPage() {
         return { ...prev, role: [...currentRoles, value] };
       }
     });
-  };
-
-  const handleResumeUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const allowedTypes = [
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ];
-      if (!allowedTypes.includes(file.type)) {
-        setError("Please upload a PDF or Word document");
-        return;
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        setError("File size must be less than 5MB");
-        return;
-      }
-
-      setResumeFile(file);
-      setResumeFileName(file.name);
-      setFormData((prev) => ({
-        ...prev,
-        resume_url: file.name,
-      }));
-    }
-  };
-
-  const removeResume = () => {
-    setResumeFile(null);
-    setResumeFileName("");
-    setFormData((prev) => ({
-      ...prev,
-      resume_url: "",
-    }));
   };
 
   const validateResumeFile = (file) => {
@@ -298,7 +259,6 @@ export default function CandidatesPage() {
         experience: formData.experience ? parseInt(formData.experience) : 0,
         role: formData.role || [],
         bio: formData.bio || undefined,
-        resume_url: formData.resume_url || undefined,
       };
 
       const response = await candidateAPI.createCandidate(candidateData);
@@ -326,10 +286,7 @@ export default function CandidatesPage() {
       experience: "",
       role: [],
       bio: "",
-      resume_url: "",
     });
-    setResumeFile(null);
-    setResumeFileName("");
     setError("");
     setSuccess("");
   };
@@ -725,76 +682,6 @@ export default function CandidatesPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-slate-900 font-medium">
-                Resume Upload
-              </Label>
-              {resumeFileName ? (
-                <div className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg bg-slate-50">
-                  <FileText className="h-5 w-5 text-cyan-600" />
-                  <span className="flex-1 text-sm text-slate-700">
-                    {resumeFileName}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={removeResume}
-                    className="h-8 w-8 p-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div>
-                  <input
-                    type="file"
-                    id="resume-upload"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleResumeUpload}
-                    className="hidden"
-                  />
-                  <Label htmlFor="resume-upload">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full gap-2 border-slate-200 hover:bg-cyan-50 hover:border-cyan-300"
-                      asChild
-                    >
-                      <span>
-                        <Upload className="h-4 w-4" />
-                        Upload Resume (PDF, DOC, DOCX)
-                      </span>
-                    </Button>
-                  </Label>
-                </div>
-              )}
-              <p className="text-xs text-slate-500">
-                Maximum file size: 5MB. Supported formats: PDF, DOC, DOCX
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="resume_url"
-                className="text-slate-900 font-medium"
-              >
-                Resume URL (Alternative)
-              </Label>
-              <Input
-                id="resume_url"
-                name="resume_url"
-                type="url"
-                value={formData.resume_url}
-                onChange={handleChange}
-                placeholder="Or enter a resume URL"
-                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
-              />
-              <p className="text-xs text-slate-500">
-                If you have a resume URL, you can enter it here instead
-              </p>
-            </div>
-
             <DialogFooter className="pt-4 border-t border-slate-200">
               <Button
                 type="button"
@@ -829,8 +716,8 @@ export default function CandidatesPage() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl bg-white border-slate-200 shadow-2xl">
-          <DialogHeader className="pb-4 border-b border-slate-200">
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white border-slate-200 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200 flex-shrink-0">
             <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
               <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
                 <FileText className="h-6 w-6 text-cyan-600" />
@@ -843,192 +730,202 @@ export default function CandidatesPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {error && (
-            <Alert
-              variant="destructive"
-              className="mt-4 border-red-200 bg-red-50"
-            >
-              <AlertDescription className="text-red-800">
-                {error}
-              </AlertDescription>
-            </Alert>
-          )}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {error && (
+              <Alert
+                variant="destructive"
+                className="mt-4 border-red-200 bg-red-50"
+              >
+                <AlertDescription className="text-red-800">
+                  {error}
+                </AlertDescription>
+              </Alert>
+            )}
 
-          {success && (
-            <Alert className="mt-4 bg-green-50 border-green-200">
-              <AlertDescription className="text-green-800">
-                {success}
-              </AlertDescription>
-            </Alert>
-          )}
+            {success && (
+              <Alert className="mt-4 bg-green-50 border-green-200">
+                <AlertDescription className="text-green-800">
+                  {success}
+                </AlertDescription>
+              </Alert>
+            )}
 
-          <div className="mt-6 space-y-6">
-            {/* Drag and Drop Zone */}
-            <div
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-              className={`relative border-2 border-dashed rounded-xl p-12 transition-all duration-300 ${
-                dragActive
-                  ? "border-cyan-500 bg-cyan-50/50 scale-[1.02]"
-                  : "border-slate-300 bg-slate-50/50 hover:border-cyan-400 hover:bg-cyan-50/30"
-              }`}
-            >
-              <input
-                type="file"
-                id="parse-resume-file-input"
-                accept=".pdf,.doc,.docx"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+            <div className="mt-6 space-y-6">
+              {/* Drag and Drop Zone */}
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`relative border-2 border-dashed rounded-xl p-12 transition-all duration-300 ${
+                  dragActive
+                    ? "border-cyan-500 bg-cyan-50/50 scale-[1.02]"
+                    : "border-slate-300 bg-slate-50/50 hover:border-cyan-400 hover:bg-cyan-50/30"
+                }`}
+              >
+                <input
+                  type="file"
+                  id="parse-resume-file-input"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
 
-              {isParsingResume ? (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <div className="relative">
-                    <Loader2 className="h-16 w-16 text-cyan-600 animate-spin" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="h-12 w-12 border-4 border-cyan-200 border-t-cyan-600 rounded-full animate-spin"></div>
-                    </div>
-                  </div>
-                  <p className="mt-6 text-lg font-medium text-slate-700 animate-pulse">
-                    Parsing resume...
-                  </p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Extracting information from your document
-                  </p>
-                </div>
-              ) : parsedResumeData ? (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <div className="p-4 rounded-full bg-green-100 mb-4 animate-bounce">
-                    <CheckCircle2 className="h-12 w-12 text-green-600" />
-                  </div>
-                  <p className="text-lg font-medium text-slate-700">
-                    Resume Parsed Successfully!
-                  </p>
-                  <div className="mt-6 w-full space-y-3">
-                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                      <p className="text-sm font-medium text-slate-600 mb-2">
-                        Extracted Information:
-                      </p>
-                      <div className="space-y-2 text-sm text-slate-700">
-                        <p>
-                          <span className="font-semibold">Name:</span>{" "}
-                          {parsedResumeData.name || (
-                            <span className="text-red-500 italic">Missing</span>
-                          )}
-                        </p>
-                        <p>
-                          <span className="font-semibold">Email:</span>{" "}
-                          {parsedResumeData.email || (
-                            <span className="text-red-500 italic">Missing</span>
-                          )}
-                        </p>
-                        <p>
-                          <span className="font-semibold">Phone:</span>{" "}
-                          {parsedResumeData.phone_no || (
-                            <span className="text-slate-400 italic">
-                              Not provided
-                            </span>
-                          )}
-                        </p>
-                        <p>
-                          <span className="font-semibold">Skills:</span>{" "}
-                          {parsedResumeData.skills?.length > 0 ? (
-                            parsedResumeData.skills.join(", ")
-                          ) : (
-                            <span className="text-slate-400 italic">
-                              Not provided
-                            </span>
-                          )}
-                        </p>
-                        <p>
-                          <span className="font-semibold">Experience:</span>{" "}
-                          {parsedResumeData.experience || 0} years
-                        </p>
-                        {parsedResumeData.bio && (
-                          <p>
-                            <span className="font-semibold">Bio:</span>{" "}
-                            {parsedResumeData.bio}
-                          </p>
-                        )}
+                {isParsingResume ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="relative">
+                      <Loader2 className="h-16 w-16 text-cyan-600 animate-spin" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-12 w-12 border-4 border-cyan-200 border-t-cyan-600 rounded-full animate-spin"></div>
                       </div>
                     </div>
-                    {(!parsedResumeData.name || !parsedResumeData.email) && (
-                      <Alert variant="destructive" className="mt-4">
-                        <AlertDescription>
-                          <strong>Required fields missing:</strong>{" "}
-                          {!parsedResumeData.name && "Name "}
-                          {!parsedResumeData.email && "Email "}- Cannot save
-                          candidate without these fields.
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                    <p className="mt-6 text-lg font-medium text-slate-700 animate-pulse">
+                      Parsing resume...
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Extracting information from your document
+                    </p>
                   </div>
-                </div>
-              ) : parseResumeFile ? (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <div className="p-4 rounded-full bg-cyan-100 mb-4">
-                    <FileText className="h-12 w-12 text-cyan-600" />
+                ) : parsedResumeData ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="p-4 rounded-full bg-green-100 mb-4 animate-bounce">
+                      <CheckCircle2 className="h-12 w-12 text-green-600" />
+                    </div>
+                    <p className="text-lg font-medium text-slate-700">
+                      Resume Parsed Successfully!
+                    </p>
+                    <div className="mt-6 w-full space-y-3">
+                      <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <p className="text-sm font-medium text-slate-600 mb-2">
+                          Extracted Information:
+                        </p>
+                        <div className="space-y-2 text-sm text-slate-700">
+                          <p>
+                            <span className="font-semibold">Name:</span>{" "}
+                            {parsedResumeData.name || (
+                              <span className="text-red-500 italic">
+                                Missing
+                              </span>
+                            )}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Email:</span>{" "}
+                            {parsedResumeData.email || (
+                              <span className="text-red-500 italic">
+                                Missing
+                              </span>
+                            )}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Phone:</span>{" "}
+                            {parsedResumeData.phone_no || (
+                              <span className="text-slate-400 italic">
+                                Not provided
+                              </span>
+                            )}
+                          </p>
+                          <div>
+                            <span className="font-semibold">Skills:</span>{" "}
+                            {parsedResumeData.skills?.length > 0 ? (
+                              <div className="mt-1 max-h-32 overflow-y-auto">
+                                <p className="text-sm text-slate-700 break-words">
+                                  {parsedResumeData.skills.join(", ")}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic">
+                                Not provided
+                              </span>
+                            )}
+                          </div>
+                          <p>
+                            <span className="font-semibold">Experience:</span>{" "}
+                            {parsedResumeData.experience || 0} years
+                          </p>
+                          {parsedResumeData.bio && (
+                            <p>
+                              <span className="font-semibold">Bio:</span>{" "}
+                              {parsedResumeData.bio}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {(!parsedResumeData.name || !parsedResumeData.email) && (
+                        <Alert variant="destructive" className="mt-4">
+                          <AlertDescription>
+                            <strong>Required fields missing:</strong>{" "}
+                            {!parsedResumeData.name && "Name "}
+                            {!parsedResumeData.email && "Email "}- Cannot save
+                            candidate without these fields.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-lg font-medium text-slate-700 mb-2">
-                    {parseResumeFile.name}
-                  </p>
-                  <p className="text-sm text-slate-500 mb-6">
-                    {(parseResumeFile.size / 1024).toFixed(2)} KB
-                  </p>
-                  <div className="flex gap-3">
+                ) : parseResumeFile ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="p-4 rounded-full bg-cyan-100 mb-4">
+                      <FileText className="h-12 w-12 text-cyan-600" />
+                    </div>
+                    <p className="text-lg font-medium text-slate-700 mb-2">
+                      {parseResumeFile.name}
+                    </p>
+                    <p className="text-sm text-slate-500 mb-6">
+                      {(parseResumeFile.size / 1024).toFixed(2)} KB
+                    </p>
+                    <div className="flex gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setParseResumeFile(null)}
+                        className="border-slate-200 hover:bg-slate-50"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Remove
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => handleParseResume(false)}
+                        className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                      >
+                        Parse Resume
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="p-4 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/20 mb-6">
+                      <Upload className="h-12 w-12 text-cyan-600" />
+                    </div>
+                    <p className="text-lg font-medium text-slate-700 mb-2">
+                      Drag and drop your resume here
+                    </p>
+                    <p className="text-sm text-slate-500 mb-6">
+                      or click to browse from your device
+                    </p>
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setParseResumeFile(null)}
-                      className="border-slate-200 hover:bg-slate-50"
+                      onClick={() => {
+                        document
+                          .getElementById("parse-resume-file-input")
+                          ?.click();
+                      }}
+                      className="border-slate-200 hover:bg-cyan-50 hover:border-cyan-300"
                     >
-                      <X className="h-4 w-4 mr-2" />
-                      Remove
+                      <Upload className="h-4 w-4 mr-2" />
+                      Select File
                     </Button>
-                    <Button
-                      type="button"
-                      onClick={() => handleParseResume(false)}
-                      className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
-                    >
-                      Parse Resume
-                    </Button>
+                    <p className="mt-4 text-xs text-slate-500">
+                      Supported formats: PDF, DOC, DOCX (Max 5MB)
+                    </p>
                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center">
-                  <div className="p-4 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/20 mb-6">
-                    <Upload className="h-12 w-12 text-cyan-600" />
-                  </div>
-                  <p className="text-lg font-medium text-slate-700 mb-2">
-                    Drag and drop your resume here
-                  </p>
-                  <p className="text-sm text-slate-500 mb-6">
-                    or click to browse from your device
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      document
-                        .getElementById("parse-resume-file-input")
-                        ?.click();
-                    }}
-                    className="border-slate-200 hover:bg-cyan-50 hover:border-cyan-300"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Select File
-                  </Button>
-                  <p className="mt-4 text-xs text-slate-500">
-                    Supported formats: PDF, DOC, DOCX (Max 5MB)
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
-          <DialogFooter className="pt-4 border-t border-slate-200 mt-6">
+          <DialogFooter className="pt-4 border-t border-slate-200 mt-6 flex-shrink-0">
             <Button
               type="button"
               variant="outline"
