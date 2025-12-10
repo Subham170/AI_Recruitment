@@ -1,10 +1,49 @@
 import express from "express";
+import { createRequire } from "module";
 import { createCandidateData } from "../candidates/controller.js";
 import {
   formatParsedResumeData,
   parseResumeFromFile,
   parseResumeFromUrl,
 } from "./controller.js";
+
+const require = createRequire(import.meta.url);
+const multer = require("multer");
+
+// Configure multer for memory storage (no disk writes)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    const allowedExtensions = [".pdf", ".doc", ".docx"];
+    const fileExtension = file.originalname
+      .toLowerCase()
+      .substring(file.originalname.lastIndexOf("."));
+
+    if (
+      allowedMimes.includes(file.mimetype) ||
+      allowedExtensions.includes(fileExtension)
+    ) {
+      cb(null, true);
+    } else {
+      cb(
+        new Error(
+          `Invalid file type. Supported formats: ${allowedExtensions.join(
+            ", "
+          )}`
+        ),
+        false
+      );
+    }
+  },
+});
 
 const router = express.Router();
 
@@ -100,30 +139,25 @@ router.post("/url", async (req, res) => {
  * POST /api/resume-parser/upload
  * Parse resume from uploaded file
  * Supports:
+ * - Content-Type: multipart/form-data (FormData with 'file' field) - Recommended
  * - Content-Type: application/octet-stream (raw binary)
- * - Content-Type: multipart/form-data (FormData with 'file' field)
  * - Content-Type: application/json (base64 encoded file)
  */
-router.post("/upload", async (req, res) => {
+router.post("/upload", upload.single("file"), async (req, res) => {
   try {
     let fileBuffer;
     let fileName;
-
-    // Handle multipart/form-data (FormData)
-    if (req.headers["content-type"]?.includes("multipart/form-data")) {
-      // This will be handled by multer if added, or by express.json() with proper parsing
-      // For now, we'll expect the file to be sent as raw binary with filename in header
-      return res.status(400).json({
-        success: false,
-        message:
-          "Please send file as application/octet-stream with x-file-name header, or use base64 in JSON body",
-      });
-    }
-
     let saveToDatabase = false;
 
-    // Handle application/json with base64
-    if (req.headers["content-type"]?.includes("application/json")) {
+    // Handle multipart/form-data (FormData) - processed by multer
+    if (req.file) {
+      fileBuffer = req.file.buffer;
+      fileName = req.file.originalname || "resume.pdf";
+      // Check for saveToDatabase in form data
+      saveToDatabase =
+        req.body.saveToDatabase === "true" || req.body.saveToDatabase === true;
+    } else if (req.headers["content-type"]?.includes("application/json")) {
+      // Handle application/json with base64
       const {
         file,
         filename,
@@ -223,6 +257,21 @@ router.post("/upload", async (req, res) => {
     });
   } catch (error) {
     console.error("Error parsing resume from file:", error);
+
+    // Handle multer errors
+    if (error instanceof multer.MulterError) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          message: "File size exceeds 10MB limit",
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: error.message || "File upload error",
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: error.message || "Failed to parse resume from file",

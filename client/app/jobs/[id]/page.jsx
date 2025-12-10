@@ -158,18 +158,14 @@ export default function JobDetailPage() {
 
   if (error) {
     return (
-      <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative">
-        <div className="fixed inset-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-cyan-500/10 dark:bg-cyan-500/5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl"></div>
-        </div>
+      <div className="flex h-screen overflow-hidden bg-white relative">
         <aside className="hidden lg:block relative z-10">
           <Sidebar />
         </aside>
         <div className="flex flex-1 flex-col overflow-hidden items-center justify-center p-8 relative z-10">
-          <Card className="max-w-md border-red-200 dark:border-red-800 bg-red-50/80 dark:bg-red-950/20 backdrop-blur-sm">
+          <Card className="max-w-md border-red-200 bg-red-50">
             <CardContent className="pt-6">
-              <p className="text-red-900 dark:text-red-100 text-center">
+              <p className="text-red-900 text-center">
                 {error}
               </p>
               <Button
@@ -194,19 +190,15 @@ export default function JobDetailPage() {
 
   if (!jobPosting) {
     return (
-      <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative">
-        <div className="fixed inset-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-cyan-500/10 dark:bg-cyan-500/5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl"></div>
-        </div>
+      <div className="flex h-screen overflow-hidden bg-white relative">
         <aside className="hidden lg:block relative z-10">
           <Sidebar />
         </aside>
         <div className="flex flex-1 flex-col overflow-hidden items-center justify-center p-8 relative z-10">
-          <Card className="max-w-md border-slate-200/50 dark:border-slate-800/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
+          <Card className="max-w-md border-slate-200 bg-white">
             <CardContent className="pt-6 text-center">
-              <FileQuestion className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
-              <p className="text-slate-600 dark:text-slate-400">
+              <FileQuestion className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+              <p className="text-slate-600">
                 Job posting not found
               </p>
               <Button
@@ -248,39 +240,35 @@ export default function JobDetailPage() {
         )));
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative">
-      {/* Background Effects */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-cyan-500/10 dark:bg-cyan-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-      </div>
-
+    <div className="flex h-screen overflow-hidden bg-white text-slate-900">
       <aside className="hidden lg:block relative z-10">
         <Sidebar />
       </aside>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-52 p-0">
+        <SheetContent
+          side="left"
+          className="w-60 p-0 bg-slate-950 text-slate-100 border-r border-slate-900"
+        >
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <Sidebar />
         </SheetContent>
       </Sheet>
 
-      <div className="flex flex-1 flex-col overflow-hidden relative z-10">
+      <div className="flex flex-1 flex-col overflow-hidden bg-white">
         <Navbar
           title=""
           sidebarOpen={sidebarOpen}
           onSidebarToggle={setSidebarOpen}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-white">
           <div className="max-w-5xl mx-auto">
             {/* Back and Edit Buttons */}
             <div className="mb-8 flex gap-3 items-center justify-between">
               <Button
                 variant="outline"
-                className="flex-1 lg:flex-initial border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 hover:scale-105 hover:shadow-md"
+                className="flex-1 lg:flex-initial border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
                 onClick={() => {
                   if (user?.role) {
                     router.push(`/dashboard/${user.role}/manage-job-posting`);
@@ -297,7 +285,7 @@ export default function JobDetailPage() {
                   <Button
                     variant="outline"
                     onClick={() => setAvailabilityDialogOpen(true)}
-                    className="flex items-center gap-2 border-slate-300 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all duration-200 hover:scale-105 hover:shadow-md hover:shadow-cyan-500/20"
+                    className="flex items-center gap-2 border-slate-200 hover:bg-cyan-50 hover:border-cyan-300 hover:text-cyan-700 transition-all duration-200"
                     title="Set your available dates and times for interviews"
                   >
                     <CalendarDays className="h-4 w-4" />
@@ -320,14 +308,14 @@ export default function JobDetailPage() {
             <div className="space-y-6">
               {/* Header Section */}
               <div>
-                <h2 className="text-2xl font-bold mb-2 text-slate-900 dark:text-white">
+                <h2 className="text-2xl font-bold mb-2 text-slate-900">
                   {jobPosting.title}
                 </h2>
-                <p className="text-lg text-slate-600 dark:text-slate-400 mb-4">
+                <p className="text-lg text-slate-600 mb-4">
                   {jobPosting.company}
                 </p>
                 {jobPosting.id && (
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-slate-700 dark:to-slate-800 text-white rounded-md border border-slate-600 dark:border-slate-700">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md border border-slate-200">
                     <span className="text-xs font-medium uppercase tracking-wide">
                       Job ID
                     </span>
@@ -341,14 +329,14 @@ export default function JobDetailPage() {
               {/* Roles Section */}
               {jobPosting.role && jobPosting.role.length > 0 && (
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-3 uppercase tracking-wide">
+                  <h2 className="text-sm font-semibold text-slate-900 mb-3 uppercase tracking-wide">
                     Roles
                   </h2>
                   <div className="flex flex-wrap gap-2.5">
                     {jobPosting.role.map((r, idx) => (
                       <span
                         key={idx}
-                        className="px-4 py-2 text-sm font-medium rounded-full bg-gradient-to-r from-cyan-400/20 to-blue-500/20 text-cyan-700 dark:text-cyan-400 border border-cyan-300/30 dark:border-cyan-600/30 hover:from-cyan-400/30 hover:to-blue-500/30 transition-all duration-200"
+                        className="px-4 py-2 text-sm font-medium rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 hover:bg-cyan-100 transition-all duration-200"
                       >
                         {r}
                       </span>
@@ -359,14 +347,14 @@ export default function JobDetailPage() {
 
               {/* Key Details */}
               <div>
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-3 uppercase tracking-wide">
+                <h2 className="text-sm font-semibold text-slate-900 mb-3 uppercase tracking-wide">
                   Job Details
                 </h2>
-                <div className="flex flex-wrap gap-4 text-sm text-slate-600 dark:text-slate-400">
+                <div className="flex flex-wrap gap-4 text-sm text-slate-600">
                   {jobPosting.ctc && (
                     <div className="flex items-center gap-1.5">
-                      <DollarSign className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-                      <span className="text-slate-900 dark:text-white">
+                      <DollarSign className="h-3.5 w-3.5 text-cyan-600" />
+                      <span className="text-slate-900">
                         {jobPosting.ctc}
                       </span>
                     </div>
@@ -374,16 +362,16 @@ export default function JobDetailPage() {
                   {jobPosting.exp_req !== undefined &&
                     jobPosting.exp_req > 0 && (
                       <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-                        <span className="text-slate-900 dark:text-white">
+                        <Clock className="h-3.5 w-3.5 text-cyan-600" />
+                        <span className="text-slate-900">
                           {jobPosting.exp_req} years
                         </span>
                       </div>
                     )}
                   {jobPosting.job_type && (
                     <div className="flex items-center gap-1.5">
-                      <Briefcase className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-                      <span className="text-slate-900 dark:text-white">
+                      <Briefcase className="h-3.5 w-3.5 text-cyan-600" />
+                      <span className="text-slate-900">
                         {jobPosting.job_type}
                       </span>
                     </div>
@@ -393,11 +381,11 @@ export default function JobDetailPage() {
 
               {/* Description Section */}
               <div>
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-3 uppercase tracking-wide">
+                <h2 className="text-sm font-semibold text-slate-900 mb-3 uppercase tracking-wide">
                   Job Description
                 </h2>
-                <div className="prose dark:prose-invert max-w-none">
-                  <p className="text-base leading-7 text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                <div className="prose max-w-none">
+                  <p className="text-base leading-7 text-slate-700 whitespace-pre-wrap">
                     {jobPosting.description}
                   </p>
                 </div>
@@ -406,14 +394,14 @@ export default function JobDetailPage() {
               {/* Skills Section */}
               {jobPosting.skills && jobPosting.skills.length > 0 && (
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-3 uppercase tracking-wide">
+                  <h2 className="text-sm font-semibold text-slate-900 mb-3 uppercase tracking-wide">
                     Required Skills
                   </h2>
                   <div className="flex flex-wrap gap-2.5">
                     {jobPosting.skills.map((skill, idx) => (
                       <span
                         key={idx}
-                        className="px-4 py-2 text-sm font-medium rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-cyan-300 dark:hover:border-cyan-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 transition-all duration-200"
+                        className="px-4 py-2 text-sm font-medium rounded-md bg-slate-100 text-slate-700 border border-slate-200 hover:border-cyan-300 hover:bg-cyan-50 transition-all duration-200"
                       >
                         {skill}
                       </span>
@@ -428,16 +416,16 @@ export default function JobDetailPage() {
                   Array.isArray(jobPosting.secondary_recruiter_id) &&
                   jobPosting.secondary_recruiter_id.length > 0)) && (
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-3 uppercase tracking-wide">
+                  <h2 className="text-sm font-semibold text-slate-900 mb-3 uppercase tracking-wide">
                     Recruiters
                   </h2>
                   <div className="space-y-3">
                     {jobPosting.primary_recruiter_id && (
                       <div className="text-sm">
-                        <p className="font-semibold text-slate-900 dark:text-white mb-1">
+                        <p className="font-semibold text-slate-900 mb-1">
                           Primary Recruiter
                         </p>
-                        <p className="text-slate-600 dark:text-slate-400">
+                        <p className="text-slate-600">
                           {typeof jobPosting.primary_recruiter_id ===
                             "object" && jobPosting.primary_recruiter_id.name
                             ? `${jobPosting.primary_recruiter_id.name}${
@@ -454,7 +442,7 @@ export default function JobDetailPage() {
                       Array.isArray(jobPosting.secondary_recruiter_id) &&
                       jobPosting.secondary_recruiter_id.length > 0 && (
                         <div>
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                          <p className="text-sm font-semibold text-slate-900 mb-2">
                             Secondary Recruiters
                           </p>
                           <div className="space-y-1">
@@ -463,7 +451,7 @@ export default function JobDetailPage() {
                               .map((recruiter, idx) => (
                                 <p
                                   key={idx}
-                                  className="text-sm text-slate-600 dark:text-slate-400"
+                                  className="text-sm text-slate-600"
                                 >
                                   {typeof recruiter === "object" &&
                                   recruiter.name
@@ -492,15 +480,15 @@ export default function JobDetailPage() {
           open={availabilityDialogOpen}
           onOpenChange={setAvailabilityDialogOpen}
         >
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200/50 dark:border-slate-800/50 shadow-2xl">
-            <DialogHeader className="pb-4 border-b border-slate-200 dark:border-slate-700">
-              <DialogTitle className="flex items-center gap-3 text-2xl bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white border-slate-200 shadow-2xl">
+            <DialogHeader className="pb-4 border-b border-slate-200">
+              <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
                 <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
-                  <CalendarDays className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+                  <CalendarDays className="h-6 w-6 text-cyan-600" />
                 </div>
                 My Availability
               </DialogTitle>
-              <DialogDescription className="text-slate-600 dark:text-slate-400 mt-2">
+              <DialogDescription className="text-slate-600 mt-2">
                 Set your available dates and times for this job posting
               </DialogDescription>
             </DialogHeader>
@@ -512,12 +500,12 @@ export default function JobDetailPage() {
       {/* Edit Job Posting Dialog */}
       {isOwner && (
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200 dark:border-slate-700">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-slate-200">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
+              <DialogTitle className="text-2xl font-bold text-slate-900">
                 Edit Job Posting
               </DialogTitle>
-              <DialogDescription className="text-slate-600 dark:text-slate-400">
+              <DialogDescription className="text-slate-600">
                 Update the job posting details below.
               </DialogDescription>
             </DialogHeader>
@@ -527,7 +515,7 @@ export default function JobDetailPage() {
                 <div className="space-y-2">
                   <Label
                     htmlFor="edit-title"
-                    className="text-slate-900 dark:text-white font-medium"
+                    className="text-slate-900 font-medium"
                   >
                     Job Title *
                   </Label>
@@ -538,14 +526,14 @@ export default function JobDetailPage() {
                       setJobForm({ ...jobForm, title: e.target.value })
                     }
                     placeholder="e.g., Senior Software Engineer"
-                    className="border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
+                    className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all duration-200"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label
                     htmlFor="edit-company"
-                    className="text-slate-900 dark:text-white font-medium"
+                    className="text-slate-900 font-medium"
                   >
                     Company *
                   </Label>
@@ -556,7 +544,7 @@ export default function JobDetailPage() {
                       setJobForm({ ...jobForm, company: e.target.value })
                     }
                     placeholder="Company name"
-                    className="border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
+                    className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all duration-200"
                   />
                 </div>
               </div>
@@ -564,7 +552,7 @@ export default function JobDetailPage() {
               <div className="space-y-2">
                 <Label
                   htmlFor="edit-description"
-                  className="text-slate-900 dark:text-white font-medium"
+                  className="text-slate-900 font-medium"
                 >
                   Job Description *
                 </Label>
@@ -574,7 +562,7 @@ export default function JobDetailPage() {
                   onChange={(e) =>
                     setJobForm({ ...jobForm, description: e.target.value })
                   }
-                  className="w-full min-h-[100px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200 resize-none"
+                  className="w-full min-h-[100px] px-3 py-2 border border-slate-200 rounded-md bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500 transition-all duration-200 resize-none"
                   placeholder="Describe the role, responsibilities, and company culture..."
                 />
               </div>
@@ -583,7 +571,7 @@ export default function JobDetailPage() {
                 <div className="space-y-2">
                   <Label
                     htmlFor="edit-role"
-                    className="text-slate-900 dark:text-white font-medium"
+                    className="text-slate-900 font-medium"
                   >
                     Role
                   </Label>
@@ -598,43 +586,43 @@ export default function JobDetailPage() {
                       }
                     }}
                   >
-                    <SelectTrigger className="border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-white hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200">
+                    <SelectTrigger className="border-slate-200 bg-white text-slate-900 hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all duration-200">
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200 dark:border-slate-700">
+                    <SelectContent className="bg-white border-slate-200">
                       <SelectItem
                         value="SDET"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
+                        className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
                       >
                         SDET
                       </SelectItem>
                       <SelectItem
                         value="QA"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
+                        className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
                       >
                         QA
                       </SelectItem>
                       <SelectItem
                         value="DevOps"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
+                        className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
                       >
                         DevOps
                       </SelectItem>
                       <SelectItem
                         value="Frontend"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
+                        className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
                       >
                         Frontend
                       </SelectItem>
                       <SelectItem
                         value="Backend"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
+                        className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
                       >
                         Backend
                       </SelectItem>
                       <SelectItem
                         value="Full-stack"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
+                        className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
                       >
                         Full-stack
                       </SelectItem>
@@ -645,7 +633,7 @@ export default function JobDetailPage() {
                       {jobForm.role.map((r, idx) => (
                         <span
                           key={idx}
-                          className="px-3 py-1.5 text-sm font-medium rounded-full bg-gradient-to-r from-cyan-400/20 to-blue-500/20 text-cyan-700 dark:text-cyan-400 border border-cyan-300/30 dark:border-cyan-600/30 flex items-center gap-1.5 hover:from-cyan-400/30 hover:to-blue-500/30 transition-all duration-200"
+                          className="px-3 py-1.5 text-sm font-medium rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 flex items-center gap-1.5 hover:bg-cyan-100 transition-all duration-200"
                         >
                           {r}
                           <button
@@ -656,7 +644,7 @@ export default function JobDetailPage() {
                                 role: jobForm.role.filter((_, i) => i !== idx),
                               });
                             }}
-                            className="ml-0.5 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                            className="ml-0.5 hover:text-red-500 transition-colors"
                           >
                             ×
                           </button>
@@ -669,7 +657,7 @@ export default function JobDetailPage() {
                 <div className="space-y-2">
                   <Label
                     htmlFor="edit-ctc"
-                    className="text-slate-900 dark:text-white font-medium"
+                    className="text-slate-900 font-medium"
                   >
                     CTC
                   </Label>
@@ -680,7 +668,7 @@ export default function JobDetailPage() {
                       setJobForm({ ...jobForm, ctc: e.target.value })
                     }
                     placeholder="e.g., 10-15 LPA"
-                    className="border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
+                    className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all duration-200"
                   />
                 </div>
               </div>
@@ -689,7 +677,7 @@ export default function JobDetailPage() {
                 <div className="space-y-2">
                   <Label
                     htmlFor="edit-exp_req"
-                    className="text-slate-900 dark:text-white font-medium"
+                    className="text-slate-900 font-medium"
                   >
                     Experience Required (years)
                   </Label>
@@ -705,14 +693,14 @@ export default function JobDetailPage() {
                       })
                     }
                     placeholder="0"
-                    className="border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
+                    className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all duration-200"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label
                     htmlFor="edit-job_type"
-                    className="text-slate-900 dark:text-white font-medium"
+                    className="text-slate-900 font-medium"
                   >
                     Job Type
                   </Label>
@@ -722,19 +710,19 @@ export default function JobDetailPage() {
                       setJobForm({ ...jobForm, job_type: value })
                     }
                   >
-                    <SelectTrigger className="border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-white hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200">
+                    <SelectTrigger className="border-slate-200 bg-white text-slate-900 hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 transition-all duration-200">
                       <SelectValue placeholder="Select job type" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200 dark:border-slate-700">
+                    <SelectContent className="bg-white border-slate-200">
                       <SelectItem
                         value="Full time"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
+                        className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
                       >
                         Full time
                       </SelectItem>
                       <SelectItem
                         value="Internship"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
+                        className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
                       >
                         Internship
                       </SelectItem>
@@ -746,7 +734,7 @@ export default function JobDetailPage() {
               <div className="space-y-2">
                 <Label
                   htmlFor="edit-skills"
-                  className="text-slate-900 dark:text-white font-medium"
+                  className="text-slate-900 font-medium"
                 >
                   Skills (comma-separated)
                 </Label>
@@ -757,7 +745,7 @@ export default function JobDetailPage() {
                     setJobForm({ ...jobForm, skills: e.target.value })
                   }
                   placeholder="e.g., React, Node.js, TypeScript"
-                  className="border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+                  className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
                 />
               </div>
 
@@ -765,7 +753,7 @@ export default function JobDetailPage() {
               <div className="space-y-2">
                 <Label
                   htmlFor="edit-secondary_recruiters"
-                  className="text-slate-900 dark:text-white font-medium"
+                  className="text-slate-900 font-medium"
                 >
                   Secondary Recruiters
                 </Label>
@@ -785,10 +773,10 @@ export default function JobDetailPage() {
                     }
                   }}
                 >
-                  <SelectTrigger className="w-full border-slate-300 dark:border-slate-600 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm text-slate-900 dark:text-white hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20">
+                  <SelectTrigger className="w-full border-slate-200 bg-white text-slate-900 hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20">
                     <SelectValue placeholder="Select recruiters to add" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-[200px] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200 dark:border-slate-700">
+                  <SelectContent className="max-h-[200px] overflow-y-auto bg-white border-slate-200">
                     {recruiters
                       .filter(
                         (recruiter) =>
@@ -805,7 +793,7 @@ export default function JobDetailPage() {
                             recruiter._id?.toString() ||
                             recruiter.id?.toString()
                           }
-                          className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400 truncate"
+                          className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600 truncate"
                         >
                           <span className="truncate block">
                             {recruiter.name} ({recruiter.email})
@@ -822,7 +810,7 @@ export default function JobDetailPage() {
                       <SelectItem
                         value="no-recruiters"
                         disabled
-                        className="text-slate-600 dark:text-white"
+                        className="text-slate-600"
                       >
                         No other recruiters available
                       </SelectItem>
@@ -840,7 +828,7 @@ export default function JobDetailPage() {
                       return (
                         <span
                           key={recruiterId}
-                          className="px-3 py-1.5 text-sm font-medium rounded-md bg-gradient-to-r from-slate-800 to-slate-900 dark:from-slate-700 dark:to-slate-800 text-white border border-slate-600 dark:border-slate-700 flex items-center gap-1.5 hover:from-slate-700 hover:to-slate-800 dark:hover:from-slate-600 dark:hover:to-slate-700 transition-all duration-200"
+                          className="px-3 py-1.5 text-sm font-medium rounded-md bg-slate-800 text-white border border-slate-600 flex items-center gap-1.5 hover:bg-slate-700 transition-all duration-200"
                         >
                           {recruiter?.name || recruiterId}
                           <button
@@ -870,7 +858,7 @@ export default function JobDetailPage() {
               <Button
                 variant="outline"
                 onClick={() => setEditDialogOpen(false)}
-                className="border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 hover:scale-105"
+                className="border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
               >
                 Cancel
               </Button>

@@ -46,6 +46,7 @@ import {
   Loader2,
   Mail,
   Phone,
+  PhoneCall,
   RefreshCw,
   Search,
   StopCircle,
@@ -84,6 +85,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
   const [callDetailsDialogOpen, setCallDetailsDialogOpen] = useState(false);
   const [selectedCallDetails, setSelectedCallDetails] = useState(null);
   const [loadingCallDetails, setLoadingCallDetails] = useState(false);
+  const [callingCandidateId, setCallingCandidateId] = useState(null);
 
   useEffect(() => {
     if (loading) return;
@@ -766,6 +768,33 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
 
       // Refresh call statuses
       await fetchCallStatuses(selectedJob._id);
+
+      // Remove all stopped candidates from scheduled set to allow rescheduling
+      setCallStatuses((prev) => {
+        const updated = new Map(prev);
+        const stoppedCandidateIds = [];
+        updated.forEach((status, candidateId) => {
+          if (
+            status.status === "stopped" ||
+            status.status === "cancelled" ||
+            status.status === "completed"
+          ) {
+            stoppedCandidateIds.push(candidateId);
+          }
+        });
+
+        // Remove stopped candidates from scheduled set
+        if (stoppedCandidateIds.length > 0) {
+          setScheduledCandidateIds((prevSet) => {
+            const updatedSet = new Set(prevSet);
+            stoppedCandidateIds.forEach((id) => updatedSet.delete(id));
+            return updatedSet;
+          });
+        }
+
+        return updated;
+      });
+
       setStopAllDialogOpen(false);
     } catch (err) {
       console.error("Error stopping calls:", err);
@@ -894,6 +923,16 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
         return updated;
       });
 
+      // Remove from scheduled candidates set to allow rescheduling
+      setScheduledCandidateIds((prev) => {
+        const updated = new Set(prev);
+        const candidateIdStr = candidateId?.toString();
+        if (candidateIdStr) {
+          updated.delete(candidateIdStr);
+        }
+        return updated;
+      });
+
       // Refresh call statuses and call details if dialog is open
       if (selectedJob?._id) {
         await fetchCallStatuses(selectedJob._id);
@@ -916,6 +955,94 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
       });
     } finally {
       setStoppingCallId(null);
+    }
+  };
+
+  // Schedule a single call for a candidate
+  const handleScheduleSingleCall = async (candidate) => {
+    if (!selectedJob || !candidate) return;
+
+    // Check authorization
+    if (!isAuthorizedForJob(selectedJob)) {
+      setNotification({
+        variant: "error",
+        title: "Not Authorized",
+        message:
+          "You are not authorized to schedule calls for this job posting.",
+        dismissible: true,
+      });
+      return;
+    }
+
+    // Check if candidate has phone number
+    if (!candidate.phone_no) {
+      setNotification({
+        variant: "error",
+        title: "No Phone Number",
+        message: "This candidate does not have a phone number.",
+        dismissible: true,
+      });
+      return;
+    }
+
+    const candidateId = candidate._id?.toString();
+    if (!candidateId) return;
+
+    try {
+      setCallingCandidateId(candidateId);
+
+      // Calculate scheduled time (5 minutes from now)
+      const scheduledTime = new Date();
+      scheduledTime.setMinutes(scheduledTime.getMinutes() + 5);
+
+      // Prepare user_data
+      const userData = {
+        bio: candidate.bio || "",
+        role: candidate.role?.join(", ") || "",
+        experience: candidate.experience ? `${candidate.experience} years` : "",
+      };
+
+      // Schedule the call
+      const callData = {
+        candidateId,
+        jobId: selectedJob._id,
+        recipient_phone_number: candidate.phone_no,
+        scheduled_at: scheduledTime.toISOString(),
+        user_data: userData,
+      };
+
+      const response = await bolnaAPI.scheduleCall(callData);
+
+      // Update scheduled candidates set
+      setScheduledCandidateIds((prev) => {
+        const updated = new Set(prev);
+        updated.add(candidateId);
+        return updated;
+      });
+
+      // Refresh call statuses
+      if (selectedJob._id) {
+        await fetchCallStatuses(selectedJob._id);
+      }
+
+      setNotification({
+        variant: "success",
+        title: "Call Scheduled",
+        message: `Call scheduled successfully for ${
+          candidate.name || "candidate"
+        }.`,
+        dismissible: true,
+      });
+    } catch (err) {
+      console.error("Error scheduling call:", err);
+      setNotification({
+        variant: "error",
+        title: "Failed to Schedule Call",
+        message: err.message || "Failed to schedule call. Please try again.",
+        dismissible: true,
+      });
+    } finally {
+      setCallingCandidateId(null);
     }
   };
 
@@ -1575,6 +1702,9 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                               <TableHead className="text-slate-900 font-semibold">
                                 Status
                               </TableHead>
+                              <TableHead className="text-center text-slate-900 font-semibold">
+                                Call
+                              </TableHead>
                               <TableHead className="text-right text-slate-900 font-semibold">
                                 Actions
                               </TableHead>
@@ -1589,15 +1719,27 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                 (match.matchScore || 0) * 100
                               );
 
+                              const candidateIdStr = candidate._id?.toString();
                               const isScheduled = scheduledCandidateIds.has(
-                                candidate._id?.toString() || ""
+                                candidateIdStr || ""
                               );
+                              const callStatus = candidateIdStr
+                                ? callStatuses.get(candidateIdStr)
+                                : null;
+
+                              // Check if call is actually active (not stopped/cancelled/completed)
+                              const isCallActive =
+                                callStatus &&
+                                callStatus.status !== "stopped" &&
+                                callStatus.status !== "cancelled" &&
+                                callStatus.status !== "completed" &&
+                                callStatus.status !== "failed";
 
                               return (
                                 <TableRow
                                   key={candidate._id || index}
                                   className={`transition-all duration-200 border-b border-slate-200 ${
-                                    isScheduled
+                                    isScheduled && isCallActive
                                       ? "bg-green-50"
                                       : "bg-white hover:bg-slate-50/80"
                                   } hover:shadow-sm cursor-pointer`}
@@ -1728,6 +1870,48 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                         );
                                       }
                                     })()}
+                                  </TableCell>
+                                  <TableCell className="text-center text-slate-900">
+                                    {isAuthorizedForJob(selectedJob) ? (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          handleScheduleSingleCall(candidate)
+                                        }
+                                        disabled={
+                                          callingCandidateId ===
+                                            candidate._id?.toString() ||
+                                          !candidate.phone_no ||
+                                          isCallActive
+                                        }
+                                        className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={
+                                          !candidate.phone_no
+                                            ? "No phone number available"
+                                            : isCallActive
+                                            ? "Call already scheduled"
+                                            : callStatus?.status ===
+                                                "stopped" ||
+                                              callStatus?.status ===
+                                                "cancelled" ||
+                                              callStatus?.status === "completed"
+                                            ? "Schedule a new call for this candidate"
+                                            : "Schedule a call for this candidate"
+                                        }
+                                      >
+                                        {callingCandidateId ===
+                                        candidate._id?.toString() ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <PhoneCall className="h-4 w-4" />
+                                        )}
+                                      </Button>
+                                    ) : (
+                                      <span className="text-sm text-slate-400">
+                                        N/A
+                                      </span>
+                                    )}
                                   </TableCell>
                                   <TableCell className="text-right text-slate-900">
                                     <div className="flex items-center justify-end gap-2">

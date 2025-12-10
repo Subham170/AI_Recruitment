@@ -1,5 +1,6 @@
 // API configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL =
+  "http://localhost:5000/api" || process.env.NEXT_PUBLIC_API_URL;
 
 // Helper function to make API requests
 export const apiRequest = async (endpoint, options = {}) => {
@@ -221,28 +222,35 @@ export const resumeParserAPI = {
   },
 
   parseFromFile: async (file, filename, saveToDatabase = false) => {
-    // Convert file to base64
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const base64 = reader.result.split(",")[1]; // Remove data:application/pdf;base64, prefix
-          const response = await apiRequest("/resume-parser/upload", {
-            method: "POST",
-            body: {
-              file: base64,
-              filename: filename || file.name,
-              saveToDatabase,
-            },
-          });
-          resolve(response);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    const url = `${API_BASE_URL}/resume-parser/upload`;
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("saveToDatabase", saveToDatabase.toString());
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          // Don't set Content-Type header - browser will set it automatically with boundary
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "An error occurred");
+      }
+
+      return data;
+    } catch (error) {
+      throw error;
+    }
   },
 };
 

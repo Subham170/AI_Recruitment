@@ -244,8 +244,8 @@ export default function RecruiterAvailability({ jobId, user }) {
     return (
       <div className="py-12 flex items-center justify-center">
         <div className="text-center">
-          <Clock className="h-8 w-8 mx-auto mb-3 animate-spin text-cyan-600 dark:text-cyan-400" />
-          <p className="text-slate-600 dark:text-slate-400 font-medium">Loading availability...</p>
+          <Clock className="h-8 w-8 mx-auto mb-3 animate-spin text-cyan-600" />
+          <p className="text-slate-600 font-medium">Loading availability...</p>
         </div>
       </div>
     );
@@ -260,10 +260,10 @@ export default function RecruiterAvailability({ jobId, user }) {
             size="sm"
             onClick={handleDeleteAvailability}
             disabled={saving}
-            className="group border-red-200 dark:border-red-800/50 bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 hover:bg-gradient-to-r hover:from-red-50 hover:to-rose-50 dark:hover:from-red-950/30 dark:hover:to-rose-950/30 hover:border-red-300 dark:hover:border-red-700 hover:text-red-700 dark:hover:text-red-300 hover:shadow-md hover:shadow-red-500/10 transition-all duration-300"
+            className="group border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all duration-300"
           >
-            <div className="p-0.5 rounded bg-red-100/50 dark:bg-red-900/30 group-hover:bg-red-200/70 dark:group-hover:bg-red-800/50 transition-colors mr-2">
-              <Trash2 className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+            <div className="p-0.5 rounded bg-red-100/50 group-hover:bg-red-200/70 transition-colors mr-2">
+              <Trash2 className="h-3.5 w-3.5 text-red-600" />
             </div>
             <span className="font-medium">Clear All</span>
           </Button>
@@ -271,15 +271,15 @@ export default function RecruiterAvailability({ jobId, user }) {
       )}
 
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/50">
-          <p className="text-sm text-red-800 dark:text-red-200 font-medium">{error}</p>
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200">
+          <p className="text-sm text-red-800 font-medium">{error}</p>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Calendar */}
-        <div className="p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-gradient-to-br from-slate-50/50 to-slate-100/30 dark:from-slate-800/50 dark:to-slate-900/30 backdrop-blur-sm">
-          <Label className="mb-4 block text-slate-700 dark:text-slate-300 font-semibold">
+        <div className="p-5 rounded-xl border border-slate-200 bg-white">
+          <Label className="mb-4 block text-slate-700 font-semibold">
             Select Date
           </Label>
           <Calendar
@@ -291,9 +291,9 @@ export default function RecruiterAvailability({ jobId, user }) {
               hasSlots: getDatesWithSlots(),
             }}
             modifiersClassNames={{
-              hasSlots: "bg-gradient-to-r from-cyan-100 to-blue-100 dark:from-cyan-900/40 dark:to-blue-900/40 rounded-md font-semibold",
+              hasSlots: "bg-cyan-100 rounded-md font-semibold",
             }}
-            className="rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+            className="rounded-xl border-slate-200 bg-white"
           />
         </div>
 
@@ -301,8 +301,8 @@ export default function RecruiterAvailability({ jobId, user }) {
           <div className="space-y-4">
             {selectedDate ? (
               <>
-                <div className="p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/30 backdrop-blur-sm">
-                  <Label className="mb-4 block text-slate-700 dark:text-slate-300 font-semibold">
+                <div className="p-5 rounded-xl border border-slate-200 bg-white">
+                  <Label className="mb-4 block text-slate-700 font-semibold">
                     Time Slots for {format(selectedDate, "MMMM d, yyyy")}
                   </Label>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
@@ -313,14 +313,14 @@ export default function RecruiterAvailability({ jobId, user }) {
                           className={cn(
                             "flex items-center gap-3 p-3 rounded-lg border transition-all duration-200",
                             slot.is_available
-                              ? "bg-gradient-to-r from-cyan-50/50 to-blue-50/50 dark:from-cyan-950/30 dark:to-blue-950/30 border-cyan-200/50 dark:border-cyan-800/50 hover:shadow-md hover:shadow-cyan-500/10"
-                              : "bg-slate-100 dark:bg-slate-800/50 border-slate-300 dark:border-slate-700 opacity-60"
+                              ? "bg-cyan-50 border-cyan-200 hover:shadow-md hover:shadow-cyan-500/10"
+                              : "bg-slate-100 border-slate-300 opacity-60"
                           )}
                         >
-                          <div className="p-1.5 rounded bg-cyan-100/50 dark:bg-cyan-900/30">
-                            <Clock className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                          <div className="p-1.5 rounded bg-cyan-100">
+                            <Clock className="h-4 w-4 text-cyan-600" />
                           </div>
-                          <span className="flex-1 text-sm font-medium text-slate-900 dark:text-slate-100">
+                          <span className="flex-1 text-sm font-medium text-slate-900">
                             {slot.start_time} - {slot.end_time}
                           </span>
                           <Button
@@ -335,8 +335,8 @@ export default function RecruiterAvailability({ jobId, user }) {
                             className={cn(
                               "text-xs font-medium",
                               slot.is_available
-                                ? "text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/20"
-                                : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                ? "text-green-600 hover:bg-green-50"
+                                : "text-slate-500 hover:bg-slate-100"
                             )}
                           >
                             {slot.is_available ? "Available" : "Unavailable"}
@@ -350,7 +350,7 @@ export default function RecruiterAvailability({ jobId, user }) {
                                 index
                               )
                             }
-                            className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-700 dark:hover:text-red-300"
+                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
                           >
                             <X className="h-4 w-4" />
                           </Button>
@@ -358,8 +358,8 @@ export default function RecruiterAvailability({ jobId, user }) {
                       )
                     ) || (
                       <div className="text-center py-8">
-                        <Clock className="h-12 w-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                        <Clock className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                        <p className="text-sm text-slate-500">
                           No time slots added for this date
                         </p>
                       </div>
@@ -367,8 +367,8 @@ export default function RecruiterAvailability({ jobId, user }) {
                   </div>
                 </div>
 
-                <div className="space-y-3 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/30 backdrop-blur-sm">
-                  <Label className="text-slate-700 dark:text-slate-300 font-semibold">
+                <div className="space-y-3 p-5 rounded-xl border border-slate-200 bg-white">
+                  <Label className="text-slate-700 font-semibold">
                     Add New Time Slot
                   </Label>
                   <div className="flex gap-2">
@@ -379,7 +379,7 @@ export default function RecruiterAvailability({ jobId, user }) {
                       onChange={(e) =>
                         setNewSlot({ ...newSlot, start_time: e.target.value })
                       }
-                      className="flex-1 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                      className="flex-1 bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
                     />
                     <Input
                       type="time"
@@ -388,7 +388,7 @@ export default function RecruiterAvailability({ jobId, user }) {
                       onChange={(e) =>
                         setNewSlot({ ...newSlot, end_time: e.target.value })
                       }
-                      className="flex-1 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                      className="flex-1 bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
                     />
                     <Button
                       onClick={handleAddTimeSlot}
@@ -402,10 +402,10 @@ export default function RecruiterAvailability({ jobId, user }) {
                 </div>
               </>
             ) : (
-              <div className="flex items-center justify-center h-full min-h-[200px] p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-gradient-to-br from-slate-50/50 to-slate-100/30 dark:from-slate-800/50 dark:to-slate-900/30 backdrop-blur-sm">
+              <div className="flex items-center justify-center h-full min-h-[200px] p-5 rounded-xl border border-slate-200 bg-white">
                 <div className="text-center">
-                  <CalendarIcon className="h-12 w-12 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
-                  <p className="text-slate-600 dark:text-slate-400 font-medium">
+                  <CalendarIcon className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                  <p className="text-slate-600 font-medium">
                     Select a date from the calendar to add time slots
                   </p>
                 </div>
@@ -414,7 +414,7 @@ export default function RecruiterAvailability({ jobId, user }) {
           </div>
         </div>
 
-        <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+        <div className="flex gap-3 pt-4 border-t border-slate-200">
           <Button
             onClick={handleSaveAvailability}
             disabled={saving || Object.keys(timeSlots).length === 0}
@@ -437,7 +437,7 @@ export default function RecruiterAvailability({ jobId, user }) {
                 setNewSlot({ start_time: "", end_time: "" });
                 setError(null);
               }}
-              className="border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="border-slate-200 hover:bg-slate-50"
             >
               Cancel
             </Button>
@@ -445,18 +445,18 @@ export default function RecruiterAvailability({ jobId, user }) {
         </div>
 
         {availability && (
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between p-4 rounded-lg bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/30 border border-slate-200/50 dark:border-slate-700/50">
+          <div className="pt-4 border-t border-slate-200">
+            <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-200">
               <div>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                <p className="text-sm font-medium text-slate-700 mb-1">
                   Last updated:{" "}
-                  <span className="text-slate-900 dark:text-slate-100">
+                  <span className="text-slate-900">
                     {format(new Date(availability.updatedAt), "PPp")}
                   </span>
                 </p>
-                <p className="text-xs text-slate-600 dark:text-slate-400">
+                <p className="text-xs text-slate-600">
                   Total slots:{" "}
-                  <span className="font-semibold text-cyan-600 dark:text-cyan-400">
+                  <span className="font-semibold text-cyan-600">
                     {Object.values(timeSlots).reduce(
                       (sum, slots) => sum + slots.length,
                       0
