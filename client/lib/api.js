@@ -1,6 +1,5 @@
 // API configuration
-const API_BASE_URL =
-  "http://localhost:5000/api" || process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL =  process.env.NEXT_PUBLIC_API_URL;
 
 // Helper function to make API requests
 export const apiRequest = async (endpoint, options = {}) => {
