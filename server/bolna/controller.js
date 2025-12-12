@@ -3,6 +3,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { ChatOpenAI } from "@langchain/openai";
 import BolnaCall from "./model.js";
 import RecruiterAvailability from "../recruiter_availability/model.js";
+import { getCurrentDateTimeForLLM, convert24To12Hour } from "../utils/timeFormatter.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -55,10 +56,38 @@ async function formatRecruiterAvailabilityWithLLM(availabilities) {
       const recruiterType = availability.recruiter_type === "primary" ? "Primary" : "Secondary";
       
       if (availability.availability_slots && availability.availability_slots.length > 0) {
-        // Filter only available slots
-        const availableSlots = availability.availability_slots.filter(
-          (slot) => slot.is_available !== false
-        );
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const currentTime = now.getHours() * 60 + now.getMinutes(); // Current time in minutes
+        
+        // Filter only available slots that are not expired
+        const availableSlots = availability.availability_slots.filter((slot) => {
+          // First check if slot is marked as available
+          if (slot.is_available === false) {
+            return false;
+          }
+          
+          const slotDate = new Date(slot.date);
+          const slotDateOnly = new Date(slotDate.getFullYear(), slotDate.getMonth(), slotDate.getDate());
+          
+          // Filter out past dates
+          if (slotDateOnly < today) {
+            return false;
+          }
+          
+          // For today's date, filter out time slots that have already passed
+          if (slotDateOnly.getTime() === today.getTime()) {
+            const [slotStartHour, slotStartMin] = slot.start_time.split(':').map(Number);
+            const slotStartTime = slotStartHour * 60 + slotStartMin;
+            
+            // If the start time has already passed today, exclude this slot
+            if (slotStartTime < currentTime) {
+              return false;
+            }
+          }
+          
+          return true;
+        });
         
         if (availableSlots.length > 0) {
           // Group slots by date
@@ -79,9 +108,12 @@ async function formatRecruiterAvailabilityWithLLM(availabilities) {
                 slots: [],
               };
             }
+            // Convert times to AM/PM format for better LLM understanding
             slotsByDate[dateStr].slots.push({
-              start: slot.start_time,
-              end: slot.end_time,
+              start: convert24To12Hour(slot.start_time),
+              end: convert24To12Hour(slot.end_time),
+              start24: slot.start_time, // Keep 24-hour for internal use
+              end24: slot.end_time,
             });
           });
           
@@ -92,7 +124,7 @@ async function formatRecruiterAvailabilityWithLLM(availabilities) {
               date: slotsByDate[dateStr].display,
               timeSlots: slotsByDate[dateStr].slots.map(
                 (slot) => `${slot.start} to ${slot.end}`
-              ),
+              ), // Times are already in AM/PM format
             })),
           });
         }
@@ -108,18 +140,22 @@ async function formatRecruiterAvailabilityWithLLM(availabilities) {
       {
         role: "system",
         content:
-          "You are a helpful assistant that formats recruiter availability information into a clear, natural, and professional paragraph. The paragraph should be concise, easy to understand, and suitable for use in a phone conversation context.",
+          "You are a helpful assistant that formats recruiter availability information into a clear, natural, and professional paragraph. The paragraph should be concise, easy to understand, and suitable for use in a phone conversation context. Always use AM/PM format when mentioning times (e.g., '2:30 PM', '10:00 AM'). IMPORTANT: Only include future dates and times that are still available. Do not mention any past dates or expired time slots.",
       },
       {
         role: "user",
         content:
-          'Format the following recruiter availability information into a single, natural paragraph. Make it sound professional and conversational, suitable for an AI agent to read to a candidate during a phone call.\n\nRecruiter Availability Data:\n{availabilityData}\n\nReturn only the formatted paragraph, nothing else. Do not include any prefixes, labels, or additional text.',
+          'Format the following recruiter availability information into a single, natural paragraph. Make it sound professional and conversational, suitable for an AI agent to read to a candidate during a phone call. Use AM/PM format for all times (e.g., "2:30 PM", "10:00 AM").\n\nIMPORTANT: Only include future dates and available time slots. Do not mention any past dates or times that have already passed.\n\nCurrent date and time: {currentDateTime}\n\nRecruiter Availability Data:\n{availabilityData}\n\nReturn only the formatted paragraph, nothing else. Do not include any prefixes, labels, or additional text.',
       },
     ]);
+
+    // Get current date and time for LLM context
+    const currentDateTime = getCurrentDateTimeForLLM("Asia/Kolkata");
 
     const chain = prompt.pipe(llmClient).pipe(new StringOutputParser());
     const formattedText = await chain.invoke({
       availabilityData: JSON.stringify(availabilityData, null, 2),
+      currentDateTime: currentDateTime,
     });
 
     console.log("formattedText---->", formattedText);
@@ -283,21 +319,25 @@ async function extractUserScheduledAt(transcript) {
     {
       role: "system",
       content:
-        "You extract follow-up scheduling times from transcripts and respond only with valid JSON. IMPORTANT: If the transcript mentions a date without a year, use the current year ({currentYear}). If the date mentioned is in the past relative to today ({currentDateISO}), assume it refers to the next occurrence of that date in the current year or future.",
+        "You extract follow-up scheduling times from transcripts and respond only with valid JSON. IMPORTANT: If the transcript mentions a date without a year, use the current year ({currentYear}). If the date mentioned is in the past relative to today ({currentDateFormatted}), assume it refers to the next occurrence of that date in the current year or future. Pay attention to time references with AM/PM format (e.g., '2:30 PM', '10:00 AM') and convert them correctly.",
     },
     {
       role: "user",
       content:
-        'Transcript:\n"""\n{transcript}\n"""\n\nCurrent date: {currentDateISO}\nCurrent year: {currentYear}\n\nExtract the user-scheduled time from the transcript. If a date is mentioned without a year, use {currentYear}. If the date appears to be in the past, use the next occurrence of that date.\n\nReturn JSON with field user_scheduled_time (ISO 8601 format, e.g., "2024-12-08T10:00:00") or null if not present.',
+        'Transcript:\n"""\n{transcript}\n"""\n\nCurrent date and time: {currentDateFormatted}\nCurrent date (ISO): {currentDateISO}\nCurrent year: {currentYear}\n\nExtract the user-scheduled time from the transcript. Look for time references in natural language (e.g., "2:30 PM", "10:00 AM", "tomorrow at 3 PM", "December 15th at 2:30 PM"). If a date is mentioned without a year, use {currentYear}. If the date appears to be in the past, use the next occurrence of that date.\n\nReturn JSON with field user_scheduled_time (ISO 8601 format, e.g., "2024-12-08T14:30:00" for 2:30 PM) or null if not present.',
     },
   ]);
 
   const chain = prompt.pipe(llmClient).pipe(new StringOutputParser());
 
+  // Format current date with AM/PM for better LLM understanding
+  const currentDateFormatted = getCurrentDateTimeForLLM("Asia/Kolkata");
+
   let content = await chain.invoke({ 
     transcript,
     currentYear: currentYear,
     currentDateISO: currentDate.toISOString(),
+    currentDateFormatted: currentDateFormatted,
   });
 
   if (!content) return null;

@@ -1,5 +1,9 @@
 import axios from "axios";
 import nodemailer from "nodemailer";
+import {
+  formatFullDateTimeWithAMPM,
+  formatDateTimeWithAMPM,
+} from "../utils/timeFormatter.js";
 
 // Email configuration from environment variables
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
@@ -8,9 +12,12 @@ const SMTP_USER = process.env.SMTP_USER || process.env.SENDER_EMAIL;
 const SMTP_PASS = process.env.SMTP_PASS || process.env.SMTP_PASSWORD;
 
 // Cal.com API configuration
-const CAL_SECRET_KEY = process.env.CAL_SECRET_KEY;
-const CAL_API_VERSION = process.env.CAL_API_VERSION;
-const EVENT_TYPE_ID = process.env.CAL_EVENT_TYPE_ID || 4025819;
+const CAL_SECRET_KEY = process.env.CAL_SECRET_KEY || "cal_live_84badd816a1975088ad5af350287c21c";
+const CAL_API_VERSION = process.env.CAL_API_VERSION || "2024-08-13";
+// Convert EVENT_TYPE_ID to integer (Cal.com API requires integer, not string)
+const EVENT_TYPE_ID = process.env.CAL_EVENT_ID 
+  ? parseInt(process.env.CAL_EVENT_ID, 10) 
+  : 4025819;
 
 // Create reusable transporter
 const transporter = nodemailer.createTransport({
@@ -28,12 +35,16 @@ const transporter = nodemailer.createTransport({
  * @param {Date|string} scheduledTime - The scheduled time for the meeting
  * @param {string} candidateName - Candidate name for the booking
  * @param {string} candidateEmail - Candidate email for the booking
+ * @param {string} recruiterName - Recruiter name (optional)
+ * @param {string} recruiterEmail - Recruiter email (optional)
  * @returns {Promise<string>} - Google Meet link
  */
 async function generateGoogleMeetLink(
   scheduledTime,
   candidateName,
-  candidateEmail
+  candidateEmail,
+  recruiterName = null,
+  recruiterEmail = null
 ) {
   try {
     // Validate environment variables
@@ -68,16 +79,19 @@ async function generateGoogleMeetLink(
 
     if (scheduledDate < minFutureTime) {
       console.warn(
-        `⚠️ Scheduled time ${scheduledDate.toISOString()} is too soon or in the past. ` +
+        `⚠️ Scheduled time ${formatDateTimeWithAMPM(scheduledDate)} is too soon or in the past. ` +
           `Cal.com requires bookings to be at least 5 minutes in the future. ` +
-          `Adjusting to ${minFutureTime.toISOString()}`
+          `Adjusting to ${formatDateTimeWithAMPM(minFutureTime)}`
       );
       scheduledDate = minFutureTime;
     }
 
     console.log("Fetching available slots for event type:", EVENT_TYPE_ID);
-    console.log("Requested time:", scheduledDate.toISOString());
+    console.log("Requested time:", formatDateTimeWithAMPM(scheduledDate, { includeWeekday: true }));
     console.log("Candidate:", candidateName, candidateEmail);
+    if (recruiterName && recruiterEmail) {
+      console.log("Recruiter:", recruiterName, recruiterEmail);
+    }
 
     // Step 1: Fetch available slots (Cal.com requires this)
     const slotsStartTime = now.toISOString();
@@ -91,7 +105,7 @@ async function generateGoogleMeetLink(
         params: {
           startTime: slotsStartTime,
           endTime: slotsEndTime,
-          eventTypeId: EVENT_TYPE_ID,
+          eventTypeId: parseInt(EVENT_TYPE_ID, 10), // Ensure it's an integer
         },
         headers: {
           Authorization: `Bearer ${CAL_SECRET_KEY}`,
@@ -144,8 +158,11 @@ async function generateGoogleMeetLink(
     console.log(`✓ Selected slot: ${selectedSlot}`);
 
     // Step 2: Create booking with the selected slot
+    // Cal.com v2 API - primary attendee is the candidate
+    // The Cal.com account owner (event organizer) will automatically receive notifications
+    // Recruiter will be added via email CC or can be configured in Cal.com settings
     const requestBody = {
-      eventTypeId: EVENT_TYPE_ID,
+      eventTypeId: parseInt(EVENT_TYPE_ID, 10), // Cal.com API requires integer, not string
       start: selectedSlot,
       location: "integrations:google_meet",
       attendee: {
@@ -154,6 +171,13 @@ async function generateGoogleMeetLink(
         timeZone: "Asia/Kolkata",
         language: "en",
       },
+      // Add recruiter info in metadata so it's tracked
+      ...(recruiterName && recruiterEmail && {
+        metadata: {
+          recruiterName: recruiterName,
+          recruiterEmail: recruiterEmail,
+        },
+      }),
     };
 
     // Create booking via Cal.com API
@@ -295,22 +319,12 @@ async function generateGoogleMeetLink(
 }
 
 /**
- * Format date for email display
+ * Format date for email display with AM/PM
  * @param {Date} date - Date to format
- * @returns {string} - Formatted date string
+ * @returns {string} - Formatted date string with AM/PM
  */
 function formatDateForEmail(date) {
-  if (!date) return "TBD";
-
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZoneName: "short",
-  }).format(new Date(date));
+  return formatFullDateTimeWithAMPM(date, "Asia/Kolkata");
 }
 
 /**
@@ -318,12 +332,20 @@ function formatDateForEmail(date) {
  * @param {string} candidateEmail - Recipient email address
  * @param {string} senderEmail - Sender email address (default: admin@gmail.com)
  * @param {Date} userScheduledAt - Scheduled meeting time
+ * @param {string} recruiterName - Recruiter name (optional)
+ * @param {string} recruiterEmail - Recruiter email (optional)
+ * @param {boolean} meetLinkAlreadyGenerated - Whether meet link was already generated
+ * @param {string} existingMeetLink - Existing meet link if already generated
  * @returns {Promise<Object>} - Email send result
  */
 export async function sendEmail(
   candidateEmail,
   senderEmail = "subhamdey1114@gmail.com",
-  userScheduledAt
+  userScheduledAt,
+  recruiterName = null,
+  recruiterEmail = null,
+  meetLinkAlreadyGenerated = false,
+  existingMeetLink = null
 ) {
   try {
     if (!candidateEmail) {
@@ -338,18 +360,28 @@ export async function sendEmail(
     }
 
     // Generate Google Meet link with error handling
-    let meetLink;
+    // Only generate if not already generated
+    let meetLink = existingMeetLink;
     let meetLinkError = null;
-    try {
-      meetLink = await generateGoogleMeetLink(
-        userScheduledAt,
-        "Candidate",
-        candidateEmail
-      );
-    } catch (error) {
-      console.error("Failed to generate Google Meet link:", error.message);
-      meetLinkError = error.message;
-      meetLink = null; // Set to null so we can handle it in the email template
+    
+    if (!meetLinkAlreadyGenerated || !meetLink) {
+      try {
+        console.log("🔄 Generating new meet link...");
+        meetLink = await generateGoogleMeetLink(
+          userScheduledAt,
+          "Candidate",
+          candidateEmail,
+          recruiterName,
+          recruiterEmail
+        );
+        console.log("✓ Meet link generated successfully:", meetLink);
+      } catch (error) {
+        console.error("Failed to generate Google Meet link:", error.message);
+        meetLinkError = error.message;
+        meetLink = null; // Set to null so we can handle it in the email template
+      }
+    } else {
+      console.log("✓ Using existing meet link (already generated):", meetLink);
     }
 
     const formattedDate = formatDateForEmail(userScheduledAt);
@@ -359,9 +391,15 @@ export async function sendEmail(
     const meetingLinkHref = meetLink || "#";
     const showLinkError = meetLinkError ? ` (Error: ${meetLinkError})` : "";
 
+    // Build recipient list - include recruiter if provided
+    const recipients = [candidateEmail];
+    if (recruiterEmail) {
+      recipients.push(recruiterEmail);
+    }
+
     const mailOptions = {
       from: `"AI Recruitment Team" <${senderEmail}>`,
-      to: candidateEmail,
+      to: recipients.join(", "), // Send to both candidate and recruiter
       subject: "Interview Scheduled - Google Meet Link",
       html: `
         <!DOCTYPE html>
@@ -456,6 +494,17 @@ export async function sendEmail(
               `
               }
               
+              ${
+                recruiterName
+                  ? `
+              <div class="info-box">
+                <strong>👤 Interviewer:</strong><br>
+                ${recruiterName}${recruiterEmail ? ` (${recruiterEmail})` : ""}
+              </div>
+              `
+                  : ""
+              }
+              
               <p>Please ensure you are available at the scheduled time. If you need to reschedule, please contact us as soon as possible.</p>
               
               <p>Best regards,<br>
@@ -496,14 +545,15 @@ export async function sendEmail(
     const info = await transporter.sendMail(mailOptions);
 
     console.log(
-      `Email sent successfully to ${candidateEmail}:`,
+      `Email sent successfully to ${recipients.join(", ")}:`,
       info.messageId
     );
 
     return {
       success: true,
       messageId: info.messageId,
-      recipient: candidateEmail,
+      recipients: recipients,
+      meetLink: meetLink, // Return the meet link so it can be saved
     };
   } catch (error) {
     console.error("Error sending email:", error);

@@ -8,6 +8,7 @@ import dashboardRoutes from "./dashboard/route.js";
 import jobPostingRoutes from "./job_posting/route.js";
 import matchingRoutes from "./matching/route.js";
 import recruiterAvailabilityRoutes from "./recruiter_availability/route.js";
+import recruiterTasksRoutes from "./recruiter_tasks/route.js";
 import resumeParserRoutes from "./resume_parser/route.js";
 import userRoutes from "./user/route.js";
 
@@ -67,6 +68,9 @@ app.use("/api/bolna", bolnaRoutes);
 
 // Recruiter availability routes
 app.use("/api/recruiter-availability", recruiterAvailabilityRoutes);
+
+// Recruiter tasks routes
+app.use("/api/recruiter-tasks", recruiterTasksRoutes);
 
 // Dashboard routes
 app.use("/api/dashboard", dashboardRoutes);

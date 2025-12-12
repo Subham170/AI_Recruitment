@@ -2,7 +2,10 @@ import cron from "node-cron";
 import { syncBolnaCall } from "../bolna/controller.js";
 import BolnaCall from "../bolna/model.js";
 import Candidate from "../candidates/model.js";
+import RecruiterAvailability from "../recruiter_availability/model.js";
+import RecruiterTask from "../recruiter_tasks/model.js";
 import { sendEmail, verifyEmailConfig } from "./emailService.js";
+import { formatDateTimeWithAMPM, convert24To12Hour } from "../utils/timeFormatter.js";
 
 const SENDER_EMAIL = process.env.SENDER_EMAIL || "admin@gmail.com";
 const CRON_INTERVAL = process.env.EMAIL_CRON_INTERVAL || "*/1 * * * *"; // Every minute by default
@@ -15,6 +18,142 @@ const MAX_RETRY_ATTEMPTS = parseInt(
   10
 );
 // Note: PROCESSING_LOCK_TIMEOUT removed - using fresh DB check instead
+
+/**
+ * Get all available recruiters (primary and secondary) for a job at a specific time
+ * @param {string} jobId - Job ID
+ * @param {Date|string} userScheduleAt - Scheduled time to check availability for
+ * @returns {Promise<Array>} - Array of recruiter IDs who are available at the specified time
+ */
+async function getAvailableRecruitersForJob(jobId, userScheduleAt) {
+  try {
+    // Convert userScheduleAt to Date if it's a string
+    const scheduleDate = userScheduleAt instanceof Date 
+      ? userScheduleAt 
+      : new Date(userScheduleAt);
+
+    if (isNaN(scheduleDate.getTime())) {
+      console.error(`Invalid userScheduleAt date: ${userScheduleAt}`);
+      return [];
+    }
+
+    // Extract date and time components
+    const scheduleDateStr = scheduleDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const scheduleTime = scheduleDate.toTimeString().slice(0, 5); // HH:MM
+    const scheduleTimeMinutes = scheduleTime.split(':').reduce((h, m) => h * 60 + parseInt(m), 0);
+
+    // Fetch all availabilities for this job
+    const availabilities = await RecruiterAvailability.find({
+      job_id: jobId,
+    }).select("recruiter_id availability_slots");
+
+    if (!availabilities || availabilities.length === 0) {
+      return [];
+    }
+
+    // Filter recruiters who have availability at the scheduled time
+    const availableRecruiterIds = [];
+
+    for (const availability of availabilities) {
+      if (!availability.availability_slots || availability.availability_slots.length === 0) {
+        continue;
+      }
+
+      // Check if any slot matches the scheduled date and time
+      const hasMatchingSlot = availability.availability_slots.some((slot) => {
+        // Check if slot is available
+        if (slot.is_available === false) {
+          return false;
+        }
+
+        // Check if date matches (compare date strings to ignore time component)
+        const slotDateStr = new Date(slot.date).toISOString().split('T')[0];
+        if (slotDateStr !== scheduleDateStr) {
+          return false;
+        }
+
+        // Check if scheduled time falls within the slot's time range
+        const slotStartMinutes = slot.start_time.split(':').reduce((h, m) => h * 60 + parseInt(m), 0);
+        const slotEndMinutes = slot.end_time.split(':').reduce((h, m) => h * 60 + parseInt(m), 0);
+
+        // Time should be >= start_time and < end_time
+        if (scheduleTimeMinutes >= slotStartMinutes && scheduleTimeMinutes < slotEndMinutes) {
+          return true;
+        }
+
+        return false;
+      });
+
+      if (hasMatchingSlot) {
+        availableRecruiterIds.push(availability.recruiter_id);
+      }
+    }
+
+    return availableRecruiterIds;
+  } catch (error) {
+    console.error(`Error fetching recruiters for job ${jobId}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Assign a recruiter using round robin algorithm
+ * @param {string} jobId - Job ID
+ * @param {Date|string} userScheduleAt - Scheduled time to check availability for
+ * @returns {Promise<string|null>} - Assigned recruiter ID or null if no recruiters available
+ */
+async function assignRecruiterRoundRobin(jobId, userScheduleAt) {
+  try {
+    // Get all available recruiters for this job at the scheduled time
+    const availableRecruiters = await getAvailableRecruitersForJob(jobId, userScheduleAt);
+
+    if (availableRecruiters.length === 0) {
+      console.warn(`No recruiters available for job ${jobId}`);
+      return null;
+    }
+
+    // Count existing assignments for each recruiter for this job
+    const assignmentCounts = await BolnaCall.aggregate([
+      {
+        $match: {
+          jobId: jobId,
+          assignRecruiter: { $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: "$assignRecruiter",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Create a map of recruiter ID to assignment count
+    const countMap = new Map();
+    assignmentCounts.forEach((item) => {
+      countMap.set(item._id.toString(), item.count);
+    });
+
+    // Find recruiter with minimum assignments (round robin)
+    let selectedRecruiter = null;
+    let minCount = Infinity;
+
+    for (const recruiterId of availableRecruiters) {
+      const recruiterIdStr = recruiterId.toString();
+      const count = countMap.get(recruiterIdStr) || 0;
+
+      if (count < minCount) {
+        minCount = count;
+        selectedRecruiter = recruiterId;
+      }
+    }
+
+    return selectedRecruiter;
+  } catch (error) {
+    console.error(`Error assigning recruiter for job ${jobId}:`, error);
+    return null;
+  }
+}
 
 /**
  * Process a single call and send email
@@ -57,6 +196,22 @@ async function processSingleCall(call) {
       return { success: false, error: "Candidate email missing" };
     }
 
+    // Fetch recruiter info if assigned
+    let recruiterName = null;
+    let recruiterEmail = null;
+    const freshCallForRecruiter = await BolnaCall.findById(callId)
+      .populate("assignRecruiter", "name email")
+      .lean();
+    
+    if (freshCallForRecruiter?.assignRecruiter) {
+      const recruiter = freshCallForRecruiter.assignRecruiter;
+      recruiterName = recruiter.name || "Recruiter";
+      recruiterEmail = recruiter.email;
+      console.log(
+        `ℹ️ [Call ${callId}] Recruiter info: ${recruiterName} (${recruiterEmail})`
+      );
+    }
+
     // Sync with Bolna API to get userScheduledAt
     let userScheduledAt;
     try {
@@ -69,6 +224,60 @@ async function processSingleCall(call) {
         );
         return { success: false, error: "userScheduledAt not available yet" };
       }
+
+      // Assign recruiter using round robin when userScheduledAt is available
+      // Only assign if not already assigned
+      const freshCall = await BolnaCall.findById(callId);
+      if (!freshCall.assignRecruiter) {
+        const assignedRecruiter = await assignRecruiterRoundRobin(jobId, userScheduledAt);
+        
+        if (assignedRecruiter) {
+          // Update assignRecruiter (userScheduledAt is already updated by syncBolnaCall)
+          await BolnaCall.findByIdAndUpdate(callId, {
+            assignRecruiter: assignedRecruiter,
+          });
+          console.log(
+            `✅ [Call ${callId}] Assigned recruiter ${assignedRecruiter} using round robin`
+          );
+
+          // Create or update recruiter task record
+          try {
+            const taskData = {
+              recruiter_id: assignedRecruiter,
+              candidate_id: candidateId,
+              job_id: jobId,
+              bolna_call_id: callId,
+              interview_time: userScheduledAt,
+              call_scheduled_at: freshCall.callScheduledAt,
+              status: "scheduled",
+              email_sent: false,
+            };
+
+            await RecruiterTask.findOneAndUpdate(
+              { bolna_call_id: callId },
+              taskData,
+              { upsert: true, new: true }
+            );
+            console.log(
+              `✅ [Call ${callId}] Created/updated recruiter task record`
+            );
+          } catch (taskError) {
+            console.error(
+              `⚠️ [Call ${callId}] Failed to create task record:`,
+              taskError.message
+            );
+            // Don't fail the whole process if task creation fails
+          }
+        } else {
+          console.warn(
+            `⚠️ [Call ${callId}] No recruiter available for assignment`
+          );
+        }
+      } else {
+        console.log(
+          `ℹ️ [Call ${callId}] Recruiter already assigned: ${freshCall.assignRecruiter}`
+        );
+      }
     } catch (syncError) {
       console.error(
         `❌ [Call ${callId}] Failed to sync with Bolna API:`,
@@ -77,16 +286,53 @@ async function processSingleCall(call) {
       return { success: false, error: `Sync failed: ${syncError.message}` };
     }
 
-    // Send email
-    try {
-      await sendEmail(candidate.email, SENDER_EMAIL, userScheduledAt);
+      // Check if meet link was already generated to avoid regenerating
+      const callBeforeEmail = await BolnaCall.findById(callId);
+      const meetLinkAlreadyGenerated = callBeforeEmail?.meetLinkGenerated || false;
+      const existingMeetLink = callBeforeEmail?.meetLink || null;
 
-      // Mark email as sent atomically
-      await BolnaCall.findByIdAndUpdate(callId, {
-        emailSent: true,
-        emailSentAt: new Date(),
-        emailRetryCount: 0, // Reset retry count on success
-      });
+      // Send email
+      try {
+        // Get the meet link from the email response
+        const emailResult = await sendEmail(
+          candidate.email,
+          SENDER_EMAIL,
+          userScheduledAt,
+          recruiterName,
+          recruiterEmail,
+          meetLinkAlreadyGenerated,
+          existingMeetLink
+        );
+
+        const generatedMeetLink = emailResult.meetLink || existingMeetLink;
+
+        // Mark email as sent atomically and save meet link if generated
+        await BolnaCall.findByIdAndUpdate(callId, {
+          emailSent: true,
+          emailSentAt: new Date(),
+          emailRetryCount: 0, // Reset retry count on success
+          ...(generatedMeetLink && !meetLinkAlreadyGenerated && {
+            meetLink: generatedMeetLink,
+            meetLinkGenerated: true,
+            meetLinkGeneratedAt: new Date(),
+          }),
+        });
+
+        // Update task record with email sent status
+        try {
+          await RecruiterTask.findOneAndUpdate(
+            { bolna_call_id: callId },
+            {
+              email_sent: true,
+              email_sent_at: new Date(),
+            }
+          );
+        } catch (taskError) {
+          console.error(
+            `⚠️ [Call ${callId}] Failed to update task email status:`,
+            taskError.message
+          );
+        }
 
       console.log(
         `✅ [Call ${callId}] Email sent successfully to ${candidate.email}`
@@ -231,7 +477,7 @@ export async function startCronJobs() {
   // Schedule email sending job
   // Runs every minute to check for calls that need emails
   cron.schedule(CRON_INTERVAL, async () => {
-    const runTime = new Date().toISOString();
+    const runTime = formatDateTimeWithAMPM(new Date(), { includeWeekday: true });
     console.log(`⏰ Running email scheduler at ${runTime}`);
 
     try {

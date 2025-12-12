@@ -362,3 +362,34 @@ export const dashboardAPI = {
     });
   },
 };
+
+// Recruiter Tasks API functions
+export const recruiterTasksAPI = {
+  getTasks: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.filter) params.append("filter", filters.filter);
+    if (filters.startDate) params.append("startDate", filters.startDate);
+    if (filters.endDate) params.append("endDate", filters.endDate);
+
+    const endpoint = `/recruiter-tasks${params.toString() ? `?${params.toString()}` : ""}`;
+    return apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+
+  getTaskStats: async () => {
+    return apiRequest("/recruiter-tasks/stats", {
+      method: "GET",
+    });
+  },
+
+  updateTaskStatus: async (taskId, status, notes) => {
+    return apiRequest(`/recruiter-tasks/${taskId}/status`, {
+      method: "PATCH",
+      body: {
+        status,
+        notes,
+      },
+    });
+  },
+};

@@ -538,18 +538,15 @@ export default function InterviewsPage() {
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Date: </span>
                       <span>
-                        {new Date(interview.date).toLocaleDateString("en-US", {
-                          weekday: "long",
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                        {formatDateOnly(interview.date)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <span className="text-muted-foreground">Time: </span>
-                      <span>{interview.time}</span>
+                      <span>
+                        {interview.time ? convert24To12Hour(interview.time) : interview.time}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       {interview.type === "Video Call" ? (
