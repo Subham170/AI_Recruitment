@@ -37,6 +37,7 @@ import {
   matchingAPI,
   userAPI,
 } from "@/lib/api";
+import { formatFullDateTimeWithAMPM, formatDateTimeShort, formatDateOnly } from "@/lib/timeFormatter";
 import {
   Briefcase,
   Calendar,
@@ -1232,9 +1233,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                     </div>
                                     {job.createdAt && (
                                       <div className="text-xs text-slate-500 mt-1">
-                                        {new Date(
-                                          job.createdAt
-                                        ).toLocaleDateString()}
+                                        {formatDateOnly(job.createdAt)}
                                       </div>
                                     )}
                                   </div>
@@ -2074,9 +2073,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                           <p className="text-xs text-muted-foreground">
                             Scheduled:{" "}
                             {callStatus.callScheduledAt
-                              ? new Date(
-                                  callStatus.callScheduledAt
-                                ).toLocaleString()
+                              ? formatDateTimeShort(callStatus.callScheduledAt)
                               : "N/A"}
                           </p>
                         </div>
@@ -2207,9 +2204,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                         </p>
                       </div>
                       <p className="text-sm font-medium text-slate-900">
-                        {new Date(
-                          selectedCallDetails.call.callScheduledAt
-                        ).toLocaleString()}
+                        {formatFullDateTimeWithAMPM(selectedCallDetails.call.callScheduledAt)}
                       </p>
                     </div>
                   )}
@@ -2222,9 +2217,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                         </p>
                       </div>
                       <p className="text-sm font-medium text-slate-900">
-                        {new Date(
-                          selectedCallDetails.call.userScheduledAt
-                        ).toLocaleString()}
+                        {formatFullDateTimeWithAMPM(selectedCallDetails.call.userScheduledAt)}
                       </p>
                     </div>
                   )}
@@ -2234,9 +2227,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                         Created At
                       </p>
                       <p className="text-sm text-slate-900">
-                        {new Date(
-                          selectedCallDetails.call.createdAt
-                        ).toLocaleString()}
+                        {formatFullDateTimeWithAMPM(selectedCallDetails.call.createdAt)}
                       </p>
                     </div>
                   )}
@@ -2246,9 +2237,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                         Last Updated
                       </p>
                       <p className="text-sm text-slate-900">
-                        {new Date(
-                          selectedCallDetails.call.updatedAt
-                        ).toLocaleString()}
+                        {formatFullDateTimeWithAMPM(selectedCallDetails.call.updatedAt)}
                       </p>
                     </div>
                   )}
@@ -2288,9 +2277,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                           Start Time
                         </p>
                         <p className="text-sm text-slate-900">
-                          {new Date(
-                            selectedCallDetails.execution.start_time
-                          ).toLocaleString()}
+                          {formatFullDateTimeWithAMPM(selectedCallDetails.execution.start_time)}
                         </p>
                       </div>
                     )}
@@ -2300,9 +2287,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                           End Time
                         </p>
                         <p className="text-sm text-slate-900">
-                          {new Date(
-                            selectedCallDetails.execution.end_time
-                          ).toLocaleString()}
+                          {formatFullDateTimeWithAMPM(selectedCallDetails.execution.end_time)}
                         </p>
                       </div>
                     )}
@@ -2555,9 +2540,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                       Created
                     </h3>
                     <p className="text-base text-slate-900">
-                      {new Date(
-                        candidateDetails.createdAt
-                      ).toLocaleDateString()}
+                      {formatDateOnly(candidateDetails.createdAt)}
                     </p>
                   </div>
                 )}

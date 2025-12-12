@@ -1,5 +1,7 @@
 import {
   Briefcase,
+  Calendar,
+  ClipboardList,
   Database,
   FileText,
   Home,
@@ -46,6 +48,20 @@ export const roleMenuConfig = {
       icon: MessageSquare,
       path: "/dashboard/recruiter/messages",
       description: "Communicate with candidates",
+    },
+    {
+      id: "tasks",
+      label: "My Tasks",
+      icon: ClipboardList,
+      path: "/dashboard/recruiter/tasks",
+      description: "View and manage interview assignments",
+    },
+    {
+      id: "calendar",
+      label: "Calendar",
+      icon: Calendar,
+      path: "/dashboard/recruiter/calendar",
+      description: "View interviews on calendar",
     },
     {
       id: "settings",

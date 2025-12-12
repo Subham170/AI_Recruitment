@@ -1,0 +1,312 @@
+"use client";
+
+import Navbar from "@/components/Navbar";
+import Sidebar, { useSidebarState } from "@/components/Sidebar";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import Loading from "@/components/ui/loading";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
+import { recruiterTasksAPI } from "@/lib/api";
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  User,
+  Briefcase,
+  Mail,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Video,
+  Phone,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { formatDateTimeShort, formatTimeWithAMPM, formatDateOnly } from "@/lib/timeFormatter";
+import { format, isSameDay } from "date-fns";
+
+export default function RecruiterCalendarPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+    } else if (user && user.role !== "recruiter") {
+      router.push("/dashboard");
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (user) {
+      fetchTasks();
+    }
+  }, [user, currentMonth]);
+
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      // Fetch all tasks (no filter) to show on calendar
+      const response = await recruiterTasksAPI.getTasks({ filter: "all" });
+      setTasks(response.tasks || []);
+    } catch (err) {
+      console.error("Error fetching tasks:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get tasks for a specific date
+  const getTasksForDate = (date) => {
+    if (!date) return [];
+    return tasks.filter((task) => {
+      const taskDate = new Date(task.interview_time);
+      return isSameDay(taskDate, date);
+    });
+  };
+
+  // Get dates that have tasks
+  const getDatesWithTasks = () => {
+    return tasks.map((task) => {
+      const taskDate = new Date(task.interview_time);
+      return new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
+    });
+  };
+
+  // Get status badge
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      scheduled: { variant: "default", icon: Clock, label: "Scheduled", className: "bg-blue-500" },
+      completed: { variant: "default", icon: CheckCircle2, label: "Completed", className: "bg-green-500" },
+      cancelled: { variant: "destructive", icon: XCircle, label: "Cancelled" },
+      rescheduled: { variant: "secondary", icon: AlertCircle, label: "Rescheduled" },
+    };
+
+    const config = statusConfig[status] || statusConfig.scheduled;
+    const Icon = config.icon;
+
+    return (
+      <Badge variant={config.variant} className={config.className}>
+        <Icon className="w-3 h-3 mr-1" />
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const selectedDateTasks = getTasksForDate(selectedDate);
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loading size="lg" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Navbar />
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">Interview Calendar</h1>
+              <p className="text-slate-600">View and manage your scheduled interviews</p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Calendar */}
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="w-5 h-5 text-slate-600" />
+                        <CardTitle>Calendar</CardTitle>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newDate = new Date(currentMonth);
+                            newDate.setMonth(newDate.getMonth() - 1);
+                            setCurrentMonth(newDate);
+                          }}
+                        >
+                          &lt;
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentMonth(new Date())}
+                        >
+                          Today
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newDate = new Date(currentMonth);
+                            newDate.setMonth(newDate.getMonth() + 1);
+                            setCurrentMonth(newDate);
+                          }}
+                        >
+                          &gt;
+                        </Button>
+                      </div>
+                    </div>
+                    <CardDescription>
+                      {format(currentMonth, "MMMM yyyy")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      month={currentMonth}
+                      onMonthChange={setCurrentMonth}
+                      modifiers={{
+                        hasTasks: getDatesWithTasks(),
+                      }}
+                      modifiersClassNames={{
+                        hasTasks: "bg-blue-100 rounded-md font-semibold",
+                      }}
+                      className="rounded-md border"
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Side Panel - Task Details */}
+              <div className="lg:col-span-1">
+                <Card className="h-full">
+                  <CardHeader>
+                    <CardTitle>
+                      {formatDateOnly(selectedDate)}
+                    </CardTitle>
+                    <CardDescription>
+                      {selectedDateTasks.length === 0
+                        ? "No interviews scheduled"
+                        : `${selectedDateTasks.length} interview${selectedDateTasks.length > 1 ? "s" : ""} scheduled`}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4 max-h-[600px] overflow-y-auto">
+                    {selectedDateTasks.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500">
+                        <CalendarIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p>No interviews scheduled for this date</p>
+                      </div>
+                    ) : (
+                      selectedDateTasks.map((task) => (
+                        <div
+                          key={task._id}
+                          className="border rounded-lg p-4 space-y-3 hover:shadow-md transition-shadow"
+                        >
+                          {/* Status Badge */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-500 uppercase">
+                              Interview
+                            </span>
+                            {getStatusBadge(task.status)}
+                          </div>
+
+                          {/* Candidate Name */}
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-blue-600" />
+                            <span className="text-blue-600 font-semibold">
+                              {task.candidate_id?.name || "Unknown Candidate"}
+                            </span>
+                          </div>
+
+                          {/* Time */}
+                          <div className="flex items-center gap-2 text-sm">
+                            <Clock className="w-4 h-4 text-slate-500" />
+                            <span className="text-slate-700">
+                              {formatTimeWithAMPM(task.interview_time)}
+                            </span>
+                          </div>
+
+                          {/* Job Position */}
+                          {task.job_id && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Briefcase className="w-4 h-4 text-slate-500" />
+                              <span className="text-slate-700">
+                                {task.job_id.title || "N/A"} @ {task.job_id.company || "N/A"}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Candidate Email */}
+                          {task.candidate_id?.email && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Mail className="w-4 h-4 text-slate-500" />
+                              <span className="text-slate-600 text-xs">
+                                {task.candidate_id.email}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Meet Link */}
+                          {task.meet_link && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Video className="w-4 h-4 text-green-600" />
+                              <a
+                                href={task.meet_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-600 hover:underline text-xs truncate"
+                              >
+                                Join Meeting
+                              </a>
+                            </div>
+                          )}
+
+                          {/* Email Status */}
+                          {task.email_sent && (
+                            <div className="flex items-center gap-2 text-xs text-green-600">
+                              <Mail className="w-3 h-3" />
+                              <span>Email sent</span>
+                              {task.email_sent_at && (
+                                <span className="text-slate-500">
+                                  ({format(task.email_sent_at, "MMM dd, yyyy")})
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Divider */}
+                          <div className="border-t pt-2 mt-2">
+                            <div className="text-xs text-slate-500">
+                              Interview ID: {task._id.slice(-8)}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+

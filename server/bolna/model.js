@@ -57,6 +57,24 @@ const bolnaCallSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    assignRecruiter: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      required: false,
+    },
+    meetLinkGenerated: {
+      type: Boolean,
+      default: false,
+    },
+    meetLink: {
+      type: String,
+      default: null,
+    },
+    meetLinkGeneratedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

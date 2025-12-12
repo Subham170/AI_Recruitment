@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { recruiterAvailabilityAPI } from "@/lib/api";
 import { format } from "date-fns";
+import { convert24To12Hour, formatFullDateTimeWithAMPM } from "@/lib/timeFormatter";
 import { CalendarIcon, Clock, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -321,7 +322,7 @@ export default function RecruiterAvailability({ jobId, user }) {
                             <Clock className="h-4 w-4 text-cyan-600" />
                           </div>
                           <span className="flex-1 text-sm font-medium text-slate-900">
-                            {slot.start_time} - {slot.end_time}
+                            {convert24To12Hour(slot.start_time)} - {convert24To12Hour(slot.end_time)}
                           </span>
                           <Button
                             variant="ghost"
@@ -451,7 +452,7 @@ export default function RecruiterAvailability({ jobId, user }) {
                 <p className="text-sm font-medium text-slate-700 mb-1">
                   Last updated:{" "}
                   <span className="text-slate-900">
-                    {format(new Date(availability.updatedAt), "PPp")}
+                    {formatFullDateTimeWithAMPM(availability.updatedAt)}
                   </span>
                 </p>
                 <p className="text-xs text-slate-600">

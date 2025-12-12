@@ -12,6 +12,7 @@ import {
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import Loading from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatDateOnly, convert24To12Hour } from "@/lib/timeFormatter";
 import {
   CheckCircle,
   Clock,
@@ -554,15 +555,11 @@ export default function ApplicationStatusPage() {
                         <div className="space-y-1 text-sm">
                           <p className="text-blue-800 dark:text-blue-200">
                             <strong>Date:</strong>{" "}
-                            {new Date(application.interviewDate).toLocaleDateString("en-US", {
-                              weekday: "long",
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            })}
+                            {formatDateOnly(application.interviewDate)}
                           </p>
                           <p className="text-blue-800 dark:text-blue-200">
-                            <strong>Time:</strong> {application.interviewTime}
+                            <strong>Time:</strong>{" "}
+                            {application.interviewTime ? convert24To12Hour(application.interviewTime) : application.interviewTime}
                           </p>
                           <p className="text-blue-800 dark:text-blue-200">
                             <strong>Type:</strong> {application.interviewType}
