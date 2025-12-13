@@ -59,6 +59,7 @@ export default function JobsPageContent() {
     allJobPostings: [],
   });
   const [loadingJobs, setLoadingJobs] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState(null);
   const [recruiters, setRecruiters] = useState([]);
   const [loadingRecruiters, setLoadingRecruiters] = useState(false);
@@ -116,7 +117,11 @@ export default function JobsPageContent() {
     }
 
     // Fetch data when user is available
-    fetchJobPostings();
+    const loadData = async () => {
+      await fetchJobPostings();
+      setInitialLoading(false);
+    };
+    loadData();
     // Fetch recruiters for recruiters, admins, and managers
     if (
       user.role === "recruiter" ||
@@ -154,11 +159,7 @@ export default function JobsPageContent() {
 
   // Fetch recruiters when view dialog opens for recruiters
   useEffect(() => {
-    if (
-      user &&
-      user.role === "recruiter" &&
-      recruiters.length === 0
-    ) {
+    if (user && user.role === "recruiter" && recruiters.length === 0) {
       fetchRecruiters();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -362,9 +363,10 @@ export default function JobsPageContent() {
 
   const handleViewDetails = (job) => {
     // Navigate to job detail page instead of opening modal
-    router.push(`/dashboard/${user.role}/manage-job-posting/${job._id || job.id}`);
+    router.push(
+      `/dashboard/${user.role}/manage-job-posting/${job._id || job.id}`
+    );
   };
-
 
   if (!user) {
     return null;
@@ -481,7 +483,8 @@ export default function JobsPageContent() {
                 return (
                   <tr
                     key={job._id}
-                    className="border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors duration-150"
+                    onClick={() => handleViewDetails(job)}
+                    className="border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors duration-150 cursor-pointer"
                   >
                     <td className="p-4">
                       <div>
@@ -611,12 +614,22 @@ export default function JobsPageContent() {
         />
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-          {loading || loadingJobs ? (
+          {loading || initialLoading ? (
             <div className="flex items-center justify-center min-h-[400px]">
               <Loading />
             </div>
           ) : (
             <>
+              {/* Header */}
+              <div className="mb-6">
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                  Manage Job Posting
+                </h1>
+                <p className="text-slate-600">
+                  Create, edit, and manage your job postings
+                </p>
+              </div>
+
               {canCreate && (
                 <div className="lg:hidden mb-4">
                   <Button
@@ -1025,85 +1038,96 @@ export default function JobsPageContent() {
                 </Sheet>
               </div>
 
-              {isRecruiter && (
-                <>
-                  <div className="mb-8">
-                    <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
-                      Your Job Postings
-                    </h2>
-                    {filterJobs(jobPostings.myJobPostings).length > 0 ? (
-                      <JobTable
-                        jobs={filterJobs(jobPostings.myJobPostings)}
-                        showEdit={true}
-                      />
-                    ) : (
-                      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
-                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
-                        <p className="text-slate-700 dark:text-slate-300 font-medium">
-                          No job postings created by you yet.
-                        </p>
-                      </div>
-                    )}
+              {/* Table Content with Loading State */}
+              <div className="relative">
+                {loadingJobs && !initialLoading && (
+                  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                    <Loading size="md" />
                   </div>
+                )}
 
-                  <div className="mb-8">
-                    <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
-                      Job Postings (You are Secondary Recruiter)
-                    </h2>
-                    {filterJobs(jobPostings.secondaryJobPostings).length > 0 ? (
-                      <JobTable
-                        jobs={filterJobs(jobPostings.secondaryJobPostings)}
-                        showEdit={false}
-                      />
-                    ) : (
-                      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
-                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
-                        <p className="text-slate-700 dark:text-slate-300 font-medium">
-                          You are not assigned as a secondary recruiter to any
-                          job postings.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mb-8">
-                    <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
-                      Other Job Postings
-                    </h2>
-                    {filterJobs(jobPostings.remainingJobPostings).length > 0 ? (
-                      <JobTable
-                        jobs={filterJobs(jobPostings.remainingJobPostings)}
-                        showEdit={false}
-                      />
-                    ) : (
-                      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
-                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
-                        <p className="text-slate-700 dark:text-slate-300 font-medium">
-                          No other job postings available.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {isAdminOrManager && (
-                <div>
-                  {filterJobs(jobPostings.allJobPostings).length > 0 ? (
-                    <JobTable
-                      jobs={filterJobs(jobPostings.allJobPostings)}
-                      showEdit={false}
-                    />
-                  ) : (
-                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
-                      <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
-                      <p className="text-slate-700 dark:text-slate-300 font-medium">
-                        No job postings available.
-                      </p>
+                {isRecruiter && (
+                  <>
+                    <div className="mb-8">
+                      <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
+                        Your Job Postings
+                      </h2>
+                      {filterJobs(jobPostings.myJobPostings).length > 0 ? (
+                        <JobTable
+                          jobs={filterJobs(jobPostings.myJobPostings)}
+                          showEdit={true}
+                        />
+                      ) : (
+                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
+                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
+                          <p className="text-slate-700 dark:text-slate-300 font-medium">
+                            No job postings created by you yet.
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
+
+                    <div className="mb-8">
+                      <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
+                        Job Postings (You are Secondary Recruiter)
+                      </h2>
+                      {filterJobs(jobPostings.secondaryJobPostings).length >
+                      0 ? (
+                        <JobTable
+                          jobs={filterJobs(jobPostings.secondaryJobPostings)}
+                          showEdit={false}
+                        />
+                      ) : (
+                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
+                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
+                          <p className="text-slate-700 dark:text-slate-300 font-medium">
+                            You are not assigned as a secondary recruiter to any
+                            job postings.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mb-8">
+                      <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
+                        Other Job Postings
+                      </h2>
+                      {filterJobs(jobPostings.remainingJobPostings).length >
+                      0 ? (
+                        <JobTable
+                          jobs={filterJobs(jobPostings.remainingJobPostings)}
+                          showEdit={false}
+                        />
+                      ) : (
+                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
+                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
+                          <p className="text-slate-700 dark:text-slate-300 font-medium">
+                            No other job postings available.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {isAdminOrManager && (
+                  <div>
+                    {filterJobs(jobPostings.allJobPostings).length > 0 ? (
+                      <JobTable
+                        jobs={filterJobs(jobPostings.allJobPostings)}
+                        showEdit={false}
+                      />
+                    ) : (
+                      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
+                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
+                        <p className="text-slate-700 dark:text-slate-300 font-medium">
+                          No job postings available.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           )}
 
@@ -1538,7 +1562,6 @@ export default function JobsPageContent() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
         </main>
       </div>
     </div>

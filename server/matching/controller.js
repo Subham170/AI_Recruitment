@@ -11,6 +11,7 @@ import { CandidateMatches, JobMatches } from "./model.js";
 export const getJobMatches = async (req, res) => {
   try {
     const { jobId } = req.params;
+    const { search } = req.query;
 
     // Validate ObjectId format
     const isObjectId = /^[0-9a-fA-F]{24}$/.test(jobId);
@@ -36,10 +37,29 @@ export const getJobMatches = async (req, res) => {
       });
     }
 
+    let matches = jobMatches.matches || [];
+
+    // Apply search filter if provided
+    if (search) {
+      const searchLower = search.toLowerCase();
+      matches = matches.filter((match) => {
+        const candidate = match.candidateId;
+        if (!candidate) return false;
+        
+        const nameMatch = candidate.name?.toLowerCase().includes(searchLower);
+        const emailMatch = candidate.email?.toLowerCase().includes(searchLower);
+        const skillsMatch = candidate.skills?.some((skill) =>
+          skill.toLowerCase().includes(searchLower)
+        );
+        
+        return nameMatch || emailMatch || skillsMatch;
+      });
+    }
+
     res.status(200).json({
       jobId: jobMatches.jobId,
-      matches: jobMatches.matches,
-      totalMatches: jobMatches.matches.length,
+      matches: matches,
+      totalMatches: matches.length,
       lastUpdated: jobMatches.lastUpdated,
     });
   } catch (error) {

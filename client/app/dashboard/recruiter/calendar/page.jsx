@@ -12,6 +12,11 @@ import {
 } from "@/components/ui/card";
 import Loading from "@/components/ui/loading";
 import { Badge } from "@/components/ui/badge";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { recruiterTasksAPI } from "@/lib/api";
 import {
@@ -39,6 +44,7 @@ export default function RecruiterCalendarPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -66,6 +72,7 @@ export default function RecruiterCalendarPage() {
       console.error("Error fetching tasks:", err);
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -167,7 +174,7 @@ export default function RecruiterCalendarPage() {
     return getTasksForDate(date);
   };
 
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <Loading size="lg" />
@@ -175,18 +182,46 @@ export default function RecruiterCalendarPage() {
     );
   }
 
+  if (!user || user.role !== "recruiter") {
+    return null;
+  }
+
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Navbar />
-        <main className="flex-1 overflow-y-auto p-6">
+    <div className="flex h-screen overflow-hidden bg-white">
+      <aside className="hidden lg:block relative z-10">
+        <Sidebar />
+      </aside>
+
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent
+          side="left"
+          className="w-60 p-0 bg-slate-950 text-slate-100 border-r border-slate-900"
+        >
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+          <Sidebar />
+        </SheetContent>
+      </Sheet>
+
+      <div className="flex flex-1 flex-col overflow-hidden relative z-10">
+        <Navbar
+          title="Interview Calendar"
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={setSidebarOpen}
+        />
+
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-white">
           <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="mb-6">
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">Interview Calendar</h1>
-              <p className="text-slate-600">View and manage your scheduled interviews</p>
-            </div>
+            {initialLoading ? (
+              <div className="flex items-center justify-center min-h-[400px]">
+                <Loading />
+              </div>
+            ) : (
+              <>
+                {/* Header */}
+                <div className="mb-6">
+                  <h1 className="text-3xl font-bold text-slate-900 mb-2">Interview Calendar</h1>
+                  <p className="text-slate-600">View and manage your scheduled interviews</p>
+                </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Calendar */}
@@ -418,6 +453,8 @@ export default function RecruiterCalendarPage() {
                 </Card>
               </div>
             </div>
+              </>
+            )}
           </div>
         </main>
       </div>

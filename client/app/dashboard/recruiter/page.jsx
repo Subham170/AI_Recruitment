@@ -11,18 +11,23 @@ import {
 } from "@/components/ui/card";
 import Loading from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
-import { dashboardAPI } from "@/lib/api";
+import { dashboardAPI, recruiterTasksAPI } from "@/lib/api";
 import {
   Briefcase,
   Calendar,
   ClipboardList,
-  MessageSquare,
-  Settings,
-  TrendingUp,
   Users,
+  Clock,
+  User,
+  Mail,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { formatDateTimeShort, formatDateShort } from "@/lib/timeFormatter";
+import { Badge } from "@/components/ui/badge";
 
 export default function RecruiterDashboardPage() {
   const { user, loading } = useAuth();
@@ -35,6 +40,13 @@ export default function RecruiterDashboardPage() {
     interviews: 0,
   });
   const [loadingStats, setLoadingStats] = useState(true);
+  const [tasks, setTasks] = useState({
+    today: [],
+    thisWeek: [],
+    thisMonth: [],
+  });
+  const [loadingTasks, setLoadingTasks] = useState(true);
+  const [selectedTab, setSelectedTab] = useState("today");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -47,6 +59,7 @@ export default function RecruiterDashboardPage() {
   useEffect(() => {
     if (user && user.role === "recruiter") {
       fetchDashboardStats();
+      fetchTasks();
     }
   }, [user]);
 
@@ -62,6 +75,66 @@ export default function RecruiterDashboardPage() {
     } finally {
       setLoadingStats(false);
     }
+  };
+
+  const fetchTasks = async () => {
+    try {
+      setLoadingTasks(true);
+      const allTasksResponse = await recruiterTasksAPI.getTasks({ filter: "all" });
+      if (allTasksResponse.success && allTasksResponse.tasks) {
+        const allTasks = allTasksResponse.tasks || [];
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekFromNow = new Date(today);
+        weekFromNow.setDate(weekFromNow.getDate() + 7);
+        const monthFromNow = new Date(today);
+        monthFromNow.setMonth(monthFromNow.getMonth() + 1);
+
+        const todayTasks = allTasks.filter((task) => {
+          const taskDate = new Date(task.interview_time);
+          return taskDate >= today && taskDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        });
+
+        const weekTasks = allTasks.filter((task) => {
+          const taskDate = new Date(task.interview_time);
+          return taskDate >= today && taskDate < weekFromNow;
+        });
+
+        const monthTasks = allTasks.filter((task) => {
+          const taskDate = new Date(task.interview_time);
+          return taskDate >= today && taskDate < monthFromNow;
+        });
+
+        setTasks({
+          today: todayTasks,
+          thisWeek: weekTasks,
+          thisMonth: monthTasks,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      scheduled: { variant: "default", icon: Clock, label: "Scheduled" },
+      completed: { variant: "default", icon: CheckCircle2, label: "Completed", className: "bg-green-500" },
+      cancelled: { variant: "destructive", icon: XCircle, label: "Cancelled" },
+      rescheduled: { variant: "secondary", icon: AlertCircle, label: "Rescheduled" },
+    };
+
+    const config = statusConfig[status] || statusConfig.scheduled;
+    const Icon = config.icon;
+
+    return (
+      <Badge variant={config.variant} className={config.className}>
+        <Icon className="w-3 h-3 mr-1" />
+        {config.label}
+      </Badge>
+    );
   };
 
   if (loading) {
@@ -185,78 +258,189 @@ export default function RecruiterDashboardPage() {
               </Card>
             </div>
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card
-                className="group cursor-pointer border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:border-cyan-200"
-                onClick={() =>
-                  router.push("/dashboard/recruiter/manage-job-posting")
-                }
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-900 group-hover:text-cyan-700 transition-colors">
-                    <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-cyan-50 transition-all">
-                      <Briefcase className="h-5 w-5 text-slate-700 group-hover:text-cyan-700" />
-                    </div>
-                    Manage Job Posting
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Manage job listings
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+            {/* Upcoming Tasks */}
+            <div className="space-y-6">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Upcoming Tasks</h2>
+                  <p className="text-slate-600">Your scheduled interviews and assignments</p>
+                </div>
 
-              <Card
-                className="group cursor-pointer border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:border-cyan-200"
-                onClick={() =>
-                  router.push("/dashboard/recruiter/top-applicants")
-                }
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-900 group-hover:text-cyan-700 transition-colors">
-                    <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-cyan-50 transition-all">
-                      <TrendingUp className="h-5 w-5 text-slate-700 group-hover:text-cyan-700" />
-                    </div>
-                    Top Applicants
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    View top candidates
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+                {/* Tab Navigation */}
+                <div className="flex items-center gap-0 bg-slate-100 rounded-lg p-1 w-fit">
+                <button
+                  onClick={() => setSelectedTab("today")}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    selectedTab === "today"
+                      ? "bg-white text-blue-600 border border-slate-200 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => setSelectedTab("week")}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    selectedTab === "week"
+                      ? "bg-white text-blue-600 border border-slate-200 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  This Week
+                </button>
+                <button
+                  onClick={() => setSelectedTab("month")}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    selectedTab === "month"
+                      ? "bg-white text-blue-600 border border-slate-200 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  This Month
+                </button>
+                </div>
+              </div>
 
-              <Card
-                className="group cursor-pointer border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:border-cyan-200"
-                onClick={() => router.push("/dashboard/recruiter/messages")}
-              >
+              {/* Tasks Content */}
+              <Card className="border-slate-200 bg-white shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-900 group-hover:text-cyan-700 transition-colors">
-                    <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-cyan-50 transition-all">
-                      <MessageSquare className="h-5 w-5 text-slate-700 group-hover:text-cyan-700" />
-                    </div>
-                    Messages
+                  <CardTitle className="text-lg font-semibold text-slate-900">
+                    {selectedTab === "today" && `Today (${tasks.today.length})`}
+                    {selectedTab === "week" && `This Week (${tasks.thisWeek.length})`}
+                    {selectedTab === "month" && `This Month (${tasks.thisMonth.length})`}
                   </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Communicate with candidates
-                  </CardDescription>
                 </CardHeader>
-              </Card>
-
-              <Card
-                className="group cursor-pointer border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:border-cyan-200"
-                onClick={() => router.push("/dashboard/recruiter/settings")}
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-900 group-hover:text-cyan-700 transition-colors">
-                    <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-cyan-50 transition-all">
-                      <Settings className="h-5 w-5 text-slate-700 group-hover:text-cyan-700" />
-                    </div>
-                    Settings
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Account settings
-                  </CardDescription>
-                </CardHeader>
+                <CardContent>
+                  {loadingTasks ? (
+                    <div className="text-center py-4 text-slate-500">Loading...</div>
+                  ) : (
+                    <>
+                      {selectedTab === "today" && (
+                        <>
+                          {tasks.today.length === 0 ? (
+                            <div className="text-center py-4 text-slate-500">No tasks scheduled for today</div>
+                          ) : (
+                            <div className="space-y-3">
+                              {tasks.today.map((task) => (
+                                <div
+                                  key={task._id}
+                                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-3 mb-2">
+                                        {getStatusBadge(task.status)}
+                                        <span className="text-sm text-slate-500">
+                                          {formatDateTimeShort(task.interview_time)}
+                                        </span>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          <User className="w-4 h-4 text-slate-400" />
+                                          <span className="font-medium text-slate-900">
+                                            {task.candidate_id?.name || "Unknown Candidate"}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <Briefcase className="w-4 h-4 text-slate-400" />
+                                          <span className="text-slate-700">
+                                            {task.job_id?.title || "Unknown Job"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {selectedTab === "week" && (
+                        <>
+                          {tasks.thisWeek.length === 0 ? (
+                            <div className="text-center py-4 text-slate-500">No tasks scheduled for this week</div>
+                          ) : (
+                            <div className="space-y-3">
+                              {tasks.thisWeek.map((task) => (
+                                <div
+                                  key={task._id}
+                                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-3 mb-2">
+                                        {getStatusBadge(task.status)}
+                                        <span className="text-sm text-slate-500">
+                                          {formatDateTimeShort(task.interview_time)}
+                                        </span>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          <User className="w-4 h-4 text-slate-400" />
+                                          <span className="font-medium text-slate-900">
+                                            {task.candidate_id?.name || "Unknown Candidate"}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <Briefcase className="w-4 h-4 text-slate-400" />
+                                          <span className="text-slate-700">
+                                            {task.job_id?.title || "Unknown Job"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {selectedTab === "month" && (
+                        <>
+                          {tasks.thisMonth.length === 0 ? (
+                            <div className="text-center py-4 text-slate-500">No tasks scheduled for this month</div>
+                          ) : (
+                            <div className="space-y-3">
+                              {tasks.thisMonth.map((task) => (
+                                <div
+                                  key={task._id}
+                                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-3 mb-2">
+                                        {getStatusBadge(task.status)}
+                                        <span className="text-sm text-slate-500">
+                                          {formatDateTimeShort(task.interview_time)}
+                                        </span>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          <User className="w-4 h-4 text-slate-400" />
+                                          <span className="font-medium text-slate-900">
+                                            {task.candidate_id?.name || "Unknown Candidate"}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <Briefcase className="w-4 h-4 text-slate-400" />
+                                          <span className="text-slate-700">
+                                            {task.job_id?.title || "Unknown Job"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                </CardContent>
               </Card>
             </div>
           </div>

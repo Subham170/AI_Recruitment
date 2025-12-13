@@ -39,8 +39,10 @@ export default function CandidatesPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [candidates, setCandidates] = useState([]);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [error, setError] = useState("");
   const [parseResumeFile, setParseResumeFile] = useState(null);
   const [success, setSuccess] = useState("");
@@ -73,14 +75,34 @@ export default function CandidatesPage() {
       return;
     }
 
-    fetchCandidates();
+    const loadData = async () => {
+      await fetchCandidates();
+      setInitialLoading(false);
+    };
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]);
+
+  // Debounce search query
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // 500ms debounce
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  // Fetch candidates when debounced search changes
+  useEffect(() => {
+    if (user && !initialLoading) {
+      fetchCandidates();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchQuery, user, initialLoading]);
 
   const fetchCandidates = async () => {
     try {
       setLoadingCandidates(true);
-      const response = await candidateAPI.getCandidates();
+      const response = await candidateAPI.getCandidates(debouncedSearchQuery);
       setCandidates(response.candidates || []);
     } catch (err) {
       setError(err.message || "Failed to fetch candidates");
@@ -306,17 +328,8 @@ export default function CandidatesPage() {
     return "secondary";
   };
 
-  const filteredCandidates = candidates.filter((candidate) => {
-    const matchesSearch =
-      !searchQuery ||
-      candidate.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      candidate.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      candidate.skills?.some((skill) =>
-        skill.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-
-    return matchesSearch;
-  });
+  // Candidates are now filtered on the server side via API
+  const filteredCandidates = candidates;
 
   const validRoles = [
     "SDET",
@@ -374,6 +387,12 @@ export default function CandidatesPage() {
           )}
 
           <div className="space-y-6 max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">Candidates List</h1>
+              <p className="text-slate-600">View and manage all candidates in your database</p>
+            </div>
+
             <div className="flex items-center gap-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -410,7 +429,7 @@ export default function CandidatesPage() {
               </div>
             </div>
 
-            {!loadingCandidates && (
+            {!loadingCandidates && !initialLoading && (
               <div className="mb-4 text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
                 <span>
                   Showing {filteredCandidates.length} of {candidates.length}{" "}
@@ -431,23 +450,30 @@ export default function CandidatesPage() {
               </div>
             )}
 
-            {loadingCandidates ? (
-              <div className="flex items-center justify-center py-12">
-                <Loading message="Loading candidates..." />
-              </div>
-            ) : filteredCandidates.length === 0 ? (
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-800/50 rounded-xl p-12 flex flex-col items-center justify-center">
-                <div className="p-4 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/20 mb-4">
-                  <Users className="h-12 w-12 text-cyan-600 dark:text-cyan-400" />
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-md overflow-hidden relative min-h-[400px]">
+              {initialLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loading message="Loading candidates..." />
                 </div>
-                <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">
-                  No candidates found
-                </p>
-              </div>
-            ) : (
-              <div className="bg-white border border-slate-200 rounded-2xl shadow-md overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+              ) : (
+                <>
+                  {loadingCandidates && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                      <Loading size="md" />
+                    </div>
+                  )}
+                  {filteredCandidates.length === 0 ? (
+                    <div className="p-12 flex flex-col items-center justify-center">
+                      <div className="p-4 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/20 mb-4">
+                        <Users className="h-12 w-12 text-cyan-600 dark:text-cyan-400" />
+                      </div>
+                      <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">
+                        No candidates found
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-100/80">
                         <th className="text-left p-4 font-semibold text-slate-800">
@@ -515,9 +541,11 @@ export default function CandidatesPage() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-              </div>
-            )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </main>
       </div>
