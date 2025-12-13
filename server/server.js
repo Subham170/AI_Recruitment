@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import express from "express";
 import bolnaRoutes from "./bolna/route.js";
 import candidateRoutes from "./candidates/route.js";
+import chatRoutes from "./chat/route.js";
 import connectDB from "./config/database.js";
 import dashboardRoutes from "./dashboard/route.js";
 import jobPostingRoutes from "./job_posting/route.js";
@@ -77,6 +78,9 @@ app.use("/api/dashboard", dashboardRoutes);
 
 // Resume parser routes
 app.use("/api/resume-parser", resumeParserRoutes);
+
+// Chat routes
+app.use("/api/chat", chatRoutes);
 
 // TODO: Uncomment when these route files are created
 // app.use("/api/applications", applicationRoutes);

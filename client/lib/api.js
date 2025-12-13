@@ -393,3 +393,23 @@ export const recruiterTasksAPI = {
     });
   },
 };
+
+// Chat API functions
+export const chatAPI = {
+  sendMessage: async (message, sessionId = null) => {
+    return apiRequest("/chat/message", {
+      method: "POST",
+      body: {
+        message,
+        sessionId,
+      },
+    });
+  },
+
+  getChatHistory: async (sessionId = null) => {
+    const endpoint = sessionId ? `/chat/history/${sessionId}` : "/chat/history";
+    return apiRequest(endpoint, {
+      method: "GET",
+    });
+  },
+};
