@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Send, MessageCircle, Loader2 } from "lucide-react";
 
 export default function Chatbot() {
-  const [isOpen, setIsOpen] = useState(true); // Open by default
+  const [isOpen, setIsOpen] = useState(false); // Closed by default
   const [messages, setMessages] = useState([]); // Always start with empty messages
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -18,6 +18,8 @@ export default function Chatbot() {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
+  const chatWindowRef = useRef(null);
+  const chatButtonRef = useRef(null);
 
   const sessionId = user?.id || user?._id || "default";
 
@@ -35,6 +37,32 @@ export default function Chatbot() {
       setInputMessage(""); // Reset input
     }
   }, [isOpen, user]);
+
+  // Handle click outside to close chatbot
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Only check if chatbot is open and click is outside the chat window
+      if (
+        isOpen &&
+        chatWindowRef.current &&
+        !chatWindowRef.current.contains(event.target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      // Use a small delay to avoid immediate closing when opening
+      const timeoutId = setTimeout(() => {
+        document.addEventListener("mousedown", handleClickOutside);
+      }, 100);
+
+      return () => {
+        clearTimeout(timeoutId);
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [isOpen]);
 
   // Auto-scroll to bottom when messages change (only if user is at bottom)
   useEffect(() => {
@@ -117,8 +145,9 @@ export default function Chatbot() {
       {!isOpen && (
         <div className="fixed bottom-6 right-6 z-50">
           <Button
+            ref={chatButtonRef}
             onClick={toggleChat}
-            className="h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white"
+            className="h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
             size="icon"
           >
             <MessageCircle className="h-6 w-6" />
@@ -128,7 +157,10 @@ export default function Chatbot() {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-96 h-[600px] flex flex-col shadow-2xl rounded-lg overflow-hidden bg-white border border-gray-200">
+        <div
+          ref={chatWindowRef}
+          className="fixed bottom-6 right-6 z-50 w-96 h-[600px] flex flex-col shadow-2xl rounded-lg overflow-hidden bg-white border border-gray-200"
+        >
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">

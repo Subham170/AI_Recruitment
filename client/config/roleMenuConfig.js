@@ -43,13 +43,6 @@ export const roleMenuConfig = {
       description: "Browse all candidates",
     },
     {
-      id: "messages",
-      label: "Messages",
-      icon: MessageSquare,
-      path: "/dashboard/recruiter/messages",
-      description: "Communicate with candidates",
-    },
-    {
       id: "tasks",
       label: "My Tasks",
       icon: ClipboardList,
@@ -62,13 +55,6 @@ export const roleMenuConfig = {
       icon: Calendar,
       path: "/dashboard/recruiter/calendar",
       description: "View interviews on calendar",
-    },
-    {
-      id: "settings",
-      label: "Settings",
-      icon: Settings,
-      path: "/dashboard/recruiter/settings",
-      description: "Account settings",
     },
   ],
   manager: [
@@ -113,14 +99,7 @@ export const roleMenuConfig = {
       icon: FileText,
       path: "/dashboard/manager/reports",
       description: "Generate reports",
-    },
-    {
-      id: "settings",
-      label: "Settings",
-      icon: Settings,
-      path: "/dashboard/manager/settings",
-      description: "Team settings",
-    },
+    }
   ],
   admin: [
     {
@@ -164,28 +143,7 @@ export const roleMenuConfig = {
       icon: FileText,
       path: "/dashboard/admin/reports",
       description: "Generate reports",
-    },
-    {
-      id: "system-config",
-      label: "System Configuration",
-      icon: Settings,
-      path: "/dashboard/admin/config",
-      description: "System settings",
-    },
-    {
-      id: "security",
-      label: "Security",
-      icon: Shield,
-      path: "/dashboard/admin/security",
-      description: "Security settings",
-    },
-    {
-      id: "database",
-      label: "Database",
-      icon: Database,
-      path: "/dashboard/admin/database",
-      description: "Database management",
-    },
+    }
   ],
 };
 
