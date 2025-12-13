@@ -3,7 +3,6 @@
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
   CardContent,
@@ -26,6 +25,8 @@ import {
   AlertCircle,
   Video,
   Phone,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -107,6 +108,65 @@ export default function RecruiterCalendarPage() {
 
   const selectedDateTasks = getTasksForDate(selectedDate);
 
+  // Calendar helper functions
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  const daysOfWeek = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    return { firstDay, daysInMonth };
+  };
+
+  const { firstDay, daysInMonth } = getDaysInMonth(currentMonth);
+
+  const previousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  const goToToday = () => {
+    const today = new Date();
+    setCurrentMonth(today);
+    setSelectedDate(today);
+  };
+
+  // Format event text for calendar display
+  const formatEventText = (task) => {
+    const time = formatTimeWithAMPM(task.interview_time);
+    const candidateName = task.candidate_id?.name || "Interview";
+    // Truncate to show time + first few chars (e.g., "10:00 AM In...")
+    const shortName = candidateName.length > 2 
+      ? candidateName.substring(0, 2) + "..." 
+      : candidateName;
+    return `${time} ${shortName}`;
+  };
+
+  // Get events for a specific day
+  const getEventsForDay = (day) => {
+    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    return getTasksForDate(date);
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -131,64 +191,119 @@ export default function RecruiterCalendarPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Calendar */}
               <div className="lg:col-span-2">
-                <Card>
-                  <CardHeader>
+                <Card className="shadow-sm">
+                  <CardHeader className="border-b border-gray-200 pb-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="w-5 h-5 text-slate-600" />
-                        <CardTitle>Calendar</CardTitle>
+                      <div className="flex items-center gap-3">
+                        <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg p-2.5 shadow-lg shadow-cyan-500/25">
+                          <CalendarIcon className="h-6 w-6 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-semibold text-gray-900">
+                          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                        </h2>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const newDate = new Date(currentMonth);
-                            newDate.setMonth(newDate.getMonth() - 1);
-                            setCurrentMonth(newDate);
-                          }}
+                          size="icon"
+                          onClick={previousMonth}
+                          className="h-9 w-9 bg-transparent"
                         >
-                          &lt;
+                          <ChevronLeft className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentMonth(new Date())}
+                          onClick={goToToday}
+                          className="h-9 px-4 bg-transparent"
                         >
                           Today
                         </Button>
                         <Button
                           variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const newDate = new Date(currentMonth);
-                            newDate.setMonth(newDate.getMonth() + 1);
-                            setCurrentMonth(newDate);
-                          }}
+                          size="icon"
+                          onClick={nextMonth}
+                          className="h-9 w-9 bg-transparent"
                         >
-                          &gt;
+                          <ChevronRight className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
-                    <CardDescription>
-                      {format(currentMonth, "MMMM yyyy")}
-                    </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => date && setSelectedDate(date)}
-                      month={currentMonth}
-                      onMonthChange={setCurrentMonth}
-                      modifiers={{
-                        hasTasks: getDatesWithTasks(),
-                      }}
-                      modifiersClassNames={{
-                        hasTasks: "bg-blue-100 rounded-md font-semibold",
-                      }}
-                      className="rounded-md border"
-                    />
+                  <CardContent className="p-6">
+                    {/* Days of Week Header */}
+                    <div className="grid grid-cols-7 mb-2">
+                      {daysOfWeek.map((day) => (
+                        <div
+                          key={day}
+                          className="text-center text-sm font-semibold text-gray-600 py-2"
+                        >
+                          {day}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Calendar Grid */}
+                    <div className="grid grid-cols-7 border-l border-t border-gray-200">
+                      {/* Empty cells for days before month starts */}
+                      {Array.from({ length: firstDay }).map((_, index) => (
+                        <div
+                          key={`empty-${index}`}
+                          className="border-r border-b border-gray-200 bg-gray-50 min-h-[100px]"
+                        />
+                      ))}
+
+                      {/* Days of the month */}
+                      {Array.from({ length: daysInMonth }).map((_, index) => {
+                        const day = index + 1;
+                        const dayDate = new Date(
+                          currentMonth.getFullYear(),
+                          currentMonth.getMonth(),
+                          day
+                        );
+                        const dayEvents = getEventsForDay(day);
+                        const isSelected = isSameDay(dayDate, selectedDate);
+                        const isToday = isSameDay(dayDate, new Date());
+
+                        return (
+                          <div
+                            key={day}
+                            onClick={() => setSelectedDate(dayDate)}
+                            className={`
+                              border-r border-b border-gray-200 min-h-[100px] p-2 
+                              transition-colors cursor-pointer
+                              ${isSelected ? "bg-blue-50" : "hover:bg-gray-50"}
+                              ${isToday && !isSelected ? "bg-blue-50/30" : ""}
+                            `}
+                          >
+                            <div
+                              className={`
+                                text-sm font-semibold mb-1
+                                ${isSelected ? "text-blue-700" : "text-gray-900"}
+                                ${isToday && !isSelected ? "text-blue-600" : ""}
+                              `}
+                            >
+                              {day}
+                            </div>
+                            <div className="space-y-1">
+                              {dayEvents.slice(0, 3).map((task, idx) => (
+                                <div
+                                  key={task._id || idx}
+                                  className="text-xs bg-blue-500 text-white rounded px-2 py-0.5 truncate"
+                                  title={`${formatTimeWithAMPM(task.interview_time)} - ${task.candidate_id?.name || "Unknown Candidate"}`}
+                                >
+                                  {formatEventText(task)}
+                                </div>
+                              ))}
+                              {dayEvents.length > 3 && (
+                                <div className="text-xs bg-blue-500 text-white rounded px-2 py-0.5 text-center">
+                                  +{dayEvents.length - 3} more
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
