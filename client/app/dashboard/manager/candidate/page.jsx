@@ -432,75 +432,74 @@ export default function CandidatesPage() {
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-100/80">
-                        <th className="text-left p-4 font-semibold text-slate-800">
-                          Name
-                        </th>
-                        <th className="text-left p-4 font-semibold text-slate-800">
-                          Email
-                        </th>
-                        <th className="text-left p-4 font-semibold text-slate-800">
-                          Status
-                        </th>
-                        <th className="text-left p-4 font-semibold text-slate-800">
-                          Experience
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredCandidates.map((candidate) => (
-                        <tr
-                          key={candidate._id || candidate.id}
-                          onClick={() => handleRowClick(candidate)}
-                          className="border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors duration-150 cursor-pointer"
-                        >
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                                <span className="text-sm font-bold text-slate-700">
-                                  {candidate.name?.charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-                              <span className="font-medium text-slate-800">
-                                {candidate.name}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <span className="text-slate-600">
-                              {candidate.email || "-"}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <Badge
-                              variant={
-                                candidate.status === "offer"
-                                  ? "default"
-                                  : candidate.status === "rejected"
-                                  ? "destructive"
-                                  : candidate.status === "screening"
-                                  ? "secondary"
-                                  : "outline"
-                              }
-                              className="capitalize"
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-100/80">
+                            <th className="text-left p-4 font-semibold text-slate-800">
+                              Name
+                            </th>
+                            <th className="text-left p-4 font-semibold text-slate-800">
+                              Email
+                            </th>
+                            <th className="text-left p-4 font-semibold text-slate-800">
+                              Status
+                            </th>
+                            <th className="text-left p-4 font-semibold text-slate-800">
+                              Experience
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredCandidates.map((candidate) => (
+                            <tr
+                              key={candidate._id || candidate.id}
+                              onClick={() => handleRowClick(candidate)}
+                              className="border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors duration-150 cursor-pointer"
                             >
-                              {candidate.status || "new"}
-                            </Badge>
-                          </td>
-                          <td className="p-4">
-                            <span className="text-slate-600">
-                              {candidate.experience !== undefined
-                                ? `${candidate.experience} years`
-                                : "-"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                              <td className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+                                    <span className="text-sm font-bold text-slate-700">
+                                      {candidate.name?.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <span className="font-medium text-slate-800">
+                                    {candidate.name}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <span className="text-slate-600">
+                                  {candidate.email || "-"}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <Badge
+                                  variant={
+                                    candidate.status === "offer"
+                                      ? "default"
+                                      : candidate.status === "rejected"
+                                      ? "destructive"
+                                      : candidate.status === "screening"
+                                      ? "secondary"
+                                      : "outline"
+                                  }
+                                  className="capitalize"
+                                >
+                                  {candidate.status || "new"}
+                                </Badge>
+                              </td>
+                              <td className="p-4">
+                                <span className="text-slate-600">
+                                  {candidate.experience !== undefined
+                                    ? `${candidate.experience} years`
+                                    : "-"}
+                                </span>
+                              </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </>
