@@ -62,10 +62,14 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [candidateSearchQuery, setCandidateSearchQuery] = useState("");
+  const [debouncedCandidateSearchQuery, setDebouncedCandidateSearchQuery] = useState("");
   const [selectedJob, setSelectedJob] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [notification, setNotification] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -97,9 +101,45 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
     }
 
     // Fetch data when user is available
-    fetchJobs();
+    const loadData = async () => {
+      await fetchJobs();
+      setInitialLoading(false);
+    };
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]); // Removed router from dependencies to prevent re-renders
+
+  // Debounce search query
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // 500ms debounce
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  // Fetch jobs when debounced search changes
+  useEffect(() => {
+    if (user && !initialLoading) {
+      fetchJobs();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchQuery, user, initialLoading]);
+
+  // Debounce candidate search query
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedCandidateSearchQuery(candidateSearchQuery);
+    }, 500); // 500ms debounce
+    return () => clearTimeout(timeoutId);
+  }, [candidateSearchQuery]);
+
+  // Fetch candidates when debounced candidate search changes
+  useEffect(() => {
+    if (selectedJob?._id) {
+      fetchCandidatesForJob(selectedJob._id, debouncedCandidateSearchQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedCandidateSearchQuery, selectedJob?._id]);
 
   // Load job from URL if jobId is provided
   useEffect(() => {
@@ -116,7 +156,8 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
   const fetchJobs = async () => {
     try {
       setLoadingJobs(true);
-      const response = await jobPostingAPI.getAllJobPostings();
+      const filterParams = debouncedSearchQuery ? { search: debouncedSearchQuery } : {};
+      const response = await jobPostingAPI.getAllJobPostings(filterParams);
 
       // For recruiters, API returns allJobPostings, myJobPostings, secondaryJobPostings, remainingJobPostings
       // For managers/admins, API returns jobPostings
@@ -209,28 +250,12 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
     }
   };
 
-  const handleJobClick = async (job, shouldNavigate = true) => {
-    // Navigate to job URL if not already there
-    if (shouldNavigate) {
-      const role = user?.role || "recruiter";
-      router.push(`/dashboard/${role}/top-applicants/${job._id}`);
-    }
-
-    setSelectedJob(job);
-    setCandidates([]);
-    setScheduledCandidateIds(new Set());
-
-    // Fetch recruiters if not already loaded
-    if (recruiters.length === 0 && user?.role === "recruiter") {
-      await fetchRecruiters();
-    }
-
+  const fetchCandidatesForJob = async (jobId, search = "") => {
+    if (!jobId) return;
+    
     try {
-      setRefreshing(true);
       setLoadingCandidates(true);
-
-      await matchingAPI.refreshJobMatches(job._id);
-      const response = await matchingAPI.getJobMatches(job._id);
+      const response = await matchingAPI.getJobMatches(jobId, search);
 
       const sortedMatches = (response.matches || [])
         .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
@@ -244,7 +269,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
         .filter(Boolean);
 
       if (candidateIds.length > 0) {
-        await checkScheduledCalls(job._id, candidateIds);
+        await checkScheduledCalls(jobId, candidateIds);
       }
     } catch (err) {
       console.error("Error fetching candidates:", err);
@@ -256,6 +281,39 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
       });
     } finally {
       setLoadingCandidates(false);
+    }
+  };
+
+  const handleJobClick = async (job, shouldNavigate = true) => {
+    // Navigate to job URL if not already there
+    if (shouldNavigate) {
+      const role = user?.role || "recruiter";
+      router.push(`/dashboard/${role}/top-applicants/${job._id}`);
+    }
+
+    setSelectedJob(job);
+    setCandidates([]);
+    setScheduledCandidateIds(new Set());
+    setCandidateSearchQuery(""); // Reset candidate search when switching jobs
+
+    // Fetch recruiters if not already loaded
+    if (recruiters.length === 0 && user?.role === "recruiter") {
+      await fetchRecruiters();
+    }
+
+    try {
+      setRefreshing(true);
+      await matchingAPI.refreshJobMatches(job._id);
+      await fetchCandidatesForJob(job._id, "");
+    } catch (err) {
+      console.error("Error refreshing job matches:", err);
+      setNotification({
+        variant: "error",
+        title: "Failed to Refresh Matches",
+        message: err.message || "Failed to refresh matches. Please try again.",
+        dismissible: true,
+      });
+    } finally {
       setRefreshing(false);
     }
   };
@@ -435,13 +493,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
       setRefreshing(true);
 
       await matchingAPI.refreshJobMatches(selectedJob._id);
-      const response = await matchingAPI.getJobMatches(selectedJob._id);
-
-      const sortedMatches = (response.matches || [])
-        .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
-        .slice(0, 10);
-
-      setCandidates(sortedMatches);
+      await fetchCandidatesForJob(selectedJob._id, debouncedCandidateSearchQuery);
     } catch (err) {
       console.error("Error refreshing candidates:", err);
       setNotification({
@@ -1059,12 +1111,8 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
     return null;
   }
 
-  const filteredJobs = jobs.filter(
-    (job) =>
-      job.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.company?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Jobs are now filtered on the server side via API
+  const filteredJobs = jobs;
 
   const getScoreColor = (score) => {
     const percentage = Math.round(score * 100);
@@ -1099,7 +1147,7 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
         />
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-6 bg-white">
-          {loading || loadingJobs ? (
+          {loading || initialLoading ? (
             <div className="flex items-center justify-center min-h-[400px]">
               <Loading />
             </div>
@@ -1116,12 +1164,11 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                 />
               )}
 
-              {/* Title */}
-              {/* <div className="mb-4">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400 bg-clip-text text-transparent">
-                  Top Applicants
-                </h1>
-              </div> */}
+              {/* Header */}
+              <div className="mb-6">
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">Top Applicants</h1>
+                <p className="text-slate-600">View and manage top candidates for your job postings</p>
+              </div>
 
               {/* Search */}
               <div className="relative mb-6 group">
@@ -1193,7 +1240,12 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
 
                   {/* Jobs Table */}
                   {filteredJobs.length > 0 ? (
-                    <div className="bg-white border border-slate-300 rounded-2xl shadow-sm overflow-hidden">
+                    <div className="bg-white border border-slate-300 rounded-2xl shadow-sm overflow-hidden relative">
+                      {loadingJobs && !initialLoading && (
+                        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                          <Loading size="md" />
+                        </div>
+                      )}
                       <div className="overflow-x-auto">
                         <table className="w-full">
                           <thead>
@@ -1224,7 +1276,8 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                             {filteredJobs.map((job) => (
                               <tr
                                 key={job._id}
-                                className="border-b border-slate-200 bg-white hover:bg-slate-50/80 transition-colors duration-150"
+                                onClick={() => handleJobClick(job)}
+                                className="border-b border-slate-200 bg-white hover:bg-slate-50/80 transition-colors duration-150 cursor-pointer"
                               >
                                 <td className="p-4">
                                   <div>
@@ -1287,7 +1340,10 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={() => handleJobClick(job)}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleJobClick(job);
+                                      }}
                                       className="border-slate-200 hover:bg-cyan-50 hover:border-cyan-300 hover:text-cyan-700"
                                     >
                                       <Eye className="mr-2 h-4 w-4" />
@@ -1661,22 +1717,34 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                   </div>
 
                   {/* Candidates List */}
-                  {loadingCandidates ? (
-                    <div className="border-slate-300 bg-white border rounded-lg p-12 text-center shadow-sm">
-                      <RefreshCw className="h-12 w-12 mx-auto mb-4 animate-spin text-slate-400" />
-                      <p className="text-slate-600">
-                        Loading top candidates...
-                      </p>
+                  {/* Candidate Search */}
+                  <div className="mb-6">
+                    <div className="relative group">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-cyan-500 transition-colors" />
+                      <input
+                        type="text"
+                        placeholder="Search candidates by name, email, or skills..."
+                        value={candidateSearchQuery}
+                        onChange={(e) => setCandidateSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all shadow-sm hover:shadow-md"
+                      />
                     </div>
-                  ) : candidates.length > 0 ? (
-                    <>
-                      <div className="mb-6">
-                        <p className="text-sm text-slate-900">
-                          Showing top {candidates.length} candidates sorted by
-                          match score
-                        </p>
+                  </div>
+
+                  <div className="border-slate-300 bg-white border rounded-lg overflow-hidden shadow-sm relative">
+                    {loadingCandidates && (
+                      <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                        <Loading size="md" />
                       </div>
-                      <div className="border-slate-300 bg-white border rounded-lg overflow-hidden shadow-sm">
+                    )}
+                    {candidates.length > 0 ? (
+                      <>
+                        <div className="mb-6 p-4 border-b">
+                          <p className="text-sm text-slate-900">
+                            Showing top {candidates.length} candidates sorted by
+                            match score
+                          </p>
+                        </div>
                         <Table>
                           <TableHeader>
                             <TableRow className="bg-slate-50 border-b-2 border-slate-300 hover:bg-slate-100">
@@ -2010,13 +2078,11 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                             })}
                           </TableBody>
                         </Table>
-                      </div>
-                    </>
-                  ) : (
-                    <Card className="bg-green-50/80 dark:bg-green-950/30 backdrop-blur-sm border-green-200 dark:border-green-800 border-2 rounded-lg">
-                      <CardContent className="pt-6 text-center">
-                        <User className="h-12 w-12 mx-auto mb-4 text-green-500 dark:text-green-400" />
-                        <p className="text-green-900 dark:text-green-100 mb-4 font-medium">
+                      </>
+                    ) : !loadingCandidates ? (
+                      <div className="p-12 text-center">
+                        <User className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+                        <p className="text-slate-600 mb-4 font-medium">
                           No candidates found for this job posting.
                         </p>
                         <Button
@@ -2031,9 +2097,13 @@ export default function TopApplicantsPageContent({ jobId: initialJobId }) {
                           />
                           Refresh Matches
                         </Button>
-                      </CardContent>
-                    </Card>
-                  )}
+                      </div>
+                    ) : (
+                      <div className="p-12 text-center">
+                        <p className="text-slate-600">Loading candidates...</p>
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </>

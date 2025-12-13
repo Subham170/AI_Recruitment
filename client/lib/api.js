@@ -158,8 +158,11 @@ export const jobPostingAPI = {
 
 // Matching API functions
 export const matchingAPI = {
-  getJobMatches: async (jobId) => {
-    return apiRequest(`/matching/job/${jobId}/candidates`, {
+  getJobMatches: async (jobId, search = "") => {
+    const url = search
+      ? `/matching/job/${jobId}/candidates?search=${encodeURIComponent(search)}`
+      : `/matching/job/${jobId}/candidates`;
+    return apiRequest(url, {
       method: "GET",
     });
   },
@@ -185,8 +188,11 @@ export const candidateAPI = {
     });
   },
 
-  getCandidates: async () => {
-    return apiRequest("/candidates", {
+  getCandidates: async (search = "") => {
+    const url = search
+      ? `/candidates?search=${encodeURIComponent(search)}`
+      : "/candidates";
+    return apiRequest(url, {
       method: "GET",
     });
   },

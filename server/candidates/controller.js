@@ -144,7 +144,21 @@ export { seedCandidates } from "./seedCandidates.js";
 // Get all candidates
 export const getCandidates = async (req, res) => {
   try {
-    const candidates = await Candidate.find({ is_active: { $ne: false } });
+    const { search } = req.query;
+
+    // Build filter query
+    const filterQuery = { is_active: { $ne: false } };
+
+    // Search filter (name, email, skills)
+    if (search) {
+      filterQuery.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { skills: { $in: [new RegExp(search, "i")] } },
+      ];
+    }
+
+    const candidates = await Candidate.find(filterQuery).sort({ createdAt: -1 });
 
     res.status(200).json({
       count: candidates.length,

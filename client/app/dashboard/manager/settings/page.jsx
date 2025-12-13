@@ -44,12 +44,19 @@ export default function SettingsPage() {
       <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto">
-          <ComingSoon
-            title="Settings"
-            description="Manage team settings and preferences. This feature is coming soon!"
-            icon={Settings}
-          />
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">Settings</h1>
+              <p className="text-slate-600">Manage team settings and preferences</p>
+            </div>
+            <ComingSoon
+              title="Settings"
+              description="Manage team settings and preferences. This feature is coming soon!"
+              icon={Settings}
+            />
+          </div>
         </main>
       </div>
     </div>
