@@ -5,18 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  CheckCircle,
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-  Search,
-  Users,
-  Zap,
-} from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -24,7 +17,20 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      // Redirect to role-specific dashboard
+      if (user.role) {
+        router.push(`/dashboard/${user.role}`);
+      } else {
+        router.push("/dashboard");
+      }
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,204 +45,234 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
+      // AuthContext will handle the redirect to role-specific dashboard
     } catch (err) {
       setError(err.message || "Login failed. Please check your credentials.");
-    } finally {
       setLoading(false);
     }
   };
 
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render login form if user is already logged in (will redirect)
+  if (user) {
+    return null;
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 py-12 relative overflow-hidden">
-      {/* Subtle radial gradient overlay */}
-      <div className="absolute inset-0 pointer-events-none">
+    <div className="flex min-h-screen bg-background">
+      {/* Left side - Branding */}
+      <div className="relative hidden w-1/2 overflow-hidden bg-gradient-to-br from-primary via-primary to-primary/90 p-12 lg:flex lg:flex-col lg:justify-between">
+        {/* Decorative background elements */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 right-0 h-96 w-96 rounded-full bg-primary-foreground blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 h-96 w-96 rounded-full bg-primary-foreground blur-3xl"></div>
+        </div>
+
+        {/* Grid pattern overlay */}
         <div
-          className="absolute top-0 right-0 w-1/2 h-1/2"
+          className="absolute inset-0 opacity-5"
           style={{
-            background:
-              "radial-gradient(circle at top right, rgba(6, 182, 212, 0.08), transparent 70%)",
+            backgroundImage: `
+              linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: "50px 50px",
           }}
-        ></div>
-        <div
-          className="absolute bottom-0 left-0 w-1/2 h-1/2"
-          style={{
-            background:
-              "radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.08), transparent 70%)",
-          }}
-        ></div>
-      </div>
+        />
 
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Gradient Orbs */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-cyan-400/15 to-blue-500/15 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-500/15 to-cyan-400/15 rounded-full blur-3xl animate-pulse-delay-500"></div>
-
-        {/* Floating Icons */}
-        <div className="absolute top-20 left-10 animate-float-slow opacity-30">
-          <div className="bg-cyan-400/20 backdrop-blur-sm rounded-full p-3 border border-cyan-400/30">
-            <Users className="w-5 h-5 text-cyan-500" />
-          </div>
-        </div>
-        <div className="absolute top-40 right-20 animate-float-medium opacity-30">
-          <div className="bg-blue-500/20 backdrop-blur-sm rounded-full p-3 border border-blue-500/30">
-            <Search className="w-5 h-5 text-blue-500" />
-          </div>
-        </div>
-        <div className="absolute bottom-32 right-10 animate-float-slow-delay opacity-30">
-          <div className="bg-teal-400/20 backdrop-blur-sm rounded-full p-3 border border-teal-400/30">
-            <CheckCircle className="w-5 h-5 text-teal-500" />
-          </div>
-        </div>
-        <div className="absolute bottom-20 left-20 animate-float-medium-delay opacity-30">
-          <div className="bg-cyan-400/20 backdrop-blur-sm rounded-full p-3 border border-cyan-400/30">
-            <Zap className="w-5 h-5 text-cyan-500" />
-          </div>
+        <div className="relative z-10">
+          <Link href="/" className="flex items-center gap-3">
+            <Image
+              src="/Logo.png"
+              alt="AI Recruitment Logo"
+              width={48}
+              height={48}
+              className="object-contain"
+            />
+            <span className="text-xl font-bold text-primary-foreground">
+              AI Recruitment
+            </span>
+          </Link>
         </div>
 
-        {/* Particles */}
-        {[...Array(10)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1.5 h-1.5 bg-cyan-400/40 rounded-full animate-particle"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${8 + Math.random() * 8}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="w-full max-w-md relative z-10">
-        {/* Logo and Branding */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center mb-4">
-            <div className="rounded-full overflow-hidden">
-              <Image
-                src="/Logo.png"
-                alt="AI Recruitment Logo"
-                width={64}
-                height={64}
-                className="object-contain"
-              />
-            </div>
+        <div className="relative z-10 max-w-md">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-4 py-2 backdrop-blur-sm">
+            <Sparkles className="h-4 w-4 text-primary-foreground" />
+            <span className="text-sm font-medium text-primary-foreground">
+              AI-Powered Platform
+            </span>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent mb-2">
-            AI Recruitment
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
-            Sign in to access your account
+          <h2 className="mb-6 text-balance text-4xl font-bold leading-tight text-primary-foreground lg:text-5xl">
+            Welcome to the Future of Recruitment
+          </h2>
+          <p className="text-pretty text-lg leading-relaxed text-primary-foreground/90">
+            AI-powered platform designed for recruiters, managers, and
+            administrators to streamline hiring processes and find the perfect
+            candidates faster.
           </p>
+
+          {/* Feature highlights */}
+          <div className="mt-8 space-y-3">
+            {[
+              "Intelligent candidate matching",
+              "Automated screening process",
+              "Real-time analytics dashboard",
+            ].map((feature, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-foreground/20">
+                  <div className="h-2 w-2 rounded-full bg-primary-foreground"></div>
+                </div>
+                <span className="text-sm text-primary-foreground/80">
+                  {feature}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl shadow-2xl p-8 border border-gray-200/50 dark:border-slate-700/50 hover:shadow-cyan-500/10 transition-all duration-300">
-          {/* Error Alert */}
+        <div className="relative z-10 text-sm text-primary-foreground/60">
+          © 2025 AI Recruitment. All rights reserved.
+        </div>
+      </div>
+
+      {/* Right side - Login form */}
+      <div className="flex w-full flex-col justify-center bg-gradient-to-b from-background to-muted/20 px-6 py-12 lg:w-1/2 lg:px-20">
+        <div className="mx-auto w-full max-w-sm">
+          {/* Mobile logo */}
+          <Link href="/" className="mb-8 flex items-center gap-2 lg:hidden">
+            <Image
+              src="/Logo.png"
+              alt="AI Recruitment Logo"
+              width={40}
+              height={40}
+              className="object-contain"
+            />
+            <span className="text-xl font-semibold text-foreground">
+              AI Recruitment
+            </span>
+          </Link>
+
+          <div className="mb-10">
+            <h1 className="mb-3 text-3xl font-bold tracking-tight text-foreground lg:text-4xl">
+              Sign in to your account
+            </h1>
+            <p className="text-base text-muted-foreground">
+              Enter your credentials to access the platform
+            </p>
+          </div>
+
           {error && (
             <Alert variant="destructive" className="mb-6">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email Input */}
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label
                 htmlFor="email"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                className="text-sm font-semibold text-foreground"
               >
-                Email Address
+                Email address
               </Label>
-              <div className="relative group">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-cyan-500 transition-colors" />
+              <div className="group relative">
+                <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input
                   id="email"
                   type="email"
+                  placeholder="name@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="h-11 pl-10 border-gray-300 dark:border-slate-600 focus:border-cyan-500 focus:ring-cyan-500/20 transition-all"
                   required
+                  className="h-12 pl-10 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  disabled={loading}
                 />
               </div>
             </div>
 
-            {/* Password Input */}
             <div className="space-y-2">
               <Label
                 htmlFor="password"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                className="text-sm font-semibold text-foreground"
               >
                 Password
               </Label>
-              <div className="relative group">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-cyan-500 transition-colors" />
+              <div className="group relative">
+                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="h-11 pl-10 pr-10 border-gray-300 dark:border-slate-600 focus:border-cyan-500 focus:ring-cyan-500/20 transition-all"
                   required
+                  className="h-12 pl-10 pr-10 transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-cyan-500 focus:outline-none transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary focus:outline-none"
                   aria-label={showPassword ? "Hide password" : "Show password"}
+                  disabled={loading}
                 >
                   {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
+                    <EyeOff className="h-5 w-5" />
                   ) : (
-                    <Eye className="w-5 h-5" />
+                    <Eye className="h-5 w-5" />
                   )}
                 </button>
               </div>
             </div>
 
-            {/* Forgot Password Link */}
-            <div className="flex justify-end">
-              <a
-                href="#"
-                className="text-sm text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 font-medium transition-colors"
-              >
-                Forgot password?
-              </a>
-            </div>
-
-            {/* Login Button */}
             <Button
               type="submit"
+              className="group h-12 w-full text-base font-semibold shadow-lg transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
               disabled={loading}
-              className="w-full h-11 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
-              size="lg"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></span>
                   Signing in...
                 </span>
               ) : (
-                "Sign In"
+                <span className="flex items-center justify-center gap-2">
+                  Sign in
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </span>
               )}
             </Button>
           </form>
-        </div>
 
-        {/* Footer */}
-        <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-          <p>
-            Don't have an account?{" "}
-            <a
-              href="#"
-              className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 font-medium transition-colors"
-            >
-              Contact administrator
-            </a>
-          </p>
+          <div className="mt-10 border-t border-border pt-6">
+            <p className="text-center text-xs leading-relaxed text-muted-foreground">
+              By signing in, you agree to our{" "}
+              <Link
+                href="/terms"
+                className="font-medium text-primary underline-offset-4 transition-colors hover:text-primary/80 hover:underline"
+              >
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link
+                href="/privacy"
+                className="font-medium text-primary underline-offset-4 transition-colors hover:text-primary/80 hover:underline"
+              >
+                Privacy Policy
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

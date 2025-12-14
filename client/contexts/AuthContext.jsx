@@ -55,8 +55,12 @@ export function AuthProvider({ children }) {
       // Update state
       setUser(response.user);
 
-      // Redirect to dashboard
-      router.push("/dashboard");
+      // Redirect to role-specific dashboard
+      if (response.user && response.user.role) {
+        router.push(`/dashboard/${response.user.role}`);
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error) {
       throw error;
     }
