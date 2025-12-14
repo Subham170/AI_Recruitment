@@ -397,6 +397,18 @@ export const recruiterTasksAPI = {
     });
   },
 
+  getCandidateScreenings: async (candidateId) => {
+    return apiRequest(`/recruiter-tasks/candidate/${candidateId}/screenings`, {
+      method: "GET",
+    });
+  },
+
+  getCandidateInterviews: async (candidateId) => {
+    return apiRequest(`/recruiter-tasks/candidate/${candidateId}/interviews`, {
+      method: "GET",
+    });
+  },
+
   updateTaskStatus: async (taskId, status, notes) => {
     return apiRequest(`/recruiter-tasks/${taskId}/status`, {
       method: "PATCH",

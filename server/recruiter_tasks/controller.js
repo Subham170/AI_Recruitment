@@ -1,6 +1,6 @@
-import RecruiterTask from "./model.js";
 import BolnaCall from "../bolna/model.js";
 import { formatFullDateTimeWithAMPM } from "../utils/timeFormatter.js";
+import RecruiterTask from "./model.js";
 
 /**
  * Get all tasks for a recruiter with optional filters
@@ -36,7 +36,7 @@ export const getRecruiterTasks = async (req, res) => {
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(now);
       endOfDay.setHours(23, 59, 59, 999);
-      
+
       dateFilter = {
         interview_time: {
           $gte: startOfDay,
@@ -145,13 +145,13 @@ export const getRecruiterTaskStats = async (req, res) => {
     }
 
     const now = new Date();
-    
+
     // Today's tasks
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999);
-    
+
     const todayTasks = await RecruiterTask.countDocuments({
       recruiter_id: currentUserId,
       interview_time: {
@@ -226,6 +226,181 @@ export const getRecruiterTaskStats = async (req, res) => {
 };
 
 /**
+ * Get screenings (completed calls) for a specific candidate
+ * Fetches from BolnaCall collection where status is "completed"
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+export const getCandidateScreenings = async (req, res) => {
+  try {
+    const currentUserId = req.user?.id;
+    const userRole = req.user?.role;
+    const { candidateId } = req.params;
+
+    if (!currentUserId) {
+      return res.status(401).json({
+        message: "Authentication required",
+      });
+    }
+
+    // Allow admin, manager, and recruiter roles
+    if (!["admin", "manager", "recruiter"].includes(userRole)) {
+      return res.status(403).json({
+        message: "Access denied",
+      });
+    }
+
+    if (!candidateId) {
+      return res.status(400).json({
+        message: "Candidate ID is required",
+      });
+    }
+
+    // Build query - filter by candidateId and completed status in BolnaCall
+    const query = {
+      candidateId: candidateId,
+      status: "completed",
+    };
+
+    // If user is recruiter, only show calls assigned to them
+    // Admin and manager can see all calls
+    if (userRole === "recruiter") {
+      query.assignRecruiter = currentUserId;
+    }
+
+    // Fetch completed calls (screenings) from BolnaCall with populated fields
+    const screenings = await BolnaCall.find(query)
+      .populate("candidateId", "name email phone_no")
+      .populate("jobId", "title company job_type ctc exp_req")
+      .populate("assignRecruiter", "name email")
+      .sort({ callScheduledAt: -1 }) // Sort by most recent first
+      .lean();
+
+    // Transform the data to match expected format
+    const transformedScreenings = screenings.map((screening) => ({
+      _id: screening._id,
+      candidate_id: screening.candidateId,
+      job_id: screening.jobId,
+      bolna_call_id: {
+        _id: screening._id,
+        executionId: screening.executionId,
+        status: screening.status,
+        callScheduledAt: screening.callScheduledAt,
+        userScheduledAt: screening.userScheduledAt,
+      },
+      recruiter_id: screening.assignRecruiter,
+      call_scheduled_at: screening.callScheduledAt,
+      status: screening.status,
+      executionId: screening.executionId,
+      emailSent: screening.emailSent,
+      emailSentAt: screening.emailSentAt,
+      meetLink: screening.meetLink,
+      createdAt: screening.createdAt,
+      updatedAt: screening.updatedAt,
+    }));
+
+    res.status(200).json({
+      success: true,
+      screenings: transformedScreenings,
+      count: transformedScreenings.length,
+    });
+  } catch (error) {
+    console.error("Error fetching candidate screenings:", error);
+    res.status(500).json({
+      message: error.message || "Failed to fetch candidate screenings",
+    });
+  }
+};
+
+/**
+ * Get interviews (all tasks) for a specific candidate
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+export const getCandidateInterviews = async (req, res) => {
+  try {
+    const currentUserId = req.user?.id;
+    const userRole = req.user?.role;
+    const { candidateId } = req.params;
+
+    if (!currentUserId) {
+      return res.status(401).json({
+        message: "Authentication required",
+      });
+    }
+
+    // Allow admin, manager, and recruiter roles
+    if (!["admin", "manager", "recruiter"].includes(userRole)) {
+      return res.status(403).json({
+        message: "Access denied",
+      });
+    }
+
+    if (!candidateId) {
+      return res.status(400).json({
+        message: "Candidate ID is required",
+      });
+    }
+
+    // Build query - filter by candidate (all statuses)
+    const query = {
+      candidate_id: candidateId,
+    };
+
+    // If user is recruiter, only show their own tasks
+    // Admin and manager can see all tasks
+    if (userRole === "recruiter") {
+      query.recruiter_id = currentUserId;
+    }
+
+    // Fetch all tasks (interviews) with populated fields
+    const interviews = await RecruiterTask.find(query)
+      .populate("candidate_id", "name email phone_no")
+      .populate("job_id", "title company job_type ctc exp_req")
+      .populate(
+        "bolna_call_id",
+        "executionId status callScheduledAt userScheduledAt"
+      )
+      .populate("recruiter_id", "name email")
+      .sort({ interview_time: 1 }) // Sort by interview time ascending
+      .lean();
+
+    // Get statistics
+    const totalInterviews = interviews.length;
+    const scheduledInterviews = interviews.filter(
+      (i) => i.status === "scheduled"
+    ).length;
+    const completedInterviews = interviews.filter(
+      (i) => i.status === "completed"
+    ).length;
+    const cancelledInterviews = interviews.filter(
+      (i) => i.status === "cancelled"
+    ).length;
+    const rescheduledInterviews = interviews.filter(
+      (i) => i.status === "rescheduled"
+    ).length;
+
+    res.status(200).json({
+      success: true,
+      interviews,
+      count: totalInterviews,
+      statistics: {
+        total: totalInterviews,
+        scheduled: scheduledInterviews,
+        completed: completedInterviews,
+        cancelled: cancelledInterviews,
+        rescheduled: rescheduledInterviews,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching candidate interviews:", error);
+    res.status(500).json({
+      message: error.message || "Failed to fetch candidate interviews",
+    });
+  }
+};
+
+/**
  * Update task status
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -242,9 +417,13 @@ export const updateTaskStatus = async (req, res) => {
       });
     }
 
-    if (!status || !["scheduled", "completed", "cancelled", "rescheduled"].includes(status)) {
+    if (
+      !status ||
+      !["scheduled", "completed", "cancelled", "rescheduled"].includes(status)
+    ) {
       return res.status(400).json({
-        message: "Valid status is required (scheduled, completed, cancelled, rescheduled)",
+        message:
+          "Valid status is required (scheduled, completed, cancelled, rescheduled)",
       });
     }
 
@@ -263,11 +442,17 @@ export const updateTaskStatus = async (req, res) => {
     if (status === "completed") {
       const now = new Date();
       const interviewTime = new Date(task.interview_time);
-      
+
       if (interviewTime > now) {
-        const interviewTimeFormatted = formatFullDateTimeWithAMPM(task.interview_time, "Asia/Kolkata");
-        const currentTimeFormatted = formatFullDateTimeWithAMPM(now, "Asia/Kolkata");
-        
+        const interviewTimeFormatted = formatFullDateTimeWithAMPM(
+          task.interview_time,
+          "Asia/Kolkata"
+        );
+        const currentTimeFormatted = formatFullDateTimeWithAMPM(
+          now,
+          "Asia/Kolkata"
+        );
+
         return res.status(400).json({
           message: `Cannot complete task before the scheduled interview time. The interview is scheduled for ${interviewTimeFormatted}. Please wait until the interview time has passed before marking it as completed.`,
           interviewTime: task.interview_time,
@@ -304,4 +489,3 @@ export const updateTaskStatus = async (req, res) => {
     });
   }
 };
-
