@@ -106,11 +106,13 @@ export default function RecruiterJobDetailPage() {
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
-    } else if (user && user.role !== "recruiter") {
+    } else if (user && !["recruiter", "admin", "manager"].includes(user.role)) {
       router.push(`/dashboard/${user.role}`);
     } else if (user && jobId) {
       fetchJobPosting();
-      fetchRecruiters();
+      if (user.role === "recruiter") {
+        fetchRecruiters();
+      }
     }
   }, [user, authLoading, jobId, router]);
 
@@ -301,7 +303,7 @@ export default function RecruiterJobDetailPage() {
     // Check if user has edit access for status changes
     if (!canEdit) {
       toast.error(
-        "You do not have permission to change the status of this job posting as you are not the primary or secondary recruiter"
+        "You do not have permission to change the status of this job posting"
       );
       return;
     }
@@ -422,9 +424,7 @@ export default function RecruiterJobDetailPage() {
   const handleCloseJob = async () => {
     // Check if user has edit access
     if (!canEdit) {
-      toast.error(
-        "You do not have permission to close this job posting as you are not the primary or secondary recruiter"
-      );
+      toast.error("You do not have permission to close this job posting");
       setCloseDialogOpen(false);
       setCloseType(null);
       return;
@@ -442,8 +442,9 @@ export default function RecruiterJobDetailPage() {
         // Permanently delete the job posting
         await jobPostingAPI.deleteJobPosting(jobId);
         toast.success("Job posting permanently deleted");
-        // Redirect to job postings list
-        router.push("/dashboard/recruiter/manage-job-posting");
+        // Redirect to job postings list based on user role
+        const role = user?.role || "recruiter";
+        router.push(`/dashboard/${role}/manage-job-posting`);
         return;
       } else {
         // Temporarily close (set status to closed)
@@ -523,10 +524,10 @@ export default function RecruiterJobDetailPage() {
       return;
     }
 
-    // Check if user has edit access
-    if (!canEdit) {
+    // Check if user can make calls (only recruiters can make calls)
+    if (!canCall) {
       toast.error(
-        "You do not have permission to make calls for this job posting as you are not the primary or secondary recruiter"
+        "You do not have permission to make calls for this job posting. Only recruiters can make calls."
       );
       return;
     }
@@ -596,9 +597,7 @@ export default function RecruiterJobDetailPage() {
     }
 
     if (!canEdit) {
-      toast.error(
-        "You do not have permission to edit this job posting as you are not the primary or secondary recruiter"
-      );
+      toast.error("You do not have permission to edit this job posting");
       return;
     }
 
@@ -727,9 +726,10 @@ export default function RecruiterJobDetailPage() {
               <p className="text-red-900">{error || "Job posting not found"}</p>
               <Button
                 className="mt-4"
-                onClick={() =>
-                  router.push("/dashboard/recruiter/manage-job-posting")
-                }
+                onClick={() => {
+                  const role = user?.role || "recruiter";
+                  router.push(`/dashboard/${role}/manage-job-posting`);
+                }}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Job Postings
@@ -761,35 +761,84 @@ export default function RecruiterJobDetailPage() {
     { value: "closed", label: "Closed", color: "bg-red-500" },
   ];
 
-  // Check if current user has edit/call access (primary or secondary recruiter)
+  // Check if current user has edit access
+  // Admin and Manager can edit all job postings
+  // Recruiters can only edit their own (primary or secondary)
   const hasEditAccess = () => {
     if (!jobPosting || !user) return false;
 
-    const userIdStr = user.id?.toString() || user._id?.toString();
-    if (!userIdStr) return false;
+    // Admin and Manager can edit all job postings
+    if (user.role === "admin" || user.role === "manager") {
+      return true;
+    }
 
-    // Check if user is primary recruiter
-    const primaryRecruiterId =
-      jobPosting.primary_recruiter_id?._id?.toString() ||
-      jobPosting.primary_recruiter_id?.toString();
-    if (primaryRecruiterId === userIdStr) return true;
+    // For recruiters, check if they are primary or secondary recruiter
+    if (user.role === "recruiter") {
+      const userIdStr = user.id?.toString() || user._id?.toString();
+      if (!userIdStr) return false;
 
-    // Check if user is secondary recruiter
-    if (
-      jobPosting.secondary_recruiter_id &&
-      Array.isArray(jobPosting.secondary_recruiter_id)
-    ) {
-      const isSecondary = jobPosting.secondary_recruiter_id.some(
-        (recruiter) =>
-          (recruiter._id?.toString() || recruiter.toString()) === userIdStr
-      );
-      if (isSecondary) return true;
+      // Check if user is primary recruiter
+      const primaryRecruiterId =
+        jobPosting.primary_recruiter_id?._id?.toString() ||
+        jobPosting.primary_recruiter_id?.toString();
+      if (primaryRecruiterId === userIdStr) return true;
+
+      // Check if user is secondary recruiter
+      if (
+        jobPosting.secondary_recruiter_id &&
+        Array.isArray(jobPosting.secondary_recruiter_id)
+      ) {
+        const isSecondary = jobPosting.secondary_recruiter_id.some(
+          (recruiter) =>
+            (recruiter._id?.toString() || recruiter.toString()) === userIdStr
+        );
+        if (isSecondary) return true;
+      }
+    }
+
+    return false;
+  };
+
+  // Check if current user can make calls
+  // Only recruiters (primary or secondary) can make calls
+  // Admin and Manager cannot make calls
+  const canMakeCalls = () => {
+    if (!jobPosting || !user) return false;
+
+    // Admin and Manager cannot make calls
+    if (user.role === "admin" || user.role === "manager") {
+      return false;
+    }
+
+    // Only recruiters can make calls
+    if (user.role === "recruiter") {
+      const userIdStr = user.id?.toString() || user._id?.toString();
+      if (!userIdStr) return false;
+
+      // Check if user is primary recruiter
+      const primaryRecruiterId =
+        jobPosting.primary_recruiter_id?._id?.toString() ||
+        jobPosting.primary_recruiter_id?.toString();
+      if (primaryRecruiterId === userIdStr) return true;
+
+      // Check if user is secondary recruiter
+      if (
+        jobPosting.secondary_recruiter_id &&
+        Array.isArray(jobPosting.secondary_recruiter_id)
+      ) {
+        const isSecondary = jobPosting.secondary_recruiter_id.some(
+          (recruiter) =>
+            (recruiter._id?.toString() || recruiter.toString()) === userIdStr
+        );
+        if (isSecondary) return true;
+      }
     }
 
     return false;
   };
 
   const canEdit = hasEditAccess();
+  const canCall = canMakeCalls();
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">
@@ -808,9 +857,10 @@ export default function RecruiterJobDetailPage() {
             <Button
               variant="outline"
               className="mb-6 cursor-pointer"
-              onClick={() =>
-                router.push("/dashboard/recruiter/manage-job-posting")
-              }
+              onClick={() => {
+                const role = user?.role || "recruiter";
+                router.push(`/dashboard/${role}/manage-job-posting`);
+              }}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
@@ -921,6 +971,7 @@ export default function RecruiterJobDetailPage() {
                     const isDraftDisabled =
                       option.value === "draft" && currentStatus === "open";
                     // Disable all status buttons if user doesn't have edit access
+                    // Admin and Manager can change status, recruiters need edit access
                     const isDisabled =
                       !canEdit || updatingStatus || isDraftDisabled;
 
@@ -1180,7 +1231,7 @@ export default function RecruiterJobDetailPage() {
                                     handleScheduleSingleCall(candidate)
                                   }
                                   disabled={
-                                    !canEdit ||
+                                    !canCall ||
                                     currentStatus === "closed" ||
                                     callingCandidateId === candidateId ||
                                     !candidate.phone_no ||
@@ -1191,8 +1242,8 @@ export default function RecruiterJobDetailPage() {
                                   title={
                                     currentStatus === "closed"
                                       ? "Cannot make calls for a closed job posting"
-                                      : !canEdit
-                                      ? "You do not have permission to make calls for this job posting as you are not the primary or secondary recruiter"
+                                      : !canCall
+                                      ? "You do not have permission to make calls. Only recruiters can make calls."
                                       : !candidate.phone_no
                                       ? "No phone number available"
                                       : callStatus &&
@@ -1825,132 +1876,136 @@ export default function RecruiterJobDetailPage() {
               />
             </div>
 
-            {/* Secondary Recruiters */}
-            <div className="space-y-3">
-              <Label
-                htmlFor="secondary_recruiters"
-                className="text-slate-900 font-medium block"
-              >
-                Secondary Recruiters
-              </Label>
-              <Select
-                onValueChange={(value) => {
-                  if (
-                    value &&
-                    value !== "no-recruiters" &&
-                    !jobForm.secondary_recruiter_id.includes(value)
-                  ) {
-                    setJobForm({
-                      ...jobForm,
-                      secondary_recruiter_id: [
-                        ...jobForm.secondary_recruiter_id,
-                        value,
-                      ],
-                    });
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full border-slate-200 bg-white text-slate-900 hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200">
-                  <SelectValue placeholder="Select recruiters to add" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[200px] overflow-y-auto bg-white border-slate-200">
-                  {recruiters.length > 0 ? (
-                    recruiters
-                      .filter((recruiter) => {
-                        const recruiterIdStr =
-                          recruiter._id?.toString() || recruiter.id?.toString();
-                        const primaryRecruiterId =
-                          jobPosting?.primary_recruiter_id?._id?.toString() ||
-                          jobPosting?.primary_recruiter_id?.toString();
-                        return (
-                          recruiterIdStr !== user.id?.toString() &&
-                          recruiterIdStr !== primaryRecruiterId &&
-                          !jobForm.secondary_recruiter_id.includes(
-                            recruiterIdStr
-                          )
-                        );
-                      })
-                      .map((recruiter) => (
-                        <SelectItem
-                          key={recruiter._id || recruiter.id}
-                          value={
+            {/* Secondary Recruiters - Only show for recruiters */}
+            {user?.role === "recruiter" && (
+              <div className="space-y-3">
+                <Label
+                  htmlFor="secondary_recruiters"
+                  className="text-slate-900 font-medium block"
+                >
+                  Secondary Recruiters
+                </Label>
+                <Select
+                  onValueChange={(value) => {
+                    if (
+                      value &&
+                      value !== "no-recruiters" &&
+                      !jobForm.secondary_recruiter_id.includes(value)
+                    ) {
+                      setJobForm({
+                        ...jobForm,
+                        secondary_recruiter_id: [
+                          ...jobForm.secondary_recruiter_id,
+                          value,
+                        ],
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full border-slate-200 bg-white text-slate-900 hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200">
+                    <SelectValue placeholder="Select recruiters to add" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[200px] overflow-y-auto bg-white border-slate-200">
+                    {recruiters.length > 0 ? (
+                      recruiters
+                        .filter((recruiter) => {
+                          const recruiterIdStr =
                             recruiter._id?.toString() ||
-                            recruiter.id?.toString()
-                          }
-                          className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-slate-500" />
-                            <span>{recruiter.name}</span>
-                            <span className="text-xs text-slate-500">
-                              ({recruiter.email})
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))
-                  ) : (
-                    <SelectItem value="no-recruiters" disabled>
-                      {loadingRecruiters
-                        ? "Loading recruiters..."
-                        : "No recruiters available"}
-                    </SelectItem>
-                  )}
-                  {recruiters.filter((recruiter) => {
-                    const recruiterIdStr =
-                      recruiter._id?.toString() || recruiter.id?.toString();
-                    const primaryRecruiterId =
-                      jobPosting?.primary_recruiter_id?._id?.toString() ||
-                      jobPosting?.primary_recruiter_id?.toString();
-                    return (
-                      recruiterIdStr !== user.id?.toString() &&
-                      recruiterIdStr !== primaryRecruiterId &&
-                      !jobForm.secondary_recruiter_id.includes(recruiterIdStr)
-                    );
-                  }).length === 0 &&
-                    recruiters.length > 0 && (
+                            recruiter.id?.toString();
+                          const primaryRecruiterId =
+                            jobPosting?.primary_recruiter_id?._id?.toString() ||
+                            jobPosting?.primary_recruiter_id?.toString();
+                          return (
+                            recruiterIdStr !== user.id?.toString() &&
+                            recruiterIdStr !== primaryRecruiterId &&
+                            !jobForm.secondary_recruiter_id.includes(
+                              recruiterIdStr
+                            )
+                          );
+                        })
+                        .map((recruiter) => (
+                          <SelectItem
+                            key={recruiter._id || recruiter.id}
+                            value={
+                              recruiter._id?.toString() ||
+                              recruiter.id?.toString()
+                            }
+                            className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4 text-slate-500" />
+                              <span>{recruiter.name}</span>
+                              <span className="text-xs text-slate-500">
+                                ({recruiter.email})
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))
+                    ) : (
                       <SelectItem value="no-recruiters" disabled>
-                        No other recruiters available
+                        {loadingRecruiters
+                          ? "Loading recruiters..."
+                          : "No recruiters available"}
                       </SelectItem>
                     )}
-                </SelectContent>
-              </Select>
-              {jobForm.secondary_recruiter_id.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {jobForm.secondary_recruiter_id.map((recruiterId) => {
-                    const recruiter = recruiters.find(
-                      (r) =>
-                        (r._id?.toString() || r.id?.toString()) === recruiterId
-                    );
-                    return (
-                      <span
-                        key={recruiterId}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200"
-                      >
-                        <Users className="h-3.5 w-3.5" />
-                        {recruiter?.name || recruiterId}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setJobForm({
-                              ...jobForm,
-                              secondary_recruiter_id:
-                                jobForm.secondary_recruiter_id.filter(
-                                  (id) => id !== recruiterId
-                                ),
-                            });
-                          }}
-                          className="ml-1 hover:bg-cyan-100 rounded-full p-0.5 transition-colors"
-                          title="Remove recruiter"
+                    {recruiters.filter((recruiter) => {
+                      const recruiterIdStr =
+                        recruiter._id?.toString() || recruiter.id?.toString();
+                      const primaryRecruiterId =
+                        jobPosting?.primary_recruiter_id?._id?.toString() ||
+                        jobPosting?.primary_recruiter_id?.toString();
+                      return (
+                        recruiterIdStr !== user.id?.toString() &&
+                        recruiterIdStr !== primaryRecruiterId &&
+                        !jobForm.secondary_recruiter_id.includes(recruiterIdStr)
+                      );
+                    }).length === 0 &&
+                      recruiters.length > 0 && (
+                        <SelectItem value="no-recruiters" disabled>
+                          No other recruiters available
+                        </SelectItem>
+                      )}
+                  </SelectContent>
+                </Select>
+                {jobForm.secondary_recruiter_id.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {jobForm.secondary_recruiter_id.map((recruiterId) => {
+                      const recruiter = recruiters.find(
+                        (r) =>
+                          (r._id?.toString() || r.id?.toString()) ===
+                          recruiterId
+                      );
+                      return (
+                        <span
+                          key={recruiterId}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200"
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                          <Users className="h-3.5 w-3.5" />
+                          {recruiter?.name || recruiterId}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setJobForm({
+                                ...jobForm,
+                                secondary_recruiter_id:
+                                  jobForm.secondary_recruiter_id.filter(
+                                    (id) => id !== recruiterId
+                                  ),
+                              });
+                            }}
+                            className="ml-1 hover:bg-cyan-100 rounded-full p-0.5 transition-colors"
+                            title="Remove recruiter"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter className="border-t border-slate-200 pt-4">

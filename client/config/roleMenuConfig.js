@@ -2,13 +2,8 @@ import {
   Briefcase,
   Calendar,
   ClipboardList,
-  Database,
   FileText,
   Home,
-  MessageSquare,
-  Settings,
-  Shield,
-  TrendingUp,
   Users,
 } from "lucide-react";
 
@@ -73,13 +68,6 @@ export const roleMenuConfig = {
       description: "Manage all job listings",
     },
     {
-      id: "top-applicants",
-      label: "Top Applicants",
-      icon: TrendingUp,
-      path: "/dashboard/manager/top-applicants",
-      description: "View top candidates",
-    },
-    {
       id: "candidates",
       label: "Candidates List",
       icon: Users,
@@ -92,7 +80,7 @@ export const roleMenuConfig = {
       icon: FileText,
       path: "/dashboard/manager/reports",
       description: "Generate reports",
-    }
+    },
   ],
   admin: [
     {
@@ -117,13 +105,6 @@ export const roleMenuConfig = {
       description: "Manage all job postings",
     },
     {
-      id: "top-applicants",
-      label: "Top Applicants",
-      icon: TrendingUp,
-      path: "/dashboard/admin/top-applicants",
-      description: "View top candidates",
-    },
-    {
       id: "candidates",
       label: "Candidates List",
       icon: Users,
@@ -136,7 +117,7 @@ export const roleMenuConfig = {
       icon: FileText,
       path: "/dashboard/admin/reports",
       description: "Generate reports",
-    }
+    },
   ],
 };
 

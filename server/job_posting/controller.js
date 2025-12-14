@@ -426,30 +426,37 @@ export const updateJobPosting = async (req, res) => {
       });
     }
 
-    // Verify that the current user is the primary or secondary recruiter
+    // Verify that the current user has permission to update
+    // Admin and Manager can update any job posting
+    // Recruiters can only update their own (primary or secondary)
     const currentUserId = req.user?.id;
+    const userRole = req.user?.role;
     const currentUserIdStr = currentUserId?.toString();
 
-    if (
-      jobPosting.primary_recruiter_id ||
-      jobPosting.secondary_recruiter_id?.length > 0
-    ) {
-      const primaryRecruiterId = jobPosting.primary_recruiter_id?.toString();
-      const isPrimary = primaryRecruiterId === currentUserIdStr;
+    // Admin and Manager have full access
+    if (userRole !== "admin" && userRole !== "manager") {
+      // For recruiters, check if they are primary or secondary recruiter
+      if (
+        jobPosting.primary_recruiter_id ||
+        jobPosting.secondary_recruiter_id?.length > 0
+      ) {
+        const primaryRecruiterId = jobPosting.primary_recruiter_id?.toString();
+        const isPrimary = primaryRecruiterId === currentUserIdStr;
 
-      const isSecondary = jobPosting.secondary_recruiter_id?.some(
-        (recruiterId) => {
-          const recruiterIdStr =
-            recruiterId._id?.toString() || recruiterId.toString();
-          return recruiterIdStr === currentUserIdStr;
+        const isSecondary = jobPosting.secondary_recruiter_id?.some(
+          (recruiterId) => {
+            const recruiterIdStr =
+              recruiterId._id?.toString() || recruiterId.toString();
+            return recruiterIdStr === currentUserIdStr;
+          }
+        );
+
+        if (!isPrimary && !isSecondary) {
+          return res.status(403).json({
+            message:
+              "Only the primary or secondary recruiter can update this job posting",
+          });
         }
-      );
-
-      if (!isPrimary && !isSecondary) {
-        return res.status(403).json({
-          message:
-            "Only the primary or secondary recruiter can update this job posting",
-        });
       }
     }
 
@@ -621,16 +628,23 @@ export const deleteJobPosting = async (req, res) => {
       });
     }
 
-    // Verify that the current user is the primary recruiter (only primary can delete)
+    // Verify that the current user has permission to delete
+    // Admin and Manager can delete any job posting
+    // Only primary recruiter can delete their own job postings
     const currentUserId = req.user?.id;
+    const userRole = req.user?.role;
     const currentUserIdStr = currentUserId?.toString();
 
-    if (jobPosting.primary_recruiter_id) {
-      const primaryRecruiterId = jobPosting.primary_recruiter_id.toString();
-      if (primaryRecruiterId !== currentUserIdStr) {
-        return res.status(403).json({
-          message: "Only the primary recruiter can delete this job posting",
-        });
+    // Admin and Manager have full access to delete
+    if (userRole !== "admin" && userRole !== "manager") {
+      // For recruiters, only primary recruiter can delete
+      if (jobPosting.primary_recruiter_id) {
+        const primaryRecruiterId = jobPosting.primary_recruiter_id.toString();
+        if (primaryRecruiterId !== currentUserIdStr) {
+          return res.status(403).json({
+            message: "Only the primary recruiter can delete this job posting",
+          });
+        }
       }
     }
 
