@@ -313,9 +313,23 @@ export default function RecruiterJobDetailPage() {
       return;
     }
 
-    // Prevent changing to draft when job is open
-    if (newStatus === "draft" && jobPosting?.status === "open") {
-      toast.error("Cannot change status to Draft when job is Open");
+    // Prevent changing to draft after job has been opened or closed
+    // Once a job is opened or closed, it cannot go back to draft
+    if (newStatus === "draft") {
+      const currentStatus = jobPosting?.status;
+      if (currentStatus === "open" || currentStatus === "closed") {
+        toast.error(
+          "Cannot change status to Draft. Once a job is opened or closed, it cannot be set back to draft."
+        );
+        return;
+      }
+    }
+
+    // When closed, can only go to open, not draft
+    if (jobPosting?.status === "closed" && newStatus === "draft") {
+      toast.error(
+        "Cannot change status to Draft from Closed. You can only reopen the job (change to Open)."
+      );
       return;
     }
 
@@ -967,9 +981,12 @@ export default function RecruiterJobDetailPage() {
               <div className="mb-6">
                 <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
                   {statusOptions.map((option) => {
-                    // Disable Draft button when job is open
+                    // Disable Draft button when job is open or closed
+                    // Once a job is opened or closed, it cannot go back to draft
                     const isDraftDisabled =
-                      option.value === "draft" && currentStatus === "open";
+                      option.value === "draft" &&
+                      (currentStatus === "open" || currentStatus === "closed");
+
                     // Disable all status buttons if user doesn't have edit access
                     // Admin and Manager can change status, recruiters need edit access
                     const isDisabled =
@@ -995,6 +1012,13 @@ export default function RecruiterJobDetailPage() {
                             ? "bg-white text-blue-600 shadow-sm border border-slate-200"
                             : "text-slate-600 hover:text-slate-800"
                         }`}
+                        title={
+                          isDraftDisabled
+                            ? "Cannot change to Draft after job has been opened or closed"
+                            : isDisabled && !canEdit
+                            ? "You do not have permission to change status"
+                            : ""
+                        }
                       >
                         {option.label}
                       </button>
