@@ -29,8 +29,20 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header>
-        <div className="mx-auto flex max-w-7xl items-center justify-end px-6 py-4">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-2">
+            <Image
+              src="/Logo.png"
+              alt="AI Recruitment Logo"
+              width={40}
+              height={40}
+              className="object-contain"
+            />
+            <span className="text-xl font-semibold text-foreground">
+              AI Recruitment
+            </span>
+          </div>
           <Button asChild>
             <Link href="/login">Login</Link>
           </Button>
@@ -41,7 +53,7 @@ export default function LandingPage() {
       <section className="mx-auto max-w-7xl px-6 py-20 md:py-32">
         <div className="flex flex-col items-center text-center">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-4 py-1.5">
-            <Sparkles className="h-4 w-4 text-accent" />
+            <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-secondary-foreground">
               AI-Powered Recruitment
             </span>
@@ -86,8 +98,8 @@ export default function LandingPage() {
           </div>
           <div className="grid gap-8 md:grid-cols-3">
             <div className="rounded-lg border border-border bg-card p-8">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
-                <Users className="h-6 w-6 text-accent" />
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <Users className="h-6 w-6 text-primary" />
               </div>
               <h3 className="mb-3 text-xl font-semibold text-card-foreground">
                 For Recruiters
@@ -98,8 +110,8 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-8">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
-                <Target className="h-6 w-6 text-accent" />
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <Target className="h-6 w-6 text-primary" />
               </div>
               <h3 className="mb-3 text-xl font-semibold text-card-foreground">
                 For Managers
@@ -110,8 +122,8 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="rounded-lg border border-border bg-card p-8">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
-                <BarChart3 className="h-6 w-6 text-accent" />
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <BarChart3 className="h-6 w-6 text-primary" />
               </div>
               <h3 className="mb-3 text-xl font-semibold text-card-foreground">
                 For Administrators
@@ -145,7 +157,7 @@ export default function LandingPage() {
                 "Ensure compliance and data security",
               ].map((benefit, index) => (
                 <li key={index} className="flex items-start gap-3">
-                  <CheckCircle2 className="h-6 w-6 shrink-0 text-accent" />
+                  <CheckCircle2 className="h-6 w-6 shrink-0 text-primary" />
                   <span className="text-foreground">{benefit}</span>
                 </li>
               ))}
@@ -175,13 +187,15 @@ export default function LandingPage() {
           <div className="grid gap-8 md:grid-cols-4">
             <div>
               <div className="mb-4 flex items-center gap-2">
-                <Image
-                  src="/Logo.png"
-                  alt="AI Recruitment Logo"
-                  width={32}
-                  height={32}
-                  className="object-contain"
-                />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+                  <Image
+                    src="/Logo.png"
+                    alt="AI Recruitment Logo"
+                    width={20}
+                    height={20}
+                    className="object-contain"
+                  />
+                </div>
                 <span className="font-semibold text-foreground">
                   AI Recruitment
                 </span>
