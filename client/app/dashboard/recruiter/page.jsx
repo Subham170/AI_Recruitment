@@ -2,32 +2,24 @@
 
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Loading from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
 import { dashboardAPI, recruiterTasksAPI } from "@/lib/api";
+import { formatDateTimeShort } from "@/lib/timeFormatter";
 import {
+  AlertCircle,
   Briefcase,
-  Calendar,
+  CheckCircle2,
   ClipboardList,
-  Users,
   Clock,
   User,
-  Mail,
-  CheckCircle2,
+  Users,
   XCircle,
-  AlertCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { formatDateTimeShort, formatDateShort } from "@/lib/timeFormatter";
-import { Badge } from "@/components/ui/badge";
 
 export default function RecruiterDashboardPage() {
   const { user, loading } = useAuth();
@@ -80,11 +72,17 @@ export default function RecruiterDashboardPage() {
   const fetchTasks = async () => {
     try {
       setLoadingTasks(true);
-      const allTasksResponse = await recruiterTasksAPI.getTasks({ filter: "all" });
+      const allTasksResponse = await recruiterTasksAPI.getTasks({
+        filter: "all",
+      });
       if (allTasksResponse.success && allTasksResponse.tasks) {
         const allTasks = allTasksResponse.tasks || [];
         const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
         const weekFromNow = new Date(today);
         weekFromNow.setDate(weekFromNow.getDate() + 7);
         const monthFromNow = new Date(today);
@@ -92,7 +90,10 @@ export default function RecruiterDashboardPage() {
 
         const todayTasks = allTasks.filter((task) => {
           const taskDate = new Date(task.interview_time);
-          return taskDate >= today && taskDate < new Date(today.getTime() + 24 * 60 * 60 * 1000);
+          return (
+            taskDate >= today &&
+            taskDate < new Date(today.getTime() + 24 * 60 * 60 * 1000)
+          );
         });
 
         const weekTasks = allTasks.filter((task) => {
@@ -121,9 +122,18 @@ export default function RecruiterDashboardPage() {
   const getStatusBadge = (status) => {
     const statusConfig = {
       scheduled: { variant: "default", icon: Clock, label: "Scheduled" },
-      completed: { variant: "default", icon: CheckCircle2, label: "Completed", className: "bg-green-500" },
+      completed: {
+        variant: "default",
+        icon: CheckCircle2,
+        label: "Completed",
+        className: "bg-green-500",
+      },
       cancelled: { variant: "destructive", icon: XCircle, label: "Cancelled" },
-      rescheduled: { variant: "secondary", icon: AlertCircle, label: "Rescheduled" },
+      rescheduled: {
+        variant: "secondary",
+        icon: AlertCircle,
+        label: "Rescheduled",
+      },
     };
 
     const config = statusConfig[status] || statusConfig.scheduled;
@@ -172,7 +182,7 @@ export default function RecruiterDashboardPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-900">
@@ -235,69 +245,52 @@ export default function RecruiterDashboardPage() {
                   <p className="text-xs text-slate-600">In pipeline</p>
                 </CardContent>
               </Card>
-
-              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-900">
-                    Interviews
-                  </CardTitle>
-                  <div className="p-2 rounded-lg bg-slate-100">
-                    <Calendar className="h-4 w-4 text-slate-700" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-slate-900">
-                    {loadingStats ? (
-                      <span className="animate-pulse">-</span>
-                    ) : (
-                      stats.interviews
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-600">Scheduled</p>
-                </CardContent>
-              </Card>
             </div>
 
             {/* Upcoming Tasks */}
             <div className="space-y-6">
               <div className="mb-6 flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Upcoming Tasks</h2>
-                  <p className="text-slate-600">Your scheduled interviews and assignments</p>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                    Upcoming Tasks
+                  </h2>
+                  <p className="text-slate-600">
+                    Your scheduled interviews and assignments
+                  </p>
                 </div>
 
                 {/* Tab Navigation */}
                 <div className="flex items-center gap-0 bg-slate-100 rounded-lg p-1 w-fit">
-                <button
-                  onClick={() => setSelectedTab("today")}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                    selectedTab === "today"
-                      ? "bg-white text-blue-600 border border-slate-200 shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Today
-                </button>
-                <button
-                  onClick={() => setSelectedTab("week")}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                    selectedTab === "week"
-                      ? "bg-white text-blue-600 border border-slate-200 shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  This Week
-                </button>
-                <button
-                  onClick={() => setSelectedTab("month")}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                    selectedTab === "month"
-                      ? "bg-white text-blue-600 border border-slate-200 shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  This Month
-                </button>
+                  <button
+                    onClick={() => setSelectedTab("today")}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                      selectedTab === "today"
+                        ? "bg-white text-blue-600 border border-slate-200 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => setSelectedTab("week")}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                      selectedTab === "week"
+                        ? "bg-white text-blue-600 border border-slate-200 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    This Week
+                  </button>
+                  <button
+                    onClick={() => setSelectedTab("month")}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                      selectedTab === "month"
+                        ? "bg-white text-blue-600 border border-slate-200 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    This Month
+                  </button>
                 </div>
               </div>
 
@@ -306,19 +299,25 @@ export default function RecruiterDashboardPage() {
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-slate-900">
                     {selectedTab === "today" && `Today (${tasks.today.length})`}
-                    {selectedTab === "week" && `This Week (${tasks.thisWeek.length})`}
-                    {selectedTab === "month" && `This Month (${tasks.thisMonth.length})`}
+                    {selectedTab === "week" &&
+                      `This Week (${tasks.thisWeek.length})`}
+                    {selectedTab === "month" &&
+                      `This Month (${tasks.thisMonth.length})`}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {loadingTasks ? (
-                    <div className="text-center py-4 text-slate-500">Loading...</div>
+                    <div className="text-center py-4 text-slate-500">
+                      Loading...
+                    </div>
                   ) : (
                     <>
                       {selectedTab === "today" && (
                         <>
                           {tasks.today.length === 0 ? (
-                            <div className="text-center py-4 text-slate-500">No tasks scheduled for today</div>
+                            <div className="text-center py-4 text-slate-500">
+                              No tasks scheduled for today
+                            </div>
                           ) : (
                             <div className="space-y-3">
                               {tasks.today.map((task) => (
@@ -331,20 +330,24 @@ export default function RecruiterDashboardPage() {
                                       <div className="flex items-center gap-3 mb-2">
                                         {getStatusBadge(task.status)}
                                         <span className="text-sm text-slate-500">
-                                          {formatDateTimeShort(task.interview_time)}
+                                          {formatDateTimeShort(
+                                            task.interview_time
+                                          )}
                                         </span>
                                       </div>
                                       <div className="space-y-1">
                                         <div className="flex items-center gap-2">
                                           <User className="w-4 h-4 text-slate-400" />
                                           <span className="font-medium text-slate-900">
-                                            {task.candidate_id?.name || "Unknown Candidate"}
+                                            {task.candidate_id?.name ||
+                                              "Unknown Candidate"}
                                           </span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                           <Briefcase className="w-4 h-4 text-slate-400" />
                                           <span className="text-slate-700">
-                                            {task.job_id?.title || "Unknown Job"}
+                                            {task.job_id?.title ||
+                                              "Unknown Job"}
                                           </span>
                                         </div>
                                       </div>
@@ -359,7 +362,9 @@ export default function RecruiterDashboardPage() {
                       {selectedTab === "week" && (
                         <>
                           {tasks.thisWeek.length === 0 ? (
-                            <div className="text-center py-4 text-slate-500">No tasks scheduled for this week</div>
+                            <div className="text-center py-4 text-slate-500">
+                              No tasks scheduled for this week
+                            </div>
                           ) : (
                             <div className="space-y-3">
                               {tasks.thisWeek.map((task) => (
@@ -372,20 +377,24 @@ export default function RecruiterDashboardPage() {
                                       <div className="flex items-center gap-3 mb-2">
                                         {getStatusBadge(task.status)}
                                         <span className="text-sm text-slate-500">
-                                          {formatDateTimeShort(task.interview_time)}
+                                          {formatDateTimeShort(
+                                            task.interview_time
+                                          )}
                                         </span>
                                       </div>
                                       <div className="space-y-1">
                                         <div className="flex items-center gap-2">
                                           <User className="w-4 h-4 text-slate-400" />
                                           <span className="font-medium text-slate-900">
-                                            {task.candidate_id?.name || "Unknown Candidate"}
+                                            {task.candidate_id?.name ||
+                                              "Unknown Candidate"}
                                           </span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                           <Briefcase className="w-4 h-4 text-slate-400" />
                                           <span className="text-slate-700">
-                                            {task.job_id?.title || "Unknown Job"}
+                                            {task.job_id?.title ||
+                                              "Unknown Job"}
                                           </span>
                                         </div>
                                       </div>
@@ -400,7 +409,9 @@ export default function RecruiterDashboardPage() {
                       {selectedTab === "month" && (
                         <>
                           {tasks.thisMonth.length === 0 ? (
-                            <div className="text-center py-4 text-slate-500">No tasks scheduled for this month</div>
+                            <div className="text-center py-4 text-slate-500">
+                              No tasks scheduled for this month
+                            </div>
                           ) : (
                             <div className="space-y-3">
                               {tasks.thisMonth.map((task) => (
@@ -413,20 +424,24 @@ export default function RecruiterDashboardPage() {
                                       <div className="flex items-center gap-3 mb-2">
                                         {getStatusBadge(task.status)}
                                         <span className="text-sm text-slate-500">
-                                          {formatDateTimeShort(task.interview_time)}
+                                          {formatDateTimeShort(
+                                            task.interview_time
+                                          )}
                                         </span>
                                       </div>
                                       <div className="space-y-1">
                                         <div className="flex items-center gap-2">
                                           <User className="w-4 h-4 text-slate-400" />
                                           <span className="font-medium text-slate-900">
-                                            {task.candidate_id?.name || "Unknown Candidate"}
+                                            {task.candidate_id?.name ||
+                                              "Unknown Candidate"}
                                           </span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                           <Briefcase className="w-4 h-4 text-slate-400" />
                                           <span className="text-slate-700">
-                                            {task.job_id?.title || "Unknown Job"}
+                                            {task.job_id?.title ||
+                                              "Unknown Job"}
                                           </span>
                                         </div>
                                       </div>
