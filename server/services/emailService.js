@@ -19,7 +19,7 @@ const EVENT_TYPE_ID = process.env.CAL_EVENT_ID
   ? parseInt(process.env.CAL_EVENT_ID, 10) 
   : 4025819;
 
-// Create reusable transporter
+// Create reusable transporter with timeout configuration
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
   port: SMTP_PORT,
@@ -28,6 +28,13 @@ const transporter = nodemailer.createTransport({
     user: SMTP_USER,
     pass: SMTP_PASS,
   },
+  connectionTimeout: 30000, // 30 seconds connection timeout
+  greetingTimeout: 30000, // 30 seconds greeting timeout
+  socketTimeout: 30000, // 30 seconds socket timeout
+  // Retry configuration
+  pool: true,
+  maxConnections: 5,
+  maxMessages: 100,
 });
 
 /**
@@ -39,7 +46,7 @@ const transporter = nodemailer.createTransport({
  * @param {string} recruiterEmail - Recruiter email (optional)
  * @returns {Promise<string>} - Google Meet link
  */
-async function generateGoogleMeetLink(
+export async function generateGoogleMeetLink(
   scheduledTime,
   candidateName,
   candidateEmail,
@@ -99,20 +106,46 @@ async function generateGoogleMeetLink(
       scheduledDate.getTime() + 7 * 24 * 60 * 60 * 1000
     ).toISOString(); // 7 days ahead
 
-    const slotsResp = await axios.get(
-      "https://api.cal.com/v2/slots/available",
-      {
-        params: {
-          startTime: slotsStartTime,
-          endTime: slotsEndTime,
-          eventTypeId: parseInt(EVENT_TYPE_ID, 10), // Ensure it's an integer
-        },
-        headers: {
-          Authorization: `Bearer ${CAL_SECRET_KEY}`,
-          "cal-api-version": CAL_API_VERSION,
-        },
+    // Retry logic for network issues (DNS/connection problems)
+    let slotsResp;
+    let slotsRetries = 3;
+    let slotsLastError;
+    
+    while (slotsRetries > 0) {
+      try {
+        slotsResp = await axios.get(
+          "https://api.cal.com/v2/slots/available",
+          {
+            params: {
+              startTime: slotsStartTime,
+              endTime: slotsEndTime,
+              eventTypeId: parseInt(EVENT_TYPE_ID, 10), // Ensure it's an integer
+            },
+            headers: {
+              Authorization: `Bearer ${CAL_SECRET_KEY}`,
+              "cal-api-version": CAL_API_VERSION,
+            },
+            timeout: 30000, // 30 seconds timeout
+          }
+        );
+        break; // Success, exit retry loop
+      } catch (error) {
+        slotsLastError = error;
+        slotsRetries--;
+        
+        if (slotsRetries > 0 && (error.code === 'EAI_AGAIN' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT')) {
+          const waitTime = (4 - slotsRetries) * 2000; // 2s, 4s, 6s delays
+          console.warn(`⚠️ Network error (${error.code}) fetching slots, retrying in ${waitTime/1000}s... (${slotsRetries} attempts left)`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else {
+          throw error; // Re-throw if not a retryable error or out of retries
+        }
       }
-    );
+    }
+    
+    if (!slotsResp) {
+      throw slotsLastError || new Error("Failed to fetch slots after retries");
+    }
 
     const slots = slotsResp.data.data.slots;
     let selectedSlot = null;
@@ -160,7 +193,7 @@ async function generateGoogleMeetLink(
     // Step 2: Create booking with the selected slot
     // Cal.com v2 API - primary attendee is the candidate
     // The Cal.com account owner (event organizer) will automatically receive notifications
-    // Recruiter will be added via email CC or can be configured in Cal.com settings
+    // Recruiter will be added as a guest to receive email invitation
     const requestBody = {
       eventTypeId: parseInt(EVENT_TYPE_ID, 10), // Cal.com API requires integer, not string
       start: selectedSlot,
@@ -171,8 +204,11 @@ async function generateGoogleMeetLink(
         timeZone: "Asia/Kolkata",
         language: "en",
       },
-      // Add recruiter info in metadata so it's tracked
+      // Add recruiter as a guest so they receive email invitation
+      // Cal.com API expects guests to be an array of email strings
       ...(recruiterName && recruiterEmail && {
+        guests: [recruiterEmail],
+        // Also add recruiter info in metadata for tracking
         metadata: {
           recruiterName: recruiterName,
           recruiterEmail: recruiterEmail,
@@ -180,18 +216,43 @@ async function generateGoogleMeetLink(
       }),
     };
 
-    // Create booking via Cal.com API
-    const createResp = await axios.post(
-      "https://api.cal.com/v2/bookings",
-      requestBody,
-      {
-        headers: {
-          Authorization: `Bearer ${CAL_SECRET_KEY}`,
-          "cal-api-version": CAL_API_VERSION,
-          "Content-Type": "application/json",
-        },
+    // Create booking via Cal.com API with retry logic
+    let createResp;
+    let createRetries = 3;
+    let createLastError;
+    
+    while (createRetries > 0) {
+      try {
+        createResp = await axios.post(
+          "https://api.cal.com/v2/bookings",
+          requestBody,
+          {
+            headers: {
+              Authorization: `Bearer ${CAL_SECRET_KEY}`,
+              "cal-api-version": CAL_API_VERSION,
+              "Content-Type": "application/json",
+            },
+            timeout: 30000, // 30 seconds timeout
+          }
+        );
+        break; // Success, exit retry loop
+      } catch (error) {
+        createLastError = error;
+        createRetries--;
+        
+        if (createRetries > 0 && (error.code === 'EAI_AGAIN' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT')) {
+          const waitTime = (4 - createRetries) * 2000; // 2s, 4s, 6s delays
+          console.warn(`⚠️ Network error (${error.code}) creating booking, retrying in ${waitTime/1000}s... (${createRetries} attempts left)`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else {
+          throw error; // Re-throw if not a retryable error or out of retries
+        }
       }
-    );
+    }
+    
+    if (!createResp) {
+      throw createLastError || new Error("Failed to create booking after retries");
+    }
 
     const bookingUid = createResp.data.data.uid;
     console.log("✓ Booking Created. UID:", bookingUid);
@@ -226,16 +287,41 @@ async function generateGoogleMeetLink(
     // Wait a moment for the booking to be fully processed
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Get booking details to retrieve the meeting link
-    const getBookingResp = await axios.get(
-      `https://api.cal.com/v2/bookings/${bookingUid}`,
-      {
-        headers: {
-          Authorization: `Bearer ${CAL_SECRET_KEY}`,
-          "cal-api-version": CAL_API_VERSION,
-        },
+    // Get booking details to retrieve the meeting link with retry logic
+    let getBookingResp;
+    let fetchRetries = 3;
+    let fetchLastError;
+    
+    while (fetchRetries > 0) {
+      try {
+        getBookingResp = await axios.get(
+          `https://api.cal.com/v2/bookings/${bookingUid}`,
+          {
+            headers: {
+              Authorization: `Bearer ${CAL_SECRET_KEY}`,
+              "cal-api-version": CAL_API_VERSION,
+            },
+            timeout: 30000, // 30 seconds timeout
+          }
+        );
+        break; // Success, exit retry loop
+      } catch (error) {
+        fetchLastError = error;
+        fetchRetries--;
+        
+        if (fetchRetries > 0 && (error.code === 'EAI_AGAIN' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT')) {
+          const waitTime = (4 - fetchRetries) * 2000; // 2s, 4s, 6s delays
+          console.warn(`⚠️ Network error (${error.code}) fetching booking, retrying in ${waitTime/1000}s... (${fetchRetries} attempts left)`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else {
+          throw error; // Re-throw if not a retryable error or out of retries
+        }
       }
-    );
+    }
+    
+    if (!getBookingResp) {
+      throw fetchLastError || new Error("Failed to fetch booking details after retries");
+    }
 
     const bookingData = getBookingResp.data.data;
 
@@ -317,6 +403,52 @@ async function generateGoogleMeetLink(
     throw error;
   }
 }
+
+// Guard to prevent multiple executions
+let isSampleFunctionRunning = false;
+
+const genSampleGoogleMeetLink = async () => {
+  // Prevent multiple simultaneous executions
+  if (isSampleFunctionRunning) {
+    console.warn("⚠️ genSampleGoogleMeetLink is already running, skipping duplicate call");
+    return null;
+  }
+
+  isSampleFunctionRunning = true;
+  const startTime = Date.now();
+  console.log("🚀 Starting genSampleGoogleMeetLink at", new Date().toISOString());
+
+  try {
+    const meetLink = await generateGoogleMeetLink(
+      new Date("2025-12-20T10:00:00Z"),
+      "Subham Dey1",
+      "22je0094@iitism.ac.in",
+      "Subham Dey2",
+      "amankasaudhanak07@gmail.com"
+    );
+    const duration = Date.now() - startTime;
+    console.log(`✅ genSampleGoogleMeetLink completed in ${duration}ms`);
+    console.log("meetLink--->", meetLink);
+    return meetLink;
+  }
+  catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`❌ genSampleGoogleMeetLink failed after ${duration}ms`);
+    console.error("Error generating sample Google Meet link:", error.message);
+    console.error("Error stack:", error.stack);
+    return null;
+  }
+  finally {
+    // Reset the flag after a delay to allow the function to complete
+    setTimeout(() => {
+      isSampleFunctionRunning = false;
+    }, 5000); // 5 second cooldown
+  }
+}
+
+// Commented out to prevent automatic execution
+// Uncomment only when testing manually, and make sure to comment it back after testing
+// genSampleGoogleMeetLink();
 
 /**
  * Format date for email display with AM/PM

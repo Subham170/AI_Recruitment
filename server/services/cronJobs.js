@@ -4,7 +4,8 @@ import BolnaCall from "../bolna/model.js";
 import Candidate from "../candidates/model.js";
 import RecruiterAvailability from "../recruiter_availability/model.js";
 import RecruiterTask from "../recruiter_tasks/model.js";
-import { sendEmail, verifyEmailConfig } from "./emailService.js";
+import JobPosting from "../job_posting/model.js";
+// import { sendEmail, verifyEmailConfig } from "./emailService.js"; // Commented out - emails sent via Cal.com
 import { formatDateTimeWithAMPM, convert24To12Hour } from "../utils/timeFormatter.js";
 
 const SENDER_EMAIL = process.env.SENDER_EMAIL || "admin@gmail.com";
@@ -98,6 +99,7 @@ async function getAvailableRecruitersForJob(jobId, userScheduleAt) {
 
 /**
  * Assign a recruiter using round robin algorithm
+ * Falls back to primary recruiter if no recruiters are available at scheduled time
  * @param {string} jobId - Job ID
  * @param {Date|string} userScheduleAt - Scheduled time to check availability for
  * @returns {Promise<string|null>} - Assigned recruiter ID or null if no recruiters available
@@ -108,8 +110,24 @@ async function assignRecruiterRoundRobin(jobId, userScheduleAt) {
     const availableRecruiters = await getAvailableRecruitersForJob(jobId, userScheduleAt);
 
     if (availableRecruiters.length === 0) {
-      console.warn(`No recruiters available for job ${jobId}`);
-      return null;
+      console.warn(`No recruiters available for job ${jobId} at scheduled time. Falling back to primary recruiter...`);
+      
+      // Fallback to primary recruiter
+      try {
+        const jobPosting = await JobPosting.findById(jobId).select("primary_recruiter_id");
+        
+        if (jobPosting && jobPosting.primary_recruiter_id) {
+          const primaryRecruiterId = jobPosting.primary_recruiter_id;
+          console.log(`✅ [Job ${jobId}] Using primary recruiter as fallback: ${primaryRecruiterId}`);
+          return primaryRecruiterId;
+        } else {
+          console.warn(`⚠️ [Job ${jobId}] No primary recruiter found for this job`);
+          return null;
+        }
+      } catch (fallbackError) {
+        console.error(`❌ [Job ${jobId}] Error fetching primary recruiter:`, fallbackError.message);
+        return null;
+      }
     }
 
     // Count existing assignments for each recruiter for this job
@@ -151,6 +169,18 @@ async function assignRecruiterRoundRobin(jobId, userScheduleAt) {
     return selectedRecruiter;
   } catch (error) {
     console.error(`Error assigning recruiter for job ${jobId}:`, error);
+    
+    // Try fallback to primary recruiter even on error
+    try {
+      const jobPosting = await JobPosting.findById(jobId).select("primary_recruiter_id");
+      if (jobPosting && jobPosting.primary_recruiter_id) {
+        console.log(`✅ [Job ${jobId}] Using primary recruiter as fallback after error: ${jobPosting.primary_recruiter_id}`);
+        return jobPosting.primary_recruiter_id;
+      }
+    } catch (fallbackError) {
+      console.error(`❌ [Job ${jobId}] Error in fallback to primary recruiter:`, fallbackError.message);
+    }
+    
     return null;
   }
 }
@@ -196,126 +226,162 @@ async function processSingleCall(call) {
       return { success: false, error: "Candidate email missing" };
     }
 
-    // Fetch recruiter info if assigned
+    // Recruiter info will be fetched after assignment (if needed)
     let recruiterName = null;
     let recruiterEmail = null;
-    const freshCallForRecruiter = await BolnaCall.findById(callId)
-      .populate("assignRecruiter", "name email")
-      .lean();
-    
-    if (freshCallForRecruiter?.assignRecruiter) {
-      const recruiter = freshCallForRecruiter.assignRecruiter;
-      recruiterName = recruiter.name || "Recruiter";
-      recruiterEmail = recruiter.email;
-      console.log(
-        `ℹ️ [Call ${callId}] Recruiter info: ${recruiterName} (${recruiterEmail})`
-      );
+
+    // Get fresh call data
+    const freshCall = await BolnaCall.findById(callId);
+    if (!freshCall) {
+      console.error(`❌ [Call ${callId}] Call not found in database`);
+      return { success: false, error: "Call not found" };
     }
 
-    // Sync with Bolna API to get userScheduledAt
-    let userScheduledAt;
+    // Sync with Bolna API to get userScheduledAt (but don't fail if it's not available)
+    let userScheduledAt = freshCall.userScheduledAt;
+    let syncSucceeded = false;
+    
     try {
       const syncResult = await syncBolnaCall(executionId);
-      userScheduledAt = syncResult?.storedRecord?.userScheduledAt;
-
+      userScheduledAt = syncResult?.storedRecord?.userScheduledAt || userScheduledAt;
+      syncSucceeded = true;
+      
       if (!userScheduledAt) {
         console.warn(
-          `⚠️ [Call ${callId}] userScheduledAt not found in transcript. Will retry on next run.`
+          `⚠️ [Call ${callId}] userScheduledAt not found in transcript. Using callScheduledAt as fallback.`
         );
-        return { success: false, error: "userScheduledAt not available yet" };
       }
+    } catch (syncError) {
+      console.warn(
+        `⚠️ [Call ${callId}] Failed to sync with Bolna API (will continue with existing data):`,
+        syncError.message
+      );
+      // Continue processing even if sync fails - use existing data
+    }
 
-      // Assign recruiter using round robin when userScheduledAt is available
-      // Only assign if not already assigned
-      const freshCall = await BolnaCall.findById(callId);
-      if (!freshCall.assignRecruiter) {
-        const assignedRecruiter = await assignRecruiterRoundRobin(jobId, userScheduledAt);
+    // Use callScheduledAt as fallback if userScheduledAt is not available
+    const scheduledTimeForEmail = userScheduledAt || freshCall.callScheduledAt;
+    if (!scheduledTimeForEmail) {
+      console.error(
+        `❌ [Call ${callId}] No scheduled time available (neither userScheduledAt nor callScheduledAt)`
+      );
+      return { success: false, error: "No scheduled time available" };
+    }
+
+    // Assign recruiter using round robin
+    // Only assign if not already assigned
+    if (!freshCall.assignRecruiter) {
+      try {
+        // Use userScheduledAt if available, otherwise use callScheduledAt for recruiter assignment
+        const timeForRecruiterAssignment = userScheduledAt || freshCall.callScheduledAt;
+        const assignedRecruiter = await assignRecruiterRoundRobin(jobId, timeForRecruiterAssignment);
         
         if (assignedRecruiter) {
-          // Update assignRecruiter (userScheduledAt is already updated by syncBolnaCall)
+          // Update assignRecruiter
           await BolnaCall.findByIdAndUpdate(callId, {
             assignRecruiter: assignedRecruiter,
           });
           console.log(
             `✅ [Call ${callId}] Assigned recruiter ${assignedRecruiter} using round robin`
           );
-
-          // Create or update recruiter task record
-          try {
-            const taskData = {
-              recruiter_id: assignedRecruiter,
-              candidate_id: candidateId,
-              job_id: jobId,
-              bolna_call_id: callId,
-              interview_time: userScheduledAt,
-              call_scheduled_at: freshCall.callScheduledAt,
-              status: "scheduled",
-              email_sent: false,
-            };
-
-            await RecruiterTask.findOneAndUpdate(
-              { bolna_call_id: callId },
-              taskData,
-              { upsert: true, new: true }
-            );
-            console.log(
-              `✅ [Call ${callId}] Created/updated recruiter task record`
-            );
-          } catch (taskError) {
-            console.error(
-              `⚠️ [Call ${callId}] Failed to create task record:`,
-              taskError.message
-            );
-            // Don't fail the whole process if task creation fails
-          }
         } else {
           console.warn(
-            `⚠️ [Call ${callId}] No recruiter available for assignment`
+            `⚠️ [Call ${callId}] No recruiter available for assignment at scheduled time`
           );
         }
-      } else {
-        console.log(
-          `ℹ️ [Call ${callId}] Recruiter already assigned: ${freshCall.assignRecruiter}`
+      } catch (assignError) {
+        console.error(
+          `⚠️ [Call ${callId}] Error during recruiter assignment (will continue):`,
+          assignError.message
         );
+        // Continue even if recruiter assignment fails
       }
-    } catch (syncError) {
-      console.error(
-        `❌ [Call ${callId}] Failed to sync with Bolna API:`,
-        syncError.message
+    } else {
+      console.log(
+        `ℹ️ [Call ${callId}] Recruiter already assigned: ${freshCall.assignRecruiter}`
       );
-      return { success: false, error: `Sync failed: ${syncError.message}` };
     }
 
-      // Check if meet link was already generated to avoid regenerating
-      const callBeforeEmail = await BolnaCall.findById(callId);
-      const meetLinkAlreadyGenerated = callBeforeEmail?.meetLinkGenerated || false;
-      const existingMeetLink = callBeforeEmail?.meetLink || null;
+    // Create or update recruiter task record (even if recruiter is not assigned)
+    // This ensures we track the task even if no recruiter is available
+    try {
+      const freshCallForTask = await BolnaCall.findById(callId);
+      const taskData = {
+        ...(freshCallForTask.assignRecruiter && {
+          recruiter_id: freshCallForTask.assignRecruiter,
+        }),
+        candidate_id: candidateId,
+        job_id: jobId,
+        bolna_call_id: callId,
+        interview_time: scheduledTimeForEmail,
+        call_scheduled_at: freshCallForTask.callScheduledAt,
+        status: "scheduled",
+        email_sent: false,
+      };
 
-      // Send email
+      // Only create task if recruiter is assigned (task model requires recruiter_id)
+      if (freshCallForTask.assignRecruiter) {
+        await RecruiterTask.findOneAndUpdate(
+          { bolna_call_id: callId },
+          taskData,
+          { upsert: true, new: true }
+        );
+        console.log(
+          `✅ [Call ${callId}] Created/updated recruiter task record`
+        );
+      } else {
+        console.warn(
+          `⚠️ [Call ${callId}] Task not created - no recruiter assigned (task requires recruiter_id)`
+        );
+      }
+    } catch (taskError) {
+      console.error(
+        `⚠️ [Call ${callId}] Failed to create task record:`,
+        taskError.message
+      );
+      // Don't fail the whole process if task creation fails
+    }
+
+    // Fetch fresh recruiter info right before sending email
+    const callBeforeEmail = await BolnaCall.findById(callId)
+      .populate("assignRecruiter", "name email")
+      .lean();
+    
+    if (callBeforeEmail?.assignRecruiter) {
+      recruiterName = callBeforeEmail.assignRecruiter.name || "Recruiter";
+      recruiterEmail = callBeforeEmail.assignRecruiter.email;
+      console.log(
+        `ℹ️ [Call ${callId}] Using recruiter for email: ${recruiterName} (${recruiterEmail})`
+      );
+    }
+
+    // Email sending via nodemailer is commented out - emails are sent via Cal.com when generating meet link
+    // The meet link generation in emailService.js already sends emails to both candidate and recruiter through Cal.com
+    
+    const meetLinkAlreadyGenerated = callBeforeEmail?.meetLinkGenerated || false;
+    const existingMeetLink = callBeforeEmail?.meetLink || null;
+
+    // Check if meet link needs to be generated
+    if (!existingMeetLink && !meetLinkAlreadyGenerated) {
+      // Generate meet link (this will also send emails via Cal.com)
       try {
-        // Get the meet link from the email response
-        const emailResult = await sendEmail(
+        const { generateGoogleMeetLink } = await import("./emailService.js");
+        const generatedMeetLink = await generateGoogleMeetLink(
+          scheduledTimeForEmail,
+          candidate.name || candidate.email?.split('@')[0] || "Candidate",
           candidate.email,
-          SENDER_EMAIL,
-          userScheduledAt,
           recruiterName,
-          recruiterEmail,
-          meetLinkAlreadyGenerated,
-          existingMeetLink
+          recruiterEmail
         );
 
-        const generatedMeetLink = emailResult.meetLink || existingMeetLink;
-
-        // Mark email as sent atomically and save meet link if generated
+        // Mark email as sent and save meet link
         await BolnaCall.findByIdAndUpdate(callId, {
           emailSent: true,
           emailSentAt: new Date(),
-          emailRetryCount: 0, // Reset retry count on success
-          ...(generatedMeetLink && !meetLinkAlreadyGenerated && {
-            meetLink: generatedMeetLink,
-            meetLinkGenerated: true,
-            meetLinkGeneratedAt: new Date(),
-          }),
+          emailRetryCount: 0,
+          meetLink: generatedMeetLink,
+          meetLinkGenerated: true,
+          meetLinkGeneratedAt: new Date(),
         });
 
         // Update task record with email sent status
@@ -334,6 +400,91 @@ async function processSingleCall(call) {
           );
         }
 
+        console.log(
+          `✅ [Call ${callId}] Meet link generated and emails sent via Cal.com to ${candidate.email}${recruiterEmail ? ` and ${recruiterEmail}` : ''}`
+        );
+        return { success: true };
+      } catch (meetLinkError) {
+        console.error(
+          `❌ [Call ${callId}] Failed to generate meet link:`,
+          meetLinkError.message
+        );
+        return { success: false, error: meetLinkError.message };
+      }
+    } else {
+      // Meet link already exists, just mark email as sent
+      await BolnaCall.findByIdAndUpdate(callId, {
+        emailSent: true,
+        emailSentAt: new Date(),
+        emailRetryCount: 0,
+      });
+
+      // Update task record with email sent status
+      try {
+        await RecruiterTask.findOneAndUpdate(
+          { bolna_call_id: callId },
+          {
+            email_sent: true,
+            email_sent_at: new Date(),
+          }
+        );
+      } catch (taskError) {
+        console.error(
+          `⚠️ [Call ${callId}] Failed to update task email status:`,
+          taskError.message
+        );
+      }
+
+      console.log(
+        `✅ [Call ${callId}] Email already sent via Cal.com (meet link exists)`
+      );
+      return { success: true };
+    }
+
+    /* COMMENTED OUT - Email sending via nodemailer (emails now sent via Cal.com)
+    // Send email (use scheduledTimeForEmail which has fallback logic)
+    try {
+        // Get the meet link from the email response
+        const emailResult = await sendEmail(
+          candidate.email,
+          SENDER_EMAIL,
+          scheduledTimeForEmail, // Use the time with fallback
+          recruiterName,
+          recruiterEmail,
+          meetLinkAlreadyGenerated,
+          existingMeetLink
+        );
+
+      const generatedMeetLink = emailResult.meetLink || existingMeetLink;
+
+      // Mark email as sent atomically and save meet link if generated
+      await BolnaCall.findByIdAndUpdate(callId, {
+        emailSent: true,
+        emailSentAt: new Date(),
+        emailRetryCount: 0, // Reset retry count on success
+        ...(generatedMeetLink && !meetLinkAlreadyGenerated && {
+          meetLink: generatedMeetLink,
+          meetLinkGenerated: true,
+          meetLinkGeneratedAt: new Date(),
+        }),
+      });
+
+      // Update task record with email sent status
+      try {
+        await RecruiterTask.findOneAndUpdate(
+          { bolna_call_id: callId },
+          {
+            email_sent: true,
+            email_sent_at: new Date(),
+          }
+        );
+      } catch (taskError) {
+        console.error(
+          `⚠️ [Call ${callId}] Failed to update task email status:`,
+          taskError.message
+        );
+      }
+
       console.log(
         `✅ [Call ${callId}] Email sent successfully to ${candidate.email}`
       );
@@ -341,16 +492,31 @@ async function processSingleCall(call) {
     } catch (emailError) {
       // Increment retry count
       const retryCount = (call.emailRetryCount || 0) + 1;
+      const errorMessage = emailError.message || "Unknown error";
+      
       await BolnaCall.findByIdAndUpdate(callId, {
         emailRetryCount: retryCount,
-        lastEmailError: emailError.message,
+        lastEmailError: errorMessage,
         lastEmailErrorAt: new Date(),
       });
 
+      // Log detailed error information
       console.error(
         `❌ [Call ${callId}] Failed to send email (attempt ${retryCount}/${MAX_RETRY_ATTEMPTS}):`,
-        emailError.message
+        errorMessage
       );
+      
+      // Log additional error details for debugging
+      if (emailError.code) {
+        console.error(`   Error code: ${emailError.code}`);
+      }
+      if (emailError.response) {
+        console.error(`   Response status: ${emailError.response.status}`);
+      }
+      if (emailError.stack && retryCount === 1) {
+        // Only log stack trace on first attempt to avoid spam
+        console.error(`   Stack trace:`, emailError.stack);
+      }
 
       // If max retries exceeded, mark as failed permanently
       if (retryCount >= MAX_RETRY_ATTEMPTS) {
@@ -363,8 +529,9 @@ async function processSingleCall(call) {
         );
       }
 
-      return { success: false, error: emailError.message };
+      return { success: false, error: errorMessage };
     }
+    */
   } catch (error) {
     console.error(`❌ [Call ${callId}] Unexpected error:`, error.message);
     return { success: false, error: error.message };
@@ -466,13 +633,13 @@ async function processScheduledCalls() {
 export async function startCronJobs() {
   console.log("🕐 Starting cron jobs...");
 
-  // Verify email configuration
-  const emailConfigValid = await verifyEmailConfig();
-  if (!emailConfigValid) {
-    console.warn(
-      "⚠️ Email configuration verification failed. Cron job will still run but emails may fail."
-    );
-  }
+  // Email configuration verification commented out - emails sent via Cal.com
+  // const emailConfigValid = await verifyEmailConfig();
+  // if (!emailConfigValid) {
+  //   console.warn(
+  //     "⚠️ Email configuration verification failed. Cron job will still run but emails may fail."
+  //   );
+  // }
 
   // Schedule email sending job
   // Runs every minute to check for calls that need emails
