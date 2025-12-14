@@ -1,5 +1,5 @@
 // API configuration
-const API_BASE_URL =  process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Helper function to make API requests
 export const apiRequest = async (endpoint, options = {}) => {
@@ -152,6 +152,12 @@ export const jobPostingAPI = {
     return apiRequest(`/job-postings/${id}`, {
       method: "PUT",
       body: jobData,
+    });
+  },
+
+  deleteJobPosting: async (id) => {
+    return apiRequest(`/job-postings/${id}`, {
+      method: "DELETE",
     });
   },
 };
@@ -377,7 +383,9 @@ export const recruiterTasksAPI = {
     if (filters.startDate) params.append("startDate", filters.startDate);
     if (filters.endDate) params.append("endDate", filters.endDate);
 
-    const endpoint = `/recruiter-tasks${params.toString() ? `?${params.toString()}` : ""}`;
+    const endpoint = `/recruiter-tasks${
+      params.toString() ? `?${params.toString()}` : ""
+    }`;
     return apiRequest(endpoint, {
       method: "GET",
     });

@@ -5,8 +5,18 @@ import JobPosting from "./model.js";
 // Create a new job posting
 export const createJobPosting = async (req, res) => {
   try {
-    const { id, title, description, company, role, ctc, exp_req, job_type, skills, secondary_recruiter_id } =
-      req.body;
+    const {
+      id,
+      title,
+      description,
+      company,
+      role,
+      ctc,
+      exp_req,
+      job_type,
+      skills,
+      secondary_recruiter_id,
+    } = req.body;
 
     // Validate required fields
     if (!id || !title || !description || !company) {
@@ -64,31 +74,49 @@ export const createJobPosting = async (req, res) => {
       );
     }
 
-    // Create job posting
-    const jobPosting = await JobPosting.create({
+    // Build the job posting data object - ALWAYS include status
+    const jobPostingData = {
       id,
       title,
       description,
       company,
       role: role || [],
-      ctc,
+      ctc: ctc || undefined,
       exp_req: exp_req || 0,
       job_type: job_type || "Full time",
       skills: skills || [],
-      primary_recruiter_id: currentUserId || null, // Set creator as primary recruiter
+      primary_recruiter_id: currentUserId || null,
       secondary_recruiter_id: validSecondaryRecruiters,
-    });
+      status: "draft", // ALWAYS set status to draft when creating
+    };
+
+    // Create job posting - status will be saved because it's in the data object
+    const jobPosting = await JobPosting.create(jobPostingData);
+
+    // Verify status was saved
+    if (!jobPosting.status) {
+      // If status is missing, update it directly in the database
+      await JobPosting.findByIdAndUpdate(
+        jobPosting._id,
+        { $set: { status: "draft" } },
+        { new: false }
+      );
+      jobPosting.status = "draft";
+    }
 
     // Generate embedding and update job posting
     try {
       const embedding = await generateJobEmbedding(jobPosting);
-      jobPosting.vector = embedding;
-      await jobPosting.save();
+      // Use findByIdAndUpdate to ensure status is preserved when updating vector
+      await JobPosting.findByIdAndUpdate(
+        jobPosting._id,
+        { $set: { vector: embedding } },
+        { new: false }
+      );
 
       // Trigger matching process asynchronously (don't wait for it)
       updateJobMatches(jobPosting._id.toString()).catch((matchError) => {
         console.error("Error updating job matches:", matchError);
-        // Don't throw - matching can be done later via API
       });
     } catch (embeddingError) {
       // Log error but don't fail the job posting creation
@@ -96,12 +124,22 @@ export const createJobPosting = async (req, res) => {
         "Error generating embedding for job posting:",
         embeddingError
       );
-      // Continue without embedding - it can be generated later
+    }
+
+    // Fetch fresh from database to ensure we have all fields including status
+    const savedJobPosting = await JobPosting.findById(jobPosting._id)
+      .populate("primary_recruiter_id", "name email")
+      .populate("secondary_recruiter_id", "name email")
+      .lean(); // Use lean() to get plain object
+
+    // Ensure status is present in response
+    if (!savedJobPosting.status) {
+      savedJobPosting.status = "draft";
     }
 
     res.status(201).json({
       message: "Job posting created successfully",
-      jobPosting,
+      jobPosting: savedJobPosting,
     });
   } catch (error) {
     // Handle duplicate key error (id unique constraint)
@@ -110,6 +148,7 @@ export const createJobPosting = async (req, res) => {
         message: "Job posting already exists with this id",
       });
     }
+    console.error("Error creating job posting:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -117,7 +156,7 @@ export const createJobPosting = async (req, res) => {
 // Get all job postings
 export const getJobPostings = async (req, res) => {
   try {
-    const currentUserId = req.user?.id; // Get current user ID from auth middleware (if authenticated)
+    const currentUserId = req.user?.id;
     const userRole = req.user?.role;
 
     // Extract filter parameters from query
@@ -169,12 +208,6 @@ export const getJobPostings = async (req, res) => {
       }
     }
 
-    // CTC filter (parse numeric value from string like "12 LPA")
-    if (min_ctc !== undefined || max_ctc !== undefined) {
-      filterQuery.$expr = filterQuery.$expr || {};
-      // We'll filter this in JavaScript since CTC is stored as string
-    }
-
     // Company filter
     if (company) {
       filterQuery.company = { $regex: company, $options: "i" };
@@ -183,9 +216,10 @@ export const getJobPostings = async (req, res) => {
     // Skills filter (array contains any of the provided skills)
     if (skills) {
       const skillsArray = Array.isArray(skills) ? skills : [skills];
-      // Match if any skill in the job's skills array matches any of the filter skills (case-insensitive)
-      filterQuery.skills = { 
-        $in: skillsArray.map(s => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i"))
+      filterQuery.skills = {
+        $in: skillsArray.map(
+          (s) => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")
+        ),
       };
     }
 
@@ -197,7 +231,7 @@ export const getJobPostings = async (req, res) => {
       }
       if (date_to) {
         const endDate = new Date(date_to);
-        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+        endDate.setHours(23, 59, 59, 999);
         filterQuery.createdAt.$lte = endDate;
       }
     }
@@ -207,21 +241,30 @@ export const getJobPostings = async (req, res) => {
       let allJobPostings = await JobPosting.find(filterQuery)
         .populate("primary_recruiter_id", "name email")
         .populate("secondary_recruiter_id", "name email")
-        .sort({ createdAt: -1 }); // Sort by newest first
+        .sort({ createdAt: -1 })
+        .lean();
 
       // Apply CTC filter in JavaScript if needed
       if (min_ctc !== undefined || max_ctc !== undefined) {
         allJobPostings = allJobPostings.filter((job) => {
           if (!job.ctc) return false;
-          // Extract numeric value from CTC string (e.g., "12 LPA" -> 12)
           const ctcMatch = job.ctc.match(/(\d+\.?\d*)/);
           if (!ctcMatch) return false;
           const ctcValue = parseFloat(ctcMatch[1]);
-          if (min_ctc !== undefined && ctcValue < parseFloat(min_ctc)) return false;
-          if (max_ctc !== undefined && ctcValue > parseFloat(max_ctc)) return false;
+          if (min_ctc !== undefined && ctcValue < parseFloat(min_ctc))
+            return false;
+          if (max_ctc !== undefined && ctcValue > parseFloat(max_ctc))
+            return false;
           return true;
         });
       }
+
+      // Ensure all jobs have status field
+      allJobPostings.forEach((job) => {
+        if (!job.status) {
+          job.status = "draft";
+        }
+      });
 
       const userIdStr = currentUserId.toString();
 
@@ -239,35 +282,33 @@ export const getJobPostings = async (req, res) => {
           Array.isArray(job.secondary_recruiter_id) &&
           job.secondary_recruiter_id.some(
             (recruiter) =>
-              (recruiter._id?.toString() === userIdStr ||
-                recruiter.toString() === userIdStr)
+              recruiter._id?.toString() === userIdStr ||
+              recruiter.toString() === userIdStr
           )
       );
 
-      const remainingJobPostings = allJobPostings.filter(
-        (job) => {
-          const isPrimary =
-            job.primary_recruiter_id &&
-            (job.primary_recruiter_id._id?.toString() === userIdStr ||
-              job.primary_recruiter_id.toString() === userIdStr);
-          const isSecondary =
-            job.secondary_recruiter_id &&
-            Array.isArray(job.secondary_recruiter_id) &&
-            job.secondary_recruiter_id.some(
-              (recruiter) =>
-                (recruiter._id?.toString() === userIdStr ||
-                  recruiter.toString() === userIdStr)
-            );
-          return !isPrimary && !isSecondary;
-        }
-      );
+      const remainingJobPostings = allJobPostings.filter((job) => {
+        const isPrimary =
+          job.primary_recruiter_id &&
+          (job.primary_recruiter_id._id?.toString() === userIdStr ||
+            job.primary_recruiter_id.toString() === userIdStr);
+        const isSecondary =
+          job.secondary_recruiter_id &&
+          Array.isArray(job.secondary_recruiter_id) &&
+          job.secondary_recruiter_id.some(
+            (recruiter) =>
+              recruiter._id?.toString() === userIdStr ||
+              recruiter.toString() === userIdStr
+          );
+        return !isPrimary && !isSecondary;
+      });
 
       return res.status(200).json({
         count: allJobPostings.length,
         myJobPostings,
         secondaryJobPostings,
         remainingJobPostings,
-        allJobPostings, // Include all for convenience
+        allJobPostings,
       });
     }
 
@@ -275,27 +316,37 @@ export const getJobPostings = async (req, res) => {
     let jobPostings = await JobPosting.find(filterQuery)
       .populate("primary_recruiter_id", "name email")
       .populate("secondary_recruiter_id", "name email")
-      .sort({ createdAt: -1 }); // Sort by newest first
+      .sort({ createdAt: -1 })
+      .lean();
 
     // Apply CTC filter in JavaScript if needed
     if (min_ctc !== undefined || max_ctc !== undefined) {
       jobPostings = jobPostings.filter((job) => {
         if (!job.ctc) return false;
-        // Extract numeric value from CTC string (e.g., "12 LPA" -> 12)
         const ctcMatch = job.ctc.match(/(\d+\.?\d*)/);
         if (!ctcMatch) return false;
         const ctcValue = parseFloat(ctcMatch[1]);
-        if (min_ctc !== undefined && ctcValue < parseFloat(min_ctc)) return false;
-        if (max_ctc !== undefined && ctcValue > parseFloat(max_ctc)) return false;
+        if (min_ctc !== undefined && ctcValue < parseFloat(min_ctc))
+          return false;
+        if (max_ctc !== undefined && ctcValue > parseFloat(max_ctc))
+          return false;
         return true;
       });
     }
+
+    // Ensure all jobs have status field
+    jobPostings.forEach((job) => {
+      if (!job.status) {
+        job.status = "draft";
+      }
+    });
 
     res.status(200).json({
       count: jobPostings.length,
       jobPostings,
     });
   } catch (error) {
+    console.error("Error getting job postings:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -305,9 +356,8 @@ export const getJobPostingById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if id is a valid MongoDB ObjectId (24 hex characters)
+    // Check if id is a valid MongoDB ObjectId
     const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
-
     if (!isObjectId) {
       return res.status(400).json({
         message: "Invalid job posting ID format",
@@ -316,7 +366,8 @@ export const getJobPostingById = async (req, res) => {
 
     const jobPosting = await JobPosting.findById(id)
       .populate("primary_recruiter_id", "name email")
-      .populate("secondary_recruiter_id", "name email");
+      .populate("secondary_recruiter_id", "name email")
+      .lean(); // Use lean() to get plain object
 
     if (!jobPosting) {
       return res.status(404).json({
@@ -324,8 +375,20 @@ export const getJobPostingById = async (req, res) => {
       });
     }
 
+    // Ensure status is always present (default to draft if missing)
+    if (!jobPosting.status) {
+      // Update the database to add missing status
+      await JobPosting.findByIdAndUpdate(
+        id,
+        { $set: { status: "draft" } },
+        { new: false }
+      );
+      jobPosting.status = "draft";
+    }
+
     res.status(200).json(jobPosting);
   } catch (error) {
+    console.error("Error getting job posting by ID:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -334,7 +397,18 @@ export const getJobPostingById = async (req, res) => {
 export const updateJobPosting = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, company, role, ctc, exp_req, job_type, skills, secondary_recruiter_id } = req.body;
+    const {
+      title,
+      description,
+      company,
+      role,
+      ctc,
+      exp_req,
+      job_type,
+      skills,
+      secondary_recruiter_id,
+      status,
+    } = req.body;
 
     // Check if id is a valid MongoDB ObjectId
     const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
@@ -350,6 +424,33 @@ export const updateJobPosting = async (req, res) => {
       return res.status(404).json({
         message: "Job posting not found",
       });
+    }
+
+    // Verify that the current user is the primary or secondary recruiter
+    const currentUserId = req.user?.id;
+    const currentUserIdStr = currentUserId?.toString();
+
+    if (
+      jobPosting.primary_recruiter_id ||
+      jobPosting.secondary_recruiter_id?.length > 0
+    ) {
+      const primaryRecruiterId = jobPosting.primary_recruiter_id?.toString();
+      const isPrimary = primaryRecruiterId === currentUserIdStr;
+
+      const isSecondary = jobPosting.secondary_recruiter_id?.some(
+        (recruiterId) => {
+          const recruiterIdStr =
+            recruiterId._id?.toString() || recruiterId.toString();
+          return recruiterIdStr === currentUserIdStr;
+        }
+      );
+
+      if (!isPrimary && !isSecondary) {
+        return res.status(403).json({
+          message:
+            "Only the primary or secondary recruiter can update this job posting",
+        });
+      }
     }
 
     // Validate role if provided
@@ -372,19 +473,20 @@ export const updateJobPosting = async (req, res) => {
       }
     }
 
-    // Verify that the current user is the primary recruiter (only primary can update)
-    const currentUserId = req.user?.id;
-    if (jobPosting.primary_recruiter_id) {
-      const primaryRecruiterId = jobPosting.primary_recruiter_id.toString();
-      const currentUserIdStr = currentUserId?.toString();
-      if (primaryRecruiterId !== currentUserIdStr) {
-        return res.status(403).json({
-          message: "Only the primary recruiter can update this job posting",
+    // Validate status if provided
+    if (status !== undefined && status !== null && status !== "") {
+      const validStatuses = ["draft", "open", "closed"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          message: `Invalid status. Must be one of: ${validStatuses.join(
+            ", "
+          )}`,
         });
       }
     }
 
-    // Validate secondary_recruiter_id if provided
+    // Validate and process secondary_recruiter_id if provided
+    let processedSecondaryRecruiters = undefined;
     if (secondary_recruiter_id !== undefined) {
       if (Array.isArray(secondary_recruiter_id)) {
         const invalidIds = secondary_recruiter_id.filter(
@@ -397,12 +499,11 @@ export const updateJobPosting = async (req, res) => {
         }
         // Remove primary recruiter and current user from secondary recruiters
         const primaryId = jobPosting.primary_recruiter_id?.toString();
-        const filteredSecondary = secondary_recruiter_id.filter(
+        processedSecondaryRecruiters = secondary_recruiter_id.filter(
           (recId) =>
             recId.toString() !== primaryId &&
             recId.toString() !== currentUserId?.toString()
         );
-        jobPosting.secondary_recruiter_id = filteredSecondary;
       } else {
         return res.status(400).json({
           message: "secondary_recruiter_id must be an array",
@@ -410,40 +511,137 @@ export const updateJobPosting = async (req, res) => {
       }
     }
 
-    // Update fields
-    if (title !== undefined) jobPosting.title = title;
-    if (description !== undefined) jobPosting.description = description;
-    if (company !== undefined) jobPosting.company = company;
-    if (role !== undefined) jobPosting.role = role;
-    if (ctc !== undefined) jobPosting.ctc = ctc;
-    if (exp_req !== undefined) jobPosting.exp_req = exp_req;
-    if (job_type !== undefined) jobPosting.job_type = job_type;
-    if (skills !== undefined) jobPosting.skills = skills;
+    // Build update object - only include fields that are being updated
+    const updateData = {};
 
-    await jobPosting.save();
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (company !== undefined) updateData.company = company;
+    if (role !== undefined) updateData.role = role;
+    if (ctc !== undefined) updateData.ctc = ctc;
+    if (exp_req !== undefined) updateData.exp_req = exp_req;
+    if (job_type !== undefined) updateData.job_type = job_type;
+    if (skills !== undefined) updateData.skills = skills;
+    if (processedSecondaryRecruiters !== undefined)
+      updateData.secondary_recruiter_id = processedSecondaryRecruiters;
 
-    // Regenerate embedding if job details changed
-    try {
-      const embedding = await generateJobEmbedding(jobPosting);
-      jobPosting.vector = embedding;
-      await jobPosting.save();
+    // CRITICAL: Always update status if provided, or ensure it exists
+    if (status !== undefined && status !== null && status !== "") {
+      updateData.status = status;
+    } else if (!jobPosting.status) {
+      // If status is missing from existing job, set it to draft
+      updateData.status = "draft";
+    }
 
-      // Trigger matching process asynchronously
-      updateJobMatches(jobPosting._id.toString()).catch((matchError) => {
-        console.error("Error updating job matches:", matchError);
+    // Update using findByIdAndUpdate to ensure atomic update
+    const updatedJobPosting = await JobPosting.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    )
+      .populate("primary_recruiter_id", "name email")
+      .populate("secondary_recruiter_id", "name email");
+
+    if (!updatedJobPosting) {
+      return res.status(404).json({
+        message: "Job posting not found after update",
       });
-    } catch (embeddingError) {
-      console.error(
-        "Error generating embedding for job posting:",
-        embeddingError
-      );
+    }
+
+    // Regenerate embedding if job details changed (only if non-status fields changed)
+    if (
+      title !== undefined ||
+      description !== undefined ||
+      company !== undefined ||
+      role !== undefined ||
+      skills !== undefined
+    ) {
+      try {
+        const embedding = await generateJobEmbedding(updatedJobPosting);
+        // Update vector without affecting status
+        await JobPosting.findByIdAndUpdate(
+          id,
+          { $set: { vector: embedding } },
+          { new: false }
+        );
+
+        // Trigger matching process asynchronously
+        updateJobMatches(updatedJobPosting._id.toString()).catch(
+          (matchError) => {
+            console.error("Error updating job matches:", matchError);
+          }
+        );
+      } catch (embeddingError) {
+        console.error(
+          "Error generating embedding for job posting:",
+          embeddingError
+        );
+      }
+    }
+
+    // Fetch fresh from database to ensure we have the latest data
+    const finalJobPosting = await JobPosting.findById(id)
+      .populate("primary_recruiter_id", "name email")
+      .populate("secondary_recruiter_id", "name email")
+      .lean(); // Use lean() to get plain object
+
+    // Ensure status is in the response
+    if (!finalJobPosting.status) {
+      finalJobPosting.status = status || "draft";
     }
 
     res.status(200).json({
       message: "Job posting updated successfully",
-      jobPosting,
+      jobPosting: finalJobPosting,
     });
   } catch (error) {
+    console.error("Error updating job posting:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete a job posting (permanent deletion)
+export const deleteJobPosting = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if id is a valid MongoDB ObjectId
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    if (!isObjectId) {
+      return res.status(400).json({
+        message: "Invalid job posting ID format",
+      });
+    }
+
+    // Find the job posting
+    const jobPosting = await JobPosting.findById(id);
+    if (!jobPosting) {
+      return res.status(404).json({
+        message: "Job posting not found",
+      });
+    }
+
+    // Verify that the current user is the primary recruiter (only primary can delete)
+    const currentUserId = req.user?.id;
+    const currentUserIdStr = currentUserId?.toString();
+
+    if (jobPosting.primary_recruiter_id) {
+      const primaryRecruiterId = jobPosting.primary_recruiter_id.toString();
+      if (primaryRecruiterId !== currentUserIdStr) {
+        return res.status(403).json({
+          message: "Only the primary recruiter can delete this job posting",
+        });
+      }
+    }
+
+    // Delete the job posting
+    await JobPosting.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "Job posting deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting job posting:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -451,9 +649,9 @@ export const updateJobPosting = async (req, res) => {
 // Add recruiters to a job posting (only primary recruiter can add)
 export const addRecruitersToJobPost = async (req, res) => {
   try {
-    const { id } = req.params; // Job posting ID
-    const { recruiter_ids } = req.body; // Array of recruiter IDs to add
-    const currentUserId = req.user?.id; // Get current user ID from auth middleware
+    const { id } = req.params;
+    const { recruiter_ids } = req.body;
+    const currentUserId = req.user?.id;
 
     // Validate input
     if (
@@ -534,21 +732,27 @@ export const addRecruitersToJobPost = async (req, res) => {
       });
     }
 
-    // Add new recruiters
-    jobPosting.secondary_recruiter_id.push(...newRecruiters);
-    await jobPosting.save();
+    // Add new recruiters using findByIdAndUpdate
+    await JobPosting.findByIdAndUpdate(
+      id,
+      { $push: { secondary_recruiter_id: { $each: newRecruiters } } },
+      { new: false }
+    );
 
-    // Populate recruiter details for response
-    await jobPosting.populate("primary_recruiter_id", "name email");
-    await jobPosting.populate("secondary_recruiter_id", "name email");
+    // Fetch updated job posting with populated fields
+    const updatedJobPosting = await JobPosting.findById(id)
+      .populate("primary_recruiter_id", "name email")
+      .populate("secondary_recruiter_id", "name email")
+      .lean();
 
     res.status(200).json({
       message: `Successfully added ${newRecruiters.length} recruiter(s) to the job posting`,
-      jobPosting,
+      jobPosting: updatedJobPosting,
       addedRecruiters: newRecruiters,
       skippedRecruiters: recruiter_ids.length - newRecruiters.length,
     });
   } catch (error) {
+    console.error("Error adding recruiters to job post:", error);
     res.status(500).json({ message: error.message });
   }
 };

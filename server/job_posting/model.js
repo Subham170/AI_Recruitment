@@ -54,6 +54,11 @@ const jobPostingSchema = new mongoose.Schema(
       ref: "User",
       default: [],
     },
+    status: {
+      type: String,
+      enum: ["draft", "open", "closed"],
+      default: "draft",
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt fields

@@ -29,13 +29,6 @@ export const roleMenuConfig = {
       description: "Manage job listings",
     },
     {
-      id: "top-applicants",
-      label: "Top Applicants",
-      icon: TrendingUp,
-      path: "/dashboard/recruiter/top-applicants",
-      description: "View top candidates",
-    },
-    {
       id: "candidates",
       label: "Candidates List",
       icon: Users,
