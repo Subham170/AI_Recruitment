@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -721,9 +722,10 @@ export default function RecruiterJobDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex h-screen overflow-hidden bg-white">
+      <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+        <GlassBackground />
         <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
-        <div className="flex flex-1 flex-col overflow-hidden items-center justify-center">
+        <div className="relative z-10 flex flex-1 flex-col overflow-hidden items-center justify-center">
           <Loading size="lg" />
         </div>
       </div>
@@ -732,10 +734,11 @@ export default function RecruiterJobDetailPage() {
 
   if (error || !jobPosting) {
     return (
-      <div className="flex h-screen overflow-hidden bg-white">
+      <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+        <GlassBackground />
         <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
-        <div className="flex flex-1 flex-col overflow-hidden items-center justify-center p-8">
-          <Card className="max-w-md">
+        <div className="relative z-10 flex flex-1 flex-col overflow-hidden items-center justify-center p-8">
+          <Card className="max-w-md border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.35)]">
             <CardContent className="pt-6 text-center">
               <p className="text-red-900">{error || "Job posting not found"}</p>
               <Button
@@ -855,33 +858,34 @@ export default function RecruiterJobDetailPage() {
   const canCall = canMakeCalls();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+      <GlassBackground />
       <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
         <Navbar
           title=""
           sidebarOpen={sidebarOpen}
           onSidebarToggle={setSidebarOpen}
         />
 
-        <main className="flex-1 overflow-y-auto p-6 bg-white">
+        <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
             {/* Back Button */}
             <Button
               variant="outline"
-              className="mb-6 cursor-pointer"
+              className="mb-4 cursor-pointer rounded-full border-white/70 bg-white/80 backdrop-blur-xl shadow-sm hover:shadow-md hover:bg-white"
               onClick={() => {
                 const role = user?.role || "recruiter";
                 router.push(`/dashboard/${role}/manage-job-posting`);
               }}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              Back to Job Postings
             </Button>
 
             {/* Job Header */}
-            <div className="mb-6">
+            <div className="mb-6 rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] p-6 md:p-8">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4 flex-1">
                   <Briefcase className="h-8 w-8 text-slate-700" />
@@ -979,7 +983,7 @@ export default function RecruiterJobDetailPage() {
 
               {/* Status Workflow Tabs */}
               <div className="mb-6">
-                <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
+                <div className="inline-flex gap-2 bg-slate-100/70 border border-white/70 p-1 rounded-full shadow-inner shadow-white/50">
                   {statusOptions.map((option) => {
                     // Disable Draft button when job is open or closed
                     // Once a job is opened or closed, it cannot go back to draft
@@ -1003,7 +1007,7 @@ export default function RecruiterJobDetailPage() {
                           }
                         }}
                         disabled={isDisabled}
-                        className={`px-6 py-2.5 text-sm font-medium transition-all duration-200 rounded-md ${
+                        className={`px-6 py-2.5 text-sm font-medium transition-all duration-200 rounded-full ${
                           isDisabled
                             ? "cursor-not-allowed opacity-50"
                             : "cursor-pointer"
@@ -1032,9 +1036,11 @@ export default function RecruiterJobDetailPage() {
                   </span>
                 </p>
               </div>
+            </div>
 
-              {/* Tabs */}
-              <div className="flex gap-1 border-b border-slate-200 mb-6">
+            {/* Tabs */}
+            <div className="flex mb-4">
+              <div className="inline-flex rounded-full bg-slate-100/70 border border-white/70 p-1 shadow-inner shadow-white/40">
                 {[
                   { id: "details", label: "Details" },
                   { id: "applicants", label: "Applicants" },
@@ -1043,9 +1049,9 @@ export default function RecruiterJobDetailPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`px-6 py-3 text-sm font-medium transition-colors cursor-pointer ${
+                    className={`px-5 py-2 text-sm font-medium rounded-full transition-all cursor-pointer ${
                       activeTab === tab.id
-                        ? "border-b-2 border-blue-600 text-blue-600"
+                        ? "bg-white text-blue-600 shadow-sm"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
@@ -1057,7 +1063,7 @@ export default function RecruiterJobDetailPage() {
 
             {/* Tab Content */}
             {activeTab === "details" && (
-              <Card>
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
                   <CardTitle>Job Description</CardTitle>
                 </CardHeader>
@@ -1115,7 +1121,7 @@ export default function RecruiterJobDetailPage() {
             )}
 
             {activeTab === "applicants" && (
-              <Card>
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
                   <CardTitle>AI Candidate Matches</CardTitle>
                 </CardHeader>
@@ -1262,7 +1268,7 @@ export default function RecruiterJobDetailPage() {
                                     (callStatus &&
                                       callStatus.status === "completed")
                                   }
-                                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                   title={
                                     currentStatus === "closed"
                                       ? "Cannot make calls for a closed job posting"
@@ -1294,7 +1300,7 @@ export default function RecruiterJobDetailPage() {
             )}
 
             {activeTab === "screenings" && (
-              <Card>
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
                   <CardTitle>Completed Screenings</CardTitle>
                 </CardHeader>
@@ -1441,7 +1447,7 @@ export default function RecruiterJobDetailPage() {
         open={callDetailsDialogOpen}
         onOpenChange={setCallDetailsDialogOpen}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-slate-300 shadow-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white/95 border-white/70 backdrop-blur-2xl shadow-[0_18px_60px_rgba(15,23,42,0.35)]">
           <DialogHeader className="pb-4 border-b border-slate-200">
             <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
               <div className="p-2 rounded-lg bg-cyan-50 border border-cyan-200">
@@ -1668,7 +1674,7 @@ export default function RecruiterJobDetailPage() {
           }
         }}
       >
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white/95 border-white/70 backdrop-blur-2xl shadow-[0_18px_60px_rgba(15,23,42,0.35)]">
           <DialogHeader className="pb-4 border-b border-slate-200">
             <DialogTitle className="text-2xl font-bold text-slate-900">
               Edit Job Posting
@@ -2054,7 +2060,7 @@ export default function RecruiterJobDetailPage() {
               Cancel
             </Button>
             <Button
-              className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300"
+              className="bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300"
               onClick={handleUpdateJob}
             >
               Update Job

@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import { Badge } from "@/components/ui/badge";
@@ -287,9 +288,10 @@ export default function CandidateDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex h-screen overflow-hidden bg-white">
+      <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+        <GlassBackground />
         <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
-        <div className="flex flex-1 flex-col overflow-hidden items-center justify-center">
+        <div className="relative z-10 flex flex-1 flex-col overflow-hidden items-center justify-center">
           <Loading size="lg" />
         </div>
       </div>
@@ -298,10 +300,11 @@ export default function CandidateDetailPage() {
 
   if (error || !candidate) {
     return (
-      <div className="flex h-screen overflow-hidden bg-white">
+      <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+        <GlassBackground />
         <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
-        <div className="flex flex-1 flex-col overflow-hidden items-center justify-center p-8">
-          <Card className="max-w-md">
+        <div className="relative z-10 flex flex-1 flex-col overflow-hidden items-center justify-center p-8">
+          <Card className="max-w-md border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.35)]">
             <CardContent className="pt-6 text-center">
               <p className="text-red-900">{error || "Candidate not found"}</p>
               <Button
@@ -322,36 +325,37 @@ export default function CandidateDetailPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+      <GlassBackground />
       <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
         <Navbar
           title=""
           sidebarOpen={sidebarOpen}
           onSidebarToggle={setSidebarOpen}
         />
 
-        <main className="flex-1 overflow-y-auto p-6 bg-white">
+        <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
             {/* Back Button */}
             <Button
               variant="outline"
-              className="mb-6 cursor-pointer"
+              className="mb-4 cursor-pointer rounded-full border-white/70 bg-white/80 backdrop-blur-xl shadow-sm hover:shadow-md hover:bg-white"
               onClick={() => {
                 const role = user?.role || "recruiter";
                 router.push(`/dashboard/${role}/candidate`);
               }}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              Back to Candidates
             </Button>
 
             {/* Candidate Header */}
-            <div className="mb-6">
+            <div className="mb-6 rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] p-6 md:p-8">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-4 flex-1">
-                  <div className="h-16 w-16 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center border-4 border-white shadow-lg">
+                  <div className="h-16 w-16 rounded-full bg-linear-to-br from-cyan-400 to-blue-500 flex items-center justify-center border-4 border-white shadow-lg shadow-cyan-500/40">
                     <span className="text-2xl font-bold text-white">
                       {candidate.name?.charAt(0).toUpperCase() || "?"}
                     </span>
@@ -400,9 +404,11 @@ export default function CandidateDetailPage() {
                   </p>
                 </div>
               </div>
+            </div>
 
-              {/* Tabs */}
-              <div className="flex gap-1 border-b border-slate-200 mb-6">
+            {/* Tabs */}
+            <div className="mt-4 mb-4 flex">
+              <div className="inline-flex rounded-full bg-slate-100/70 border border-white/70 p-1 shadow-inner shadow-white/40">
                 {[
                   { id: "details", label: "Details" },
                   { id: "top-matches", label: "Top Matches" },
@@ -420,9 +426,9 @@ export default function CandidateDetailPage() {
                         fetchMatchedJobs();
                       }
                     }}
-                    className={`px-6 py-3 text-sm font-medium transition-colors cursor-pointer ${
+                    className={`px-5 py-2 text-sm font-medium rounded-full transition-all cursor-pointer ${
                       activeTab === tab.id
-                        ? "border-b-2 border-blue-600 text-blue-600"
+                        ? "bg-white text-blue-600 shadow-sm"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
@@ -434,7 +440,7 @@ export default function CandidateDetailPage() {
 
             {/* Tab Content */}
             {activeTab === "details" && (
-              <Card>
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
                   <CardTitle>Candidate Information</CardTitle>
                 </CardHeader>
@@ -614,7 +620,7 @@ export default function CandidateDetailPage() {
             )}
 
             {activeTab === "top-matches" && (
-              <Card>
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-cyan-600" />
@@ -700,7 +706,7 @@ export default function CandidateDetailPage() {
             )}
 
             {activeTab === "screenings" && (
-              <Card>
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
                   <CardTitle>Completed Screenings</CardTitle>
                 </CardHeader>
@@ -802,7 +808,7 @@ export default function CandidateDetailPage() {
             )}
 
             {activeTab === "interviews" && (
-              <Card>
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
                   <CardTitle>Interviews</CardTitle>
                 </CardHeader>

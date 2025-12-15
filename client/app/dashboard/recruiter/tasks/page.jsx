@@ -2,6 +2,7 @@
 
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
+import { GlassBackground } from "@/components/GlassShell";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -167,12 +168,13 @@ export default function RecruiterTasksPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+      <GlassBackground />
       <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
         <Navbar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
-        <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
+        <main className="flex-1 overflow-y-auto p-6 bg-transparent">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
@@ -186,7 +188,7 @@ export default function RecruiterTasksPage() {
 
             {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <Card>
+              <Card className="border-white/60 bg-white/75 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium text-slate-600">
                     Today
@@ -198,7 +200,7 @@ export default function RecruiterTasksPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-white/60 bg-white/75 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium text-slate-600">
                     This Week
@@ -210,7 +212,7 @@ export default function RecruiterTasksPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-white/60 bg-white/75 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium text-slate-600">
                     This Month
@@ -222,7 +224,7 @@ export default function RecruiterTasksPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-white/60 bg-white/75 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium text-slate-600">
                     Total Tasks
@@ -237,7 +239,7 @@ export default function RecruiterTasksPage() {
             </div>
 
             {/* Filter and Tasks */}
-            <Card>
+            <Card className="border-white/60 bg-white/75 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)]">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -277,7 +279,7 @@ export default function RecruiterTasksPage() {
                     {tasks.map((task) => (
                       <div
                         key={task._id}
-                        className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                        className="border border-white/60 bg-white/70 backdrop-blur-lg rounded-2xl p-4 hover:bg-white/90 transition-colors shadow-sm"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">

@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import {
@@ -67,8 +68,11 @@ export default function ManagerDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-white">
-        <Loading size="lg" />
+      <div className="relative min-h-screen flex items-center justify-center bg-[#eef2f7]">
+        <GlassBackground />
+        <div className="relative z-10">
+          <Loading size="lg" />
+        </div>
       </div>
     );
   }
@@ -78,14 +82,15 @@ export default function ManagerDashboardPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+      <GlassBackground />
       <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
         <Navbar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-6 bg-white">
+        <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
             <div className="mb-8">
               <div>
@@ -101,7 +106,7 @@ export default function ManagerDashboardPage() {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.3)] transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-900">
                     Recruiters
@@ -122,7 +127,7 @@ export default function ManagerDashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.3)] transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-900">
                     Job Postings
@@ -143,7 +148,7 @@ export default function ManagerDashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.3)] transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-900">
                     Applications
@@ -164,7 +169,7 @@ export default function ManagerDashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.3)] transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-900">
                     Interviews
@@ -189,7 +194,7 @@ export default function ManagerDashboardPage() {
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card
-                className="group cursor-pointer border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:border-cyan-200"
+                className="group cursor-pointer border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.35)] transition-all duration-200 hover:border-cyan-200"
                 onClick={() =>
                   router.push("/dashboard/manager/user-management")
                 }
@@ -208,7 +213,7 @@ export default function ManagerDashboardPage() {
               </Card>
 
               <Card
-                className="group cursor-pointer border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:border-cyan-200"
+                className="group cursor-pointer border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.35)] transition-all duration-200 hover:border-cyan-200"
                 onClick={() =>
                   router.push("/dashboard/manager/manage-job-posting")
                 }
@@ -227,7 +232,7 @@ export default function ManagerDashboardPage() {
               </Card>
 
               <Card
-                className="group cursor-pointer border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:border-cyan-200"
+                className="group cursor-pointer border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.35)] transition-all duration-200 hover:border-cyan-200"
                 onClick={() => router.push("/dashboard/manager/top-applicants")}
               >
                 <CardHeader>
@@ -244,7 +249,7 @@ export default function ManagerDashboardPage() {
               </Card>
 
               <Card
-                className="group cursor-pointer border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:border-cyan-200"
+                className="group cursor-pointer border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.35)] transition-all duration-200 hover:border-cyan-200"
                 onClick={() => router.push("/dashboard/manager/reports")}
               >
                 <CardHeader>
@@ -261,7 +266,7 @@ export default function ManagerDashboardPage() {
               </Card>
 
               <Card
-                className="group cursor-pointer border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:border-cyan-200"
+                className="group cursor-pointer border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.35)] transition-all duration-200 hover:border-cyan-200"
                 onClick={() => router.push("/dashboard/manager/settings")}
               >
                 <CardHeader>

@@ -6,8 +6,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { getMenuItemsForRole } from "@/config/roleMenuConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { LogOut } from "lucide-react";
-import Image from "next/image";
+import { LogOut, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -36,28 +35,27 @@ export default function Sidebar({
   if (!user) return null;
 
   const SidebarContent = () => (
-    <div className="flex h-screen w-60 flex-col border-r border-slate-900 bg-slate-950 text-slate-100">
+    <div className="flex h-screen w-60 flex-col border-r border-white/30 bg-white/10 text-slate-900 backdrop-blur-2xl shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
       {/* Logo/Brand */}
-      <div className="flex h-14 items-center border-b border-slate-900 px-4 bg-slate-900">
+      <div className="flex h-16 items-center border-b border-white/20 px-4 bg-white/40 backdrop-blur-xl">
         <div className="flex items-center gap-2">
-          <div className="rounded-full overflow-hidden">
-            <Image
-              src="/Logo.png"
-              alt="AI Recruitment Logo"
-              width={28}
-              height={28}
-              className="object-contain"
-            />
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-indigo-600 shadow-md shadow-indigo-500/40">
+            <Sparkles className="h-4 w-4 text-white" />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-lg font-semibold text-white">AI Recruitment</h2>
+            <h2 className="text-sm font-semibold tracking-wide text-[#1e3a8a]">
+              AI Recruitment
+            </h2>
+            <span className="text-[11px] font-medium text-slate-500">
+              Recruiter workspace
+            </span>
           </div>
         </div>
       </div>
 
       {/* Navigation Menu */}
       <ScrollArea className="flex-1">
-        <nav className="p-2 space-y-1">
+        <nav className="p-3 space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
             // Check if this menu item should be active
@@ -94,23 +92,23 @@ export default function Sidebar({
                 key={item.id}
                 href={item.path}
                 className={cn(
-                  "group relative flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200",
+                  "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25"
-                    : "text-slate-200 hover:bg-slate-900 hover:text-white"
+                    ? "bg-linear-to-r from-indigo-500 to-sky-500 text-white shadow-lg shadow-indigo-500/25"
+                    : "text-slate-700 hover:bg-white/70 hover:text-slate-900 hover:shadow-md"
                 )}
                 title={item.description}
                 onClick={() => setSidebarOpen(false)}
               >
                 {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-white rounded-r-full"></div>
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-white rounded-r-full shadow-[0_0_10px_rgba(255,255,255,0.7)]"></div>
                 )}
                 <Icon
                   className={cn(
                     "h-5 w-5 transition-transform duration-200",
                     isActive
                       ? "text-white"
-                      : "text-slate-400 group-hover:scale-110 group-hover:text-white"
+                      : "text-slate-400 group-hover:scale-110 group-hover:text-indigo-600"
                   )}
                 />
                 <span>{item.label}</span>
@@ -121,21 +119,21 @@ export default function Sidebar({
       </ScrollArea>
 
       {/* User Info */}
-      <div className="border-t border-slate-900 p-3 bg-slate-900">
+      <div className="border-t border-white/20 p-3 bg-white/40 backdrop-blur-xl">
         <div className="flex items-center gap-2">
           <div className="relative">
-            <div className="absolute inset-0 bg-cyan-400/30 rounded-full blur-sm"></div>
-            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600">
+            <div className="absolute inset-0 rounded-full bg-sky-400/30 blur-md"></div>
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-indigo-500 to-sky-500 shadow-md shadow-indigo-500/40">
               <span className="text-sm font-semibold text-white">
                 {user.name?.charAt(0).toUpperCase()}
               </span>
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate text-slate-100">
+            <p className="text-sm font-medium truncate text-slate-900">
               {user.name}
             </p>
-            <p className="text-xs text-slate-400 capitalize truncate">
+            <p className="text-xs text-slate-500 capitalize truncate">
               {user.role}
             </p>
           </div>
@@ -143,10 +141,10 @@ export default function Sidebar({
       </div>
 
       {/* Logout Button */}
-      <div className="border-t border-slate-900 p-3 bg-slate-900">
+      <div className="border-t border-white/20 p-3 bg-white/40 backdrop-blur-xl">
         <Button
           variant="outline"
-          className="w-full justify-start border-slate-800 text-slate-100 hover:bg-red-600/20 hover:border-red-500 hover:text-red-400 transition-all duration-200"
+          className="w-full justify-start border-slate-200 text-slate-800 hover:bg-red-50 hover:border-red-400 hover:text-red-500 transition-all duration-200"
           onClick={logout}
         >
           <LogOut className="mr-2 h-4 w-4" />
@@ -167,7 +165,7 @@ export default function Sidebar({
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent
           side="left"
-          className="w-60 p-0 bg-slate-950 text-slate-100 border-r border-slate-900"
+          className="w-60 p-0 bg-white/10 text-slate-900 border-r border-white/30 backdrop-blur-2xl"
         >
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <SidebarContent />

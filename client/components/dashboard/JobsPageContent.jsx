@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -531,7 +532,7 @@ export default function JobsPageContent() {
 
                           if (userId === primaryRecruiterId) {
                             return (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white border border-cyan-600">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full bg-linear-to-r from-cyan-500 to-blue-600 text-white border border-cyan-600">
                                 <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
                                 Primary
                               </span>
@@ -591,7 +592,8 @@ export default function JobsPageContent() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white text-slate-900">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7] text-slate-900">
+      <GlassBackground />
       <aside className="hidden lg:block relative z-10">
         <Sidebar />
       </aside>
@@ -599,7 +601,7 @@ export default function JobsPageContent() {
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent
           side="left"
-          className="w-60 p-0 bg-slate-950 text-slate-100 border-r border-slate-900"
+          className="w-60 p-0 bg-white/10 text-slate-900 border-r border-white/30 backdrop-blur-2xl"
         >
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <Sidebar />
@@ -622,10 +624,10 @@ export default function JobsPageContent() {
             <>
               {/* Header */}
               <div className="mb-6">
-                <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                <h1 className="text-3xl font-bold text-slate-900 drop-shadow-[0_1px_1px_rgba(15,23,42,0.18)] mb-2">
                   Manage Job Posting
                 </h1>
-                <p className="text-slate-600">
+                <p className="text-base font-medium text-slate-800 drop-shadow-[0_1px_1px_rgba(15,23,42,0.12)]">
                   Create, edit, and manage your job postings
                 </p>
               </div>
@@ -633,7 +635,7 @@ export default function JobsPageContent() {
               {canCreate && (
                 <div className="lg:hidden mb-4">
                   <Button
-                    className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
+                    className="w-full cursor-pointer bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
                     onClick={openCreateDialog}
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -653,26 +655,30 @@ export default function JobsPageContent() {
               <div className="mb-6 space-y-4">
                 <div className="flex gap-3 items-center">
                   <div className="relative flex-1 group">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-cyan-500 transition-colors" />
+                    <Search className="pointer-events-none absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-cyan-500 transition-colors z-10" />
                     <input
                       type="text"
                       placeholder="Search job postings..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition-all shadow-sm hover:shadow-md"
+                      className="w-full pl-10 pr-4 py-2.5 border border-white/70 rounded-lg bg-white/70 backdrop-blur-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200/80 focus:border-indigo-400 transition-all shadow-inner shadow-white/40 hover:shadow-md"
                     />
                   </div>
                   <Button
                     variant="outline"
                     onClick={() => setShowFilters(!showFilters)}
-                    className={`border-slate-200 bg-white hover:bg-slate-50 transition-all text-slate-700 ${
-                      hasActiveFilters() ? "border-cyan-500 bg-cyan-50" : ""
-                    }`}
+                    className={`cursor-pointer rounded-md px-4 py-2.5 backdrop-blur-xl shadow-sm transition-all
+                      hover:bg-indigo-600 hover:text-white hover:border-indigo-500 hover:shadow-indigo-500/40
+                      ${
+                        hasActiveFilters()
+                          ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-500/40"
+                          : "bg-white/80 text-slate-700 border-white/70"
+                      }`}
                   >
                     <Filter className="h-4 w-4 mr-2 text-slate-700" />
                     <span className="text-slate-700">Filters</span>
                     {hasActiveFilters() && (
-                      <span className="ml-2 px-2 py-0.5 rounded-full bg-cyan-500 text-white text-xs font-medium">
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-indigo-500 text-white text-xs font-medium">
                         {
                           [
                             filters.job_type,
@@ -690,7 +696,7 @@ export default function JobsPageContent() {
                   {canCreate && (
                     <div className="hidden lg:block">
                       <Button
-                        className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
+                        className="cursor-pointer bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
                         onClick={openCreateDialog}
                       >
                         <Plus className="mr-2 h-4 w-4" />
@@ -704,12 +710,12 @@ export default function JobsPageContent() {
                 <Sheet open={showFilters} onOpenChange={setShowFilters}>
                   <SheetContent
                     side="right"
-                    className="w-full sm:w-[400px] overflow-y-auto bg-white p-0"
+                    className="w-full sm:w-[400px] overflow-y-auto bg-white/80 backdrop-blur-2xl p-0 border-l border-white/60"
                   >
-                    <SheetHeader className="border-b border-slate-200 pb-4 px-6 pt-6">
+                    <SheetHeader className="border-b border-white/60 pb-4 px-6 pt-6">
                       <SheetTitle className="flex items-center gap-3 text-xl font-bold text-slate-900">
-                        <div className="p-2 rounded-lg bg-slate-100">
-                          <Filter className="h-5 w-5 text-cyan-600" />
+                        <div className="p-2 rounded-lg bg-indigo-50">
+                          <Filter className="h-5 w-5 text-indigo-600" />
                         </div>
                         Filter Jobs
                       </SheetTitle>
@@ -730,10 +736,10 @@ export default function JobsPageContent() {
                             )
                           }
                         >
-                          <SelectTrigger className="bg-white border-slate-200 text-slate-900">
+                          <SelectTrigger className="bg-white/70 border-white/70 text-slate-900 backdrop-blur">
                             <SelectValue placeholder="All Types" />
                           </SelectTrigger>
-                          <SelectContent className="bg-white">
+                          <SelectContent className="bg-white border-white/70">
                             <SelectItem value="all">All Types</SelectItem>
                             <SelectItem value="Full time">Full time</SelectItem>
                             <SelectItem value="Internship">
@@ -759,7 +765,7 @@ export default function JobsPageContent() {
                             }
                           }}
                         >
-                          <SelectTrigger className="!w-full bg-white border-slate-200 text-slate-900">
+                          <SelectTrigger className="w-full! bg-white/70 border-white/70 text-slate-900 backdrop-blur">
                             <SelectValue
                               placeholder={
                                 tempFilters.role.length > 0
@@ -768,7 +774,7 @@ export default function JobsPageContent() {
                               }
                             />
                           </SelectTrigger>
-                          <SelectContent className="bg-white">
+                          <SelectContent className="bg-white border-white/70">
                             {[
                               "Frontend",
                               "Backend",
@@ -802,7 +808,7 @@ export default function JobsPageContent() {
                             {tempFilters.role.map((role) => (
                               <span
                                 key={role}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-linear-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium"
                               >
                                 {role}
                                 <button
@@ -836,7 +842,7 @@ export default function JobsPageContent() {
                             onChange={(e) =>
                               handleTempFilterChange("min_exp", e.target.value)
                             }
-                            className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-500"
+                            className="bg-white/70 border-white/70 text-slate-900 placeholder:text-slate-500 backdrop-blur"
                             min="0"
                           />
                           <Input
@@ -846,7 +852,7 @@ export default function JobsPageContent() {
                             onChange={(e) =>
                               handleTempFilterChange("max_exp", e.target.value)
                             }
-                            className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-500"
+                            className="bg-white/70 border-white/70 text-slate-900 placeholder:text-slate-500 backdrop-blur"
                             min="0"
                           />
                         </div>
@@ -865,7 +871,7 @@ export default function JobsPageContent() {
                             onChange={(e) =>
                               handleTempFilterChange("min_ctc", e.target.value)
                             }
-                            className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-500"
+                            className="bg-white/70 border-white/70 text-slate-900 placeholder:text-slate-500 backdrop-blur"
                             min="0"
                           />
                           <Input
@@ -875,7 +881,7 @@ export default function JobsPageContent() {
                             onChange={(e) =>
                               handleTempFilterChange("max_ctc", e.target.value)
                             }
-                            className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-500"
+                            className="bg-white/70 border-white/70 text-slate-900 placeholder:text-slate-500 backdrop-blur"
                             min="0"
                           />
                         </div>
@@ -893,7 +899,7 @@ export default function JobsPageContent() {
                           onChange={(e) =>
                             handleTempFilterChange("company", e.target.value)
                           }
-                          className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-500"
+                          className="bg-white/70 border-white/70 text-slate-900 placeholder:text-slate-500 backdrop-blur"
                         />
                       </div>
 
@@ -913,7 +919,7 @@ export default function JobsPageContent() {
                             }
                           }}
                         >
-                          <SelectTrigger className="!w-full bg-white border-slate-200 text-slate-900">
+                          <SelectTrigger className="w-full! bg-white/70 border-white/70 text-slate-900 backdrop-blur">
                             <SelectValue
                               placeholder={
                                 tempFilters.skills.length > 0
@@ -922,7 +928,7 @@ export default function JobsPageContent() {
                               }
                             />
                           </SelectTrigger>
-                          <SelectContent className="bg-white">
+                          <SelectContent className="bg-white border-white/70">
                             {[
                               "React",
                               "Next.js",
@@ -968,7 +974,7 @@ export default function JobsPageContent() {
                             {tempFilters.skills.map((skill) => (
                               <span
                                 key={skill}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-linear-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium"
                               >
                                 {skill}
                                 <button
@@ -1018,7 +1024,7 @@ export default function JobsPageContent() {
                       </div> */}
                     </div>
 
-                    <SheetFooter className="border-t border-slate-200 pt-4 px-6 pb-6 gap-2">
+                    <SheetFooter className="border-t border-white/60 pt-4 px-6 pb-6 gap-2">
                       <Button
                         variant="outline"
                         onClick={clearFilters}
@@ -1029,7 +1035,7 @@ export default function JobsPageContent() {
                       </Button>
                       <Button
                         onClick={applyFilters}
-                        className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25"
+                        className="flex-1 bg-linear-to-r from-indigo-600 to-sky-500 hover:from-indigo-700 hover:to-sky-600 text-white shadow-lg shadow-indigo-500/25"
                       >
                         Apply Filters
                       </Button>
@@ -1049,16 +1055,19 @@ export default function JobsPageContent() {
                 {isRecruiter && (
                   <>
                     <div className="mb-8">
-                      <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
-                        Your Job Postings
+                      <h2 className="text-2xl font-semibold mb-2 text-black drop-shadow-[0_1px_1px_rgba(0,0,0,0.32)] dark:text-white">
+                        Your Open Roles
                       </h2>
+                      <p className="text-sm text-slate-700 mb-2">
+                        Positions where you are the primary owner.
+                      </p>
                       {filterJobs(jobPostings.myJobPostings).length > 0 ? (
                         <JobTable
                           jobs={filterJobs(jobPostings.myJobPostings)}
                           showEdit={true}
                         />
                       ) : (
-                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
+                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-white/60 dark:border-slate-800/50 rounded-lg p-8 text-center shadow-[0_18px_60px_rgba(15,23,42,0.2)]">
                           <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
                           <p className="text-slate-700 dark:text-slate-300 font-medium">
                             No job postings created by you yet.
@@ -1068,9 +1077,12 @@ export default function JobsPageContent() {
                     </div>
 
                     <div className="mb-8">
-                      <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
-                        Job Postings (You are Secondary Recruiter)
+                      <h2 className="text-2xl font-semibold mb-2 text-black drop-shadow-[0_1px_1px_rgba(0,0,0,0.32)] dark:text-white">
+                        Shared with You
                       </h2>
+                      <p className="text-sm text-slate-700 mb-2">
+                        Roles where you support another recruiter.
+                      </p>
                       {filterJobs(jobPostings.secondaryJobPostings).length >
                       0 ? (
                         <JobTable
@@ -1089,9 +1101,12 @@ export default function JobsPageContent() {
                     </div>
 
                     <div className="mb-8">
-                      <h2 className="text-2xl font-bold mb-4 text-slate-900 dark:text-white">
-                        Other Job Postings
+                      <h2 className="text-2xl font-semibold mb-2 text-black drop-shadow-[0_1px_1px_rgba(0,0,0,0.32)] dark:text-white">
+                        All Other Roles
                       </h2>
+                      <p className="text-sm text-slate-700 mb-2">
+                        Open roles in the system you are not assigned to.
+                      </p>
                       {filterJobs(jobPostings.remainingJobPostings).length >
                       0 ? (
                         <JobTable
@@ -1141,8 +1156,8 @@ export default function JobsPageContent() {
               }
             }}
           >
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white">
-              <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white/90 backdrop-blur-2xl border border-white/70">
+              <DialogHeader className="pb-4 border-b border-white/60">
                 <DialogTitle className="text-2xl font-bold text-slate-900">
                   {editingJob ? "Edit Job Posting" : "Create New Job Posting"}
                 </DialogTitle>
@@ -1166,7 +1181,7 @@ export default function JobsPageContent() {
                         setJobForm({ ...jobForm, id: e.target.value })
                       }
                       placeholder="e.g., JOB-1001"
-                      className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
+                      className="border-white/70 bg-white/80 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/70 focus:shadow-lg focus:shadow-indigo-400/20 transition-all duration-200 backdrop-blur"
                     />
                   </div>
                 )}
@@ -1186,7 +1201,7 @@ export default function JobsPageContent() {
                         setJobForm({ ...jobForm, title: e.target.value })
                       }
                       placeholder="e.g., Senior Software Engineer"
-                      className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
+                      className="border-white/70 bg-white/80 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/70 focus:shadow-lg focus:shadow-indigo-400/20 transition-all duration-200 backdrop-blur"
                     />
                   </div>
 
@@ -1204,7 +1219,7 @@ export default function JobsPageContent() {
                         setJobForm({ ...jobForm, company: e.target.value })
                       }
                       placeholder="Company name"
-                      className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
+                      className="border-white/70 bg-white/80 text-slate-900 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/70 focus:shadow-lg focus:shadow-indigo-400/20 transition-all duration-200 backdrop-blur"
                     />
                   </div>
                 </div>
@@ -1246,7 +1261,7 @@ export default function JobsPageContent() {
                         }
                       }}
                     >
-                      <SelectTrigger className="border-slate-200 bg-white text-slate-900 hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200">
+                      <SelectTrigger className="border-white/70 bg-white/80 text-slate-900 hover:border-indigo-400/50 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/70 focus:shadow-lg focus:shadow-indigo-400/20 transition-all duration-200 backdrop-blur">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent className="bg-white border-slate-200">
@@ -1554,7 +1569,7 @@ export default function JobsPageContent() {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300"
+                  className="bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300"
                   onClick={editingJob ? handleUpdateJob : handleCreateJob}
                 >
                   {editingJob ? "Update Job" : "Create Job"}

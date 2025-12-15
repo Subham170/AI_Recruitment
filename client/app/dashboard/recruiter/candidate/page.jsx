@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -353,7 +354,8 @@ export default function CandidatesPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white text-slate-900">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7] text-slate-900">
+      <GlassBackground />
       <aside className="hidden lg:block relative z-10">
         <Sidebar />
       </aside>
@@ -368,10 +370,10 @@ export default function CandidatesPage() {
         </SheetContent>
       </Sheet>
 
-      <div className="flex flex-1 flex-col overflow-hidden bg-white">
+      <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
         <Navbar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-white text-slate-900">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error}</AlertDescription>
@@ -389,25 +391,29 @@ export default function CandidatesPage() {
           <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-6">
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">Candidates List</h1>
-              <p className="text-slate-600">View and manage all candidates in your database</p>
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                Candidates List
+              </h1>
+              <p className="text-slate-600">
+                View and manage all candidates in your database
+              </p>
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <div className="relative flex-1 group">
+                <Search className="pointer-events-none absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-cyan-500 transition-colors z-10" />
                 <Input
                   type="text"
                   placeholder="Search by name, email, or skills..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-white border-slate-200 focus:border-cyan-500 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-cyan-500/20 focus:shadow-lg focus:shadow-cyan-500/10 transition-all duration-200"
+                  className="w-full h-12 rounded-lg border border-white/70 bg-white text-slate-900 placeholder:text-slate-500 pl-10 pr-4 shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition-all focus:outline-none focus:ring-2 focus:ring-indigo-200/80 focus:border-indigo-400"
                 />
               </div>
 
               <Button
                 onClick={openAddForm}
-                className="gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                className="cursor-pointer gap-2 rounded-lg bg-linear-to-r from-indigo-600 to-sky-500 hover:from-indigo-700 hover:to-sky-600 text-white shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300"
               >
                 <Plus className="h-4 w-4" />
                 Add Candidate
@@ -417,7 +423,7 @@ export default function CandidatesPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="gap-2 border-slate-200 hover:bg-cyan-50 hover:border-cyan-300 hover:text-cyan-700"
+                  className="cursor-pointer gap-2 rounded-lg border-slate-200 bg-white/70 backdrop-blur-xl hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition-all duration-200 shadow-sm"
                   onClick={() => {
                     resetParseResumeModal();
                     setParseResumeModalOpen(true);
@@ -450,7 +456,7 @@ export default function CandidatesPage() {
               </div>
             )}
 
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-md overflow-hidden relative min-h-[400px]">
+            <div className="bg-white/75 border border-white/60 rounded-2xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] backdrop-blur-xl overflow-hidden relative min-h-[400px]">
               {initialLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loading message="Loading candidates..." />
@@ -464,7 +470,7 @@ export default function CandidatesPage() {
                   )}
                   {filteredCandidates.length === 0 ? (
                     <div className="p-12 flex flex-col items-center justify-center">
-                      <div className="p-4 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/20 mb-4">
+                      <div className="p-4 rounded-full bg-linear-to-br from-cyan-400/20 to-blue-500/20 mb-4">
                         <Users className="h-12 w-12 text-cyan-600 dark:text-cyan-400" />
                       </div>
                       <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">
@@ -474,73 +480,73 @@ export default function CandidatesPage() {
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-100/80">
-                        <th className="text-left p-4 font-semibold text-slate-800">
-                          Name
-                        </th>
-                        <th className="text-left p-4 font-semibold text-slate-800">
-                          Email
-                        </th>
-                        <th className="text-left p-4 font-semibold text-slate-800">
-                          Status
-                        </th>
-                        <th className="text-left p-4 font-semibold text-slate-800">
-                          Experience
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredCandidates.map((candidate) => (
-                        <tr
-                          key={candidate._id || candidate.id}
-                          onClick={() => handleRowClick(candidate)}
-                          className="border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors duration-150 cursor-pointer"
-                        >
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                                <span className="text-sm font-bold text-slate-700">
-                                  {candidate.name?.charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-                              <span className="font-medium text-slate-800">
-                                {candidate.name}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <span className="text-slate-600">
-                              {candidate.email || "-"}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <Badge
-                              variant={
-                                candidate.status === "offer"
-                                  ? "default"
-                                  : candidate.status === "rejected"
-                                  ? "destructive"
-                                  : candidate.status === "screening"
-                                  ? "secondary"
-                                  : "outline"
-                              }
-                              className="capitalize"
+                        <thead>
+                          <tr className="border-b border-white/70 bg-white/60 backdrop-blur">
+                            <th className="text-left p-4 font-semibold text-slate-800">
+                              Name
+                            </th>
+                            <th className="text-left p-4 font-semibold text-slate-800">
+                              Email
+                            </th>
+                            <th className="text-left p-4 font-semibold text-slate-800">
+                              Status
+                            </th>
+                            <th className="text-left p-4 font-semibold text-slate-800">
+                              Experience
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredCandidates.map((candidate) => (
+                            <tr
+                              key={candidate._id || candidate.id}
+                              onClick={() => handleRowClick(candidate)}
+                              className="border-b border-white/60 bg-white/70 backdrop-blur hover:bg-white/90 transition-colors duration-150 cursor-pointer"
                             >
-                              {candidate.status || "new"}
-                            </Badge>
-                          </td>
-                          <td className="p-4">
-                            <span className="text-slate-600">
-                              {candidate.experience !== undefined
-                                ? `${candidate.experience} years`
-                                : "-"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                              <td className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+                                    <span className="text-sm font-bold text-slate-700">
+                                      {candidate.name?.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <span className="font-medium text-slate-800">
+                                    {candidate.name}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <span className="text-slate-600">
+                                  {candidate.email || "-"}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <Badge
+                                  variant={
+                                    candidate.status === "offer"
+                                      ? "default"
+                                      : candidate.status === "rejected"
+                                      ? "destructive"
+                                      : candidate.status === "screening"
+                                      ? "secondary"
+                                      : "outline"
+                                  }
+                                  className="capitalize"
+                                >
+                                  {candidate.status || "new"}
+                                </Badge>
+                              </td>
+                              <td className="p-4">
+                                <span className="text-slate-600">
+                                  {candidate.experience !== undefined
+                                    ? `${candidate.experience} years`
+                                    : "-"}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </>
@@ -555,7 +561,7 @@ export default function CandidatesPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-slate-200 shadow-2xl">
           <DialogHeader className="pb-4 border-b border-slate-200">
             <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
+              <div className="p-2 rounded-lg bg-linear-to-br from-cyan-400/20 to-blue-500/20">
                 <UserPlus className="h-6 w-6 text-cyan-600" />
               </div>
               Add New Candidate
@@ -664,7 +670,7 @@ export default function CandidatesPage() {
                     onClick={() => handleRoleChange(role)}
                     className={
                       formData.role?.includes(role)
-                        ? "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                        ? "bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
                         : ""
                     }
                   >
@@ -725,7 +731,7 @@ export default function CandidatesPage() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                className="bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
               >
                 {isSubmitting ? "Creating..." : "Create Candidate"}
               </Button>
@@ -745,9 +751,9 @@ export default function CandidatesPage() {
         }}
       >
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white border-slate-200 shadow-2xl">
-          <DialogHeader className="pb-4 border-b border-slate-200 flex-shrink-0">
+          <DialogHeader className="pb-4 border-b border-slate-200 shrink-0">
             <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
+              <div className="p-2 rounded-lg bg-linear-to-br from-cyan-400/20 to-blue-500/20">
                 <FileText className="h-6 w-6 text-cyan-600" />
               </div>
               Parse Resume
@@ -856,7 +862,7 @@ export default function CandidatesPage() {
                             <span className="font-semibold">Skills:</span>{" "}
                             {parsedResumeData.skills?.length > 0 ? (
                               <div className="mt-1 max-h-32 overflow-y-auto">
-                                <p className="text-sm text-slate-700 break-words">
+                                <p className="text-sm text-slate-700 wrap-break-word">
                                   {parsedResumeData.skills.join(", ")}
                                 </p>
                               </div>
@@ -914,7 +920,7 @@ export default function CandidatesPage() {
                       <Button
                         type="button"
                         onClick={() => handleParseResume(false)}
-                        className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                        className="bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
                       >
                         Parse Resume
                       </Button>
@@ -922,7 +928,7 @@ export default function CandidatesPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center">
-                    <div className="p-4 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/20 mb-6">
+                    <div className="p-4 rounded-full bg-linear-to-br from-cyan-400/20 to-blue-500/20 mb-6">
                       <Upload className="h-12 w-12 text-cyan-600" />
                     </div>
                     <p className="text-lg font-medium text-slate-700 mb-2">
@@ -953,7 +959,7 @@ export default function CandidatesPage() {
             </div>
           </div>
 
-          <DialogFooter className="pt-4 border-t border-slate-200 mt-6 flex-shrink-0">
+          <DialogFooter className="pt-4 border-t border-slate-200 mt-6 shrink-0">
             <Button
               type="button"
               variant="outline"
@@ -986,7 +992,7 @@ export default function CandidatesPage() {
                       }
                     }}
                     disabled={isParsingResume}
-                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                    className="bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
                   >
                     {isParsingResume ? (
                       <>
@@ -1018,7 +1024,7 @@ export default function CandidatesPage() {
                     setFormOpen(true);
                     resetParseResumeModal();
                   }}
-                  className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                  className="bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
                 >
                   Use This Data
                 </Button>

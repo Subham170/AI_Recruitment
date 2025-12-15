@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import { Badge } from "@/components/ui/badge";
@@ -160,14 +161,15 @@ export default function RecruiterDashboardPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+      <GlassBackground />
       <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="relative z-10 flex flex-1 flex-col overflow-hidden">
         <Navbar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-6 bg-white">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             <div className="mb-8">
               <div>
@@ -182,14 +184,14 @@ export default function RecruiterDashboardPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+            <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="border-white/60 bg-white/70 shadow-[0_18px_60px_rgba(15,23,42,0.25)] backdrop-blur-xl hover:-translate-y-px hover:shadow-[0_24px_80px_rgba(15,23,42,0.35)] transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-900">
                     Active Jobs
                   </CardTitle>
-                  <div className="p-2 rounded-lg bg-slate-100">
-                    <Briefcase className="h-4 w-4 text-slate-700" />
+                  <div className="p-2 rounded-xl bg-indigo-50">
+                    <Briefcase className="h-4 w-4 text-indigo-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -204,13 +206,13 @@ export default function RecruiterDashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+              <Card className="border-white/60 bg-white/70 shadow-[0_18px_60px_rgba(15,23,42,0.25)] backdrop-blur-xl hover:-translate-y-px hover:shadow-[0_24px_80px_rgba(15,23,42,0.35)] transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-900">
                     Applications
                   </CardTitle>
-                  <div className="p-2 rounded-lg bg-slate-100">
-                    <ClipboardList className="h-4 w-4 text-slate-700" />
+                  <div className="p-2 rounded-xl bg-sky-50">
+                    <ClipboardList className="h-4 w-4 text-sky-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -225,13 +227,13 @@ export default function RecruiterDashboardPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+              <Card className="border-white/60 bg-white/70 shadow-[0_18px_60px_rgba(15,23,42,0.25)] backdrop-blur-xl hover:-translate-y-px hover:shadow-[0_24px_80px_rgba(15,23,42,0.35)] transition-all duration-200">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-900">
                     Candidates
                   </CardTitle>
-                  <div className="p-2 rounded-lg bg-slate-100">
-                    <Users className="h-4 w-4 text-slate-700" />
+                  <div className="p-2 rounded-xl bg-emerald-50">
+                    <Users className="h-4 w-4 text-emerald-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -260,7 +262,7 @@ export default function RecruiterDashboardPage() {
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex items-center gap-0 bg-slate-100 rounded-lg p-1 w-fit">
+                <div className="flex items-center gap-0 bg-white/60 rounded-2xl p-1 w-fit backdrop-blur-xl border border-white/70 shadow-sm">
                   <button
                     onClick={() => setSelectedTab("today")}
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
@@ -295,7 +297,7 @@ export default function RecruiterDashboardPage() {
               </div>
 
               {/* Tasks Content */}
-              <Card className="border-slate-200 bg-white shadow-sm">
+              <Card className="border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(15,23,42,0.25)] backdrop-blur-xl">
                 <CardHeader>
                   <CardTitle className="text-lg font-semibold text-slate-900">
                     {selectedTab === "today" && `Today (${tasks.today.length})`}
@@ -323,7 +325,7 @@ export default function RecruiterDashboardPage() {
                               {tasks.today.map((task) => (
                                 <div
                                   key={task._id}
-                                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                                  className="border border-white/70 bg-white/60 rounded-2xl p-4 hover:bg-white/80 hover:shadow-md transition-colors backdrop-blur-md"
                                 >
                                   <div className="flex items-start justify-between">
                                     <div className="flex-1">
