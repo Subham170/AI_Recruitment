@@ -2,7 +2,6 @@ import express from "express";
 import { authenticate } from "../middleware/auth.middleware.js";
 import {
   getCandidateInterviews,
-  getCandidateScreenings,
   getRecruiterTasks,
   getRecruiterTaskStats,
   updateTaskStatus,
@@ -19,9 +18,6 @@ router.get("/", getRecruiterTasks);
 
 // Get task statistics for the current recruiter
 router.get("/stats", getRecruiterTaskStats);
-
-// Get screenings (completed tasks) for a specific candidate
-router.get("/candidate/:candidateId/screenings", getCandidateScreenings);
 
 // Get interviews (all tasks) for a specific candidate
 router.get("/candidate/:candidateId/interviews", getCandidateInterviews);

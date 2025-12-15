@@ -1,4 +1,3 @@
-import BolnaCall from "../bolna/model.js";
 import { formatFullDateTimeWithAMPM } from "../utils/timeFormatter.js";
 import RecruiterTask from "./model.js";
 
@@ -226,93 +225,6 @@ export const getRecruiterTaskStats = async (req, res) => {
 };
 
 /**
- * Get screenings (completed calls) for a specific candidate
- * Fetches from BolnaCall collection where status is "completed"
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
-export const getCandidateScreenings = async (req, res) => {
-  try {
-    const currentUserId = req.user?.id;
-    const userRole = req.user?.role;
-    const { candidateId } = req.params;
-
-    if (!currentUserId) {
-      return res.status(401).json({
-        message: "Authentication required",
-      });
-    }
-
-    // Allow admin, manager, and recruiter roles
-    if (!["admin", "manager", "recruiter"].includes(userRole)) {
-      return res.status(403).json({
-        message: "Access denied",
-      });
-    }
-
-    if (!candidateId) {
-      return res.status(400).json({
-        message: "Candidate ID is required",
-      });
-    }
-
-    // Build query - filter by candidateId and completed status in BolnaCall
-    const query = {
-      candidateId: candidateId,
-      status: "completed",
-    };
-
-    // If user is recruiter, only show calls assigned to them
-    // Admin and manager can see all calls
-    if (userRole === "recruiter") {
-      query.assignRecruiter = currentUserId;
-    }
-
-    // Fetch completed calls (screenings) from BolnaCall with populated fields
-    const screenings = await BolnaCall.find(query)
-      .populate("candidateId", "name email phone_no")
-      .populate("jobId", "title company job_type ctc exp_req")
-      .populate("assignRecruiter", "name email")
-      .sort({ callScheduledAt: -1 }) // Sort by most recent first
-      .lean();
-
-    // Transform the data to match expected format
-    const transformedScreenings = screenings.map((screening) => ({
-      _id: screening._id,
-      candidate_id: screening.candidateId,
-      job_id: screening.jobId,
-      bolna_call_id: {
-        _id: screening._id,
-        executionId: screening.executionId,
-        status: screening.status,
-        callScheduledAt: screening.callScheduledAt,
-        userScheduledAt: screening.userScheduledAt,
-      },
-      recruiter_id: screening.assignRecruiter,
-      call_scheduled_at: screening.callScheduledAt,
-      status: screening.status,
-      executionId: screening.executionId,
-      emailSent: screening.emailSent,
-      emailSentAt: screening.emailSentAt,
-      meetLink: screening.meetLink,
-      createdAt: screening.createdAt,
-      updatedAt: screening.updatedAt,
-    }));
-
-    res.status(200).json({
-      success: true,
-      screenings: transformedScreenings,
-      count: transformedScreenings.length,
-    });
-  } catch (error) {
-    console.error("Error fetching candidate screenings:", error);
-    res.status(500).json({
-      message: error.message || "Failed to fetch candidate screenings",
-    });
-  }
-};
-
-/**
  * Get interviews (all tasks) for a specific candidate
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -347,12 +259,6 @@ export const getCandidateInterviews = async (req, res) => {
       candidate_id: candidateId,
     };
 
-    // If user is recruiter, only show their own tasks
-    // Admin and manager can see all tasks
-    if (userRole === "recruiter") {
-      query.recruiter_id = currentUserId;
-    }
-
     // Fetch all tasks (interviews) with populated fields
     const interviews = await RecruiterTask.find(query)
       .populate("candidate_id", "name email phone_no")
@@ -365,24 +271,31 @@ export const getCandidateInterviews = async (req, res) => {
       .sort({ interview_time: 1 }) // Sort by interview time ascending
       .lean();
 
+    // Normalize shape and surface job details for the UI
+    const transformedInterviews = interviews.map((interview) => ({
+      ...interview,
+      job_title: interview.job_id?.title || null,
+      job_company: interview.job_id?.company || null,
+    }));
+
     // Get statistics
-    const totalInterviews = interviews.length;
-    const scheduledInterviews = interviews.filter(
+    const totalInterviews = transformedInterviews.length;
+    const scheduledInterviews = transformedInterviews.filter(
       (i) => i.status === "scheduled"
     ).length;
-    const completedInterviews = interviews.filter(
+    const completedInterviews = transformedInterviews.filter(
       (i) => i.status === "completed"
     ).length;
-    const cancelledInterviews = interviews.filter(
+    const cancelledInterviews = transformedInterviews.filter(
       (i) => i.status === "cancelled"
     ).length;
-    const rescheduledInterviews = interviews.filter(
+    const rescheduledInterviews = transformedInterviews.filter(
       (i) => i.status === "rescheduled"
     ).length;
 
     res.status(200).json({
       success: true,
-      interviews,
+      interviews: transformedInterviews,
       count: totalInterviews,
       statistics: {
         total: totalInterviews,

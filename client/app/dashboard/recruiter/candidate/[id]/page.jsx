@@ -726,7 +726,10 @@ export default function CandidateDetailPage() {
                       </TableHeader>
                       <TableBody>
                         {screenings.map((screening, index) => {
-                          const job = screening.job_id;
+                          const job = screening.job_id || {
+                            title: screening.job_title,
+                            company: screening.job_company,
+                          };
                           const callDetails = screening.callDetails;
                           return (
                             <TableRow key={screening._id || index}>
@@ -825,7 +828,10 @@ export default function CandidateDetailPage() {
                       </TableHeader>
                       <TableBody>
                         {interviews.map((interview, index) => {
-                          const job = interview.job_id;
+                          const job = interview.job_id || {
+                            title: interview.job_title,
+                            company: interview.job_company,
+                          };
                           return (
                             <TableRow key={interview._id || index}>
                               <TableCell>

@@ -398,7 +398,7 @@ export const recruiterTasksAPI = {
   },
 
   getCandidateScreenings: async (candidateId) => {
-    return apiRequest(`/recruiter-tasks/candidate/${candidateId}/screenings`, {
+    return apiRequest(`/bolna/candidate/${candidateId}/screenings`, {
       method: "GET",
     });
   },
