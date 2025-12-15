@@ -1,9 +1,9 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { BarChart3, CheckCircle2, Sparkles, Target, Users } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -27,53 +27,55 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="relative min-h-screen overflow-hidden bg-[#eef2f7]">
+      <GlassBackground />
+
       {/* Header */}
-      <header className="border-b border-border bg-card">
+      <header className="relative z-10 border-b border-white/40 bg-white/60 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
-            <Image
-              src="/Logo.png"
-              alt="AI Recruitment Logo"
-              width={40}
-              height={40}
-              className="object-contain"
-            />
-            <span className="text-xl font-semibold text-foreground">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-indigo-600 shadow-md shadow-indigo-500/40">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-semibold tracking-wide text-slate-900">
               AI Recruitment
             </span>
           </div>
-          <Button asChild>
+          <Button asChild className="shadow-sm shadow-slate-400/30">
             <Link href="/login">Login</Link>
           </Button>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="mx-auto max-w-7xl px-6 py-20 md:py-32">
+      <section className="relative z-10 mx-auto max-w-7xl px-6 py-20 md:py-32">
         <div className="flex flex-col items-center text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-4 py-1.5">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-secondary-foreground">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/50 px-4 py-1.5 backdrop-blur-xl shadow-sm shadow-slate-400/20">
+            <Sparkles className="h-4 w-4 text-indigo-600" />
+            <span className="text-sm font-medium text-slate-700">
               AI-Powered Recruitment
             </span>
           </div>
-          <h1 className="mb-6 max-w-4xl text-balance text-5xl font-bold tracking-tight text-foreground md:text-6xl lg:text-7xl">
+          <h1 className="mb-6 max-w-4xl text-balance text-5xl font-bold tracking-tight text-slate-900 md:text-6xl lg:text-7xl">
             Transform Your Hiring Process with AI
           </h1>
-          <p className="mb-10 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground md:text-xl">
+          <p className="mb-10 max-w-2xl text-pretty text-lg leading-relaxed text-slate-600 md:text-xl">
             Empower your recruitment team with intelligent automation.
             Streamline candidate sourcing, screening, and management for
             recruiters, managers, and administrators.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row">
-            <Button size="lg" asChild className="text-base">
+            <Button
+              size="lg"
+              asChild
+              className="text-base shadow-lg shadow-slate-900/20 hover:shadow-xl hover:-translate-y-px transition-all"
+            >
               <Link href="/login">Get Started</Link>
             </Button>
             <Button
               size="lg"
               variant="outline"
-              className="text-base bg-transparent"
+              className="text-base bg-white/60 backdrop-blur-xl border-white/70 text-slate-800 hover:bg-white"
             >
               Learn More
             </Button>
@@ -84,51 +86,51 @@ export default function LandingPage() {
       {/* Features Section */}
       <section
         id="features"
-        className="border-t border-border bg-muted/30 py-20"
+        className="relative z-10 border-t border-white/40 bg-white/40 py-20 backdrop-blur-2xl"
       >
         <div className="mx-auto max-w-7xl px-6">
           <div className="mb-16 text-center">
-            <h2 className="mb-4 text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+            <h2 className="mb-4 text-balance text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
               Built for Modern Recruitment Teams
             </h2>
-            <p className="mx-auto max-w-2xl text-pretty text-lg text-muted-foreground">
+            <p className="mx-auto max-w-2xl text-pretty text-lg text-slate-600">
               Comprehensive tools designed for every role in your recruitment
               workflow
             </p>
           </div>
           <div className="grid gap-8 md:grid-cols-3">
-            <div className="rounded-lg border border-border bg-card p-8">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Users className="h-6 w-6 text-primary" />
+            <div className="rounded-2xl border border-white/70 bg-white/70 p-8 shadow-lg shadow-slate-900/10 backdrop-blur-xl">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100">
+                <Users className="h-6 w-6 text-indigo-600" />
               </div>
-              <h3 className="mb-3 text-xl font-semibold text-card-foreground">
+              <h3 className="mb-3 text-xl font-semibold text-slate-900">
                 For Recruiters
               </h3>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="text-slate-600 leading-relaxed">
                 AI-powered candidate matching, automated screening, and
                 intelligent recommendations to find the perfect fit faster.
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-card p-8">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Target className="h-6 w-6 text-primary" />
+            <div className="rounded-2xl border border-white/70 bg-white/70 p-8 shadow-lg shadow-slate-900/10 backdrop-blur-xl">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-sky-100">
+                <Target className="h-6 w-6 text-sky-600" />
               </div>
-              <h3 className="mb-3 text-xl font-semibold text-card-foreground">
+              <h3 className="mb-3 text-xl font-semibold text-slate-900">
                 For Managers
               </h3>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="text-slate-600 leading-relaxed">
                 Real-time pipeline visibility, team performance insights, and
                 data-driven decision making to optimize hiring outcomes.
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-card p-8">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <BarChart3 className="h-6 w-6 text-primary" />
+            <div className="rounded-2xl border border-white/70 bg-white/70 p-8 shadow-lg shadow-slate-900/10 backdrop-blur-xl">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100">
+                <BarChart3 className="h-6 w-6 text-emerald-600" />
               </div>
-              <h3 className="mb-3 text-xl font-semibold text-card-foreground">
+              <h3 className="mb-3 text-xl font-semibold text-slate-900">
                 For Administrators
               </h3>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="text-slate-600 leading-relaxed">
                 Comprehensive analytics, system configuration, and user
                 management with enterprise-grade security and compliance.
               </p>
@@ -138,13 +140,13 @@ export default function LandingPage() {
       </section>
 
       {/* Benefits Section */}
-      <section id="benefits" className="py-20">
+      <section id="benefits" className="relative z-10 py-20">
         <div className="mx-auto max-w-7xl px-6">
           <div className="mx-auto max-w-3xl">
-            <h2 className="mb-6 text-balance text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+            <h2 className="mb-6 text-balance text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
               Why Choose Our Platform?
             </h2>
-            <p className="mb-8 text-pretty text-lg leading-relaxed text-muted-foreground">
+            <p className="mb-8 text-pretty text-lg leading-relaxed text-slate-600">
               Experience the future of recruitment with AI-driven insights and
               automation that saves time and improves hiring quality.
             </p>
@@ -157,8 +159,8 @@ export default function LandingPage() {
                 "Ensure compliance and data security",
               ].map((benefit, index) => (
                 <li key={index} className="flex items-start gap-3">
-                  <CheckCircle2 className="h-6 w-6 shrink-0 text-primary" />
-                  <span className="text-foreground">{benefit}</span>
+                  <CheckCircle2 className="h-6 w-6 shrink-0 text-indigo-600" />
+                  <span className="text-slate-800">{benefit}</span>
                 </li>
               ))}
             </ul>
@@ -167,7 +169,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="border-y border-border bg-primary py-20 text-primary-foreground">
+      <section className="relative z-10 border-y border-white/40 bg-linear-to-r from-indigo-600 via-sky-500 to-violet-500 py-20 text-primary-foreground">
         <div className="mx-auto max-w-4xl px-6 text-center">
           <h2 className="mb-6 text-balance text-3xl font-bold tracking-tight md:text-4xl">
             Ready to Transform Your Recruitment?
@@ -175,40 +177,39 @@ export default function LandingPage() {
           <p className="mb-8 text-pretty text-lg leading-relaxed opacity-90">
             Join leading organizations using AI to build better teams, faster.
           </p>
-          <Button size="lg" variant="secondary" asChild className="text-base">
+          <Button
+            size="lg"
+            variant="secondary"
+            asChild
+            className="text-base shadow-lg shadow-slate-900/30"
+          >
             <Link href="/login">Access Platform</Link>
           </Button>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card py-12">
+      <footer className="relative z-10 border-t border-white/40 bg-white/70 py-12 backdrop-blur-2xl">
         <div className="mx-auto max-w-7xl px-6">
           <div className="grid gap-8 md:grid-cols-4">
             <div>
               <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                  <Image
-                    src="/Logo.png"
-                    alt="AI Recruitment Logo"
-                    width={20}
-                    height={20}
-                    className="object-contain"
-                  />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 shadow-md shadow-indigo-500/40">
+                  <Sparkles className="h-4 w-4 text-white" />
                 </div>
-                <span className="font-semibold text-foreground">
+                <span className="font-semibold text-slate-900">
                   AI Recruitment
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-slate-600">
                 AI-powered recruitment platform for modern teams
               </p>
             </div>
             <div>
-              <h4 className="mb-4 text-sm font-semibold text-foreground">
+              <h4 className="mb-4 text-sm font-semibold text-slate-900">
                 Product
               </h4>
-              <ul className="space-y-3 text-sm text-muted-foreground">
+              <ul className="space-y-3 text-sm text-slate-600">
                 <li>
                   <Link
                     href="#"
@@ -236,10 +237,10 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h4 className="mb-4 text-sm font-semibold text-foreground">
+              <h4 className="mb-4 text-sm font-semibold text-slate-900">
                 Company
               </h4>
-              <ul className="space-y-3 text-sm text-muted-foreground">
+              <ul className="space-y-3 text-sm text-slate-600">
                 <li>
                   <Link
                     href="#"
@@ -267,10 +268,10 @@ export default function LandingPage() {
               </ul>
             </div>
             <div>
-              <h4 className="mb-4 text-sm font-semibold text-foreground">
+              <h4 className="mb-4 text-sm font-semibold text-slate-900">
                 Legal
               </h4>
-              <ul className="space-y-3 text-sm text-muted-foreground">
+              <ul className="space-y-3 text-sm text-slate-600">
                 <li>
                   <Link
                     href="#"
@@ -298,7 +299,7 @@ export default function LandingPage() {
               </ul>
             </div>
           </div>
-          <div className="mt-12 border-t border-border pt-8 text-center text-sm text-muted-foreground">
+          <div className="mt-12 border-t border-white/40 pt-8 text-center text-sm text-slate-500">
             © 2025 AI Recruitment. All rights reserved.
           </div>
         </div>
