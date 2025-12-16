@@ -3,6 +3,7 @@
 import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -34,9 +35,11 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import {
   bolnaAPI,
+  candidateAPI,
   candidateProgressAPI,
   jobPostingAPI,
   matchingAPI,
+  resumeParserAPI,
   userAPI,
 } from "@/lib/api";
 import { formatFullDateTimeWithAMPM } from "@/lib/timeFormatter";
@@ -47,11 +50,15 @@ import {
   CheckCircle2,
   Clock,
   Edit,
+  FileText,
   Globe,
   Loader2,
   Mail,
   Phone,
   PhoneCall,
+  Plus,
+  Upload,
+  UserPlus,
   Users,
   X,
 } from "lucide-react";
@@ -84,6 +91,24 @@ export default function RecruiterJobDetailPage() {
   const [loadingRejected, setLoadingRejected] = useState(false);
   const [applyingCandidateId, setApplyingCandidateId] = useState(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [parseResumeModalOpen, setParseResumeModalOpen] = useState(false);
+  const [parseResumeFile, setParseResumeFile] = useState(null);
+  const [isParsingResume, setIsParsingResume] = useState(false);
+  const [parsedResumeData, setParsedResumeData] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [candidateError, setCandidateError] = useState("");
+  const [candidateSuccess, setCandidateSuccess] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone_no: "",
+    skills: "",
+    experience: "",
+    role: [],
+    bio: "",
+  });
   const [closeType, setCloseType] = useState(null); // "permanent" or "temporary"
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [scheduledCandidateIds, setScheduledCandidateIds] = useState(new Set());
@@ -297,6 +322,232 @@ export default function RecruiterJobDetailPage() {
       setApplyingCandidateId(null);
     }
   };
+
+  // Candidate form handlers
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    if (candidateError) setCandidateError("");
+    if (candidateSuccess) setCandidateSuccess("");
+  };
+
+  const handleRoleChange = (value) => {
+    setFormData((prev) => {
+      const currentRoles = prev.role || [];
+      if (currentRoles.includes(value)) {
+        return { ...prev, role: currentRoles.filter((r) => r !== value) };
+      } else {
+        return { ...prev, role: [...currentRoles, value] };
+      }
+    });
+  };
+
+  const validateResumeFile = (file) => {
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      setCandidateError("Please upload a PDF or Word document");
+      return false;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setCandidateError("File size must be less than 5MB");
+      return false;
+    }
+    return true;
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (validateResumeFile(file)) {
+        setParseResumeFile(file);
+        setCandidateError("");
+      }
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (validateResumeFile(file)) {
+        setParseResumeFile(file);
+        setCandidateError("");
+      }
+    }
+  };
+
+  const handleParseResume = async (saveToDatabase = false) => {
+    if (!parseResumeFile) {
+      setCandidateError("Please select a resume file");
+      return;
+    }
+
+    setIsParsingResume(true);
+    setCandidateError("");
+    setCandidateSuccess("");
+    setParsedResumeData(null);
+
+    try {
+      const response = await resumeParserAPI.parseFromFile(
+        parseResumeFile,
+        parseResumeFile.name,
+        saveToDatabase
+      );
+
+      if (response.success) {
+        setParsedResumeData(response.data.formatted);
+        setCandidateSuccess(response.message || "Resume parsed successfully!");
+
+        // If saved to database, refresh job matches for this job
+        if (saveToDatabase && response.data.candidate) {
+          await matchingAPI.refreshJobMatches(jobId);
+          await fetchAiMatches();
+          toast.success("Candidate added and job matches refreshed!");
+        }
+      } else {
+        if (response.data?.missingFields) {
+          const missing = [];
+          if (response.data.missingFields.name) missing.push("Name");
+          if (response.data.missingFields.email) missing.push("Email");
+          setCandidateError(
+            `Required fields missing: ${missing.join(
+              ", "
+            )}. Cannot save candidate without these fields.`
+          );
+          setParsedResumeData(response.data.formatted);
+        } else {
+          setCandidateError(response.message || "Failed to parse resume");
+        }
+      }
+    } catch (err) {
+      setCandidateError(
+        err.message || "Failed to parse resume. Please try again."
+      );
+    } finally {
+      setIsParsingResume(false);
+    }
+  };
+
+  const resetParseResumeModal = () => {
+    setParseResumeFile(null);
+    setParsedResumeData(null);
+    setCandidateError("");
+    setCandidateSuccess("");
+    setDragActive(false);
+    setIsParsingResume(false);
+  };
+
+  const validateForm = () => {
+    if (!formData.name || !formData.email) {
+      setCandidateError("Name and email are required fields");
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setCandidateError("Please enter a valid email address");
+      return false;
+    }
+    if (formData.experience && isNaN(formData.experience)) {
+      setCandidateError("Experience must be a number");
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setCandidateError("");
+    setCandidateSuccess("");
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const candidateData = {
+        name: formData.name,
+        email: formData.email,
+        phone_no: formData.phone_no || undefined,
+        skills: formData.skills
+          ? formData.skills.split(",").map((s) => s.trim())
+          : [],
+        experience: formData.experience ? parseInt(formData.experience) : 0,
+        role: formData.role || [],
+        bio: formData.bio || undefined,
+      };
+
+      const response = await candidateAPI.createCandidate(candidateData);
+      setCandidateSuccess(
+        `Candidate created successfully! ${response.candidate.name} has been added.`
+      );
+
+      resetForm();
+      setFormOpen(false);
+
+      // Refresh job matches for this job ID
+      await matchingAPI.refreshJobMatches(jobId);
+      await fetchAiMatches();
+      toast.success("Candidate added and job matches refreshed!");
+
+      setTimeout(() => setCandidateSuccess(""), 5000);
+    } catch (err) {
+      setCandidateError(
+        err.message || "Failed to create candidate. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      email: "",
+      phone_no: "",
+      skills: "",
+      experience: "",
+      role: [],
+      bio: "",
+    });
+    setCandidateError("");
+    setCandidateSuccess("");
+  };
+
+  const openAddForm = () => {
+    resetForm();
+    setFormOpen(true);
+  };
+
+  const validRoles = [
+    "SDET",
+    "QA",
+    "DevOps",
+    "Frontend",
+    "Backend",
+    "Full-stack",
+  ];
 
   const checkScheduledCalls = async (candidateIds) => {
     try {
@@ -1322,7 +1573,30 @@ export default function RecruiterJobDetailPage() {
             {activeTab === "ai-match" && (
               <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
-                  <CardTitle>AI Candidate Matches (Top 20)</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>AI Candidate Matches (Top 20)</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={openAddForm}
+                        className="cursor-pointer gap-2 rounded-lg bg-linear-to-r from-indigo-600 to-sky-500 hover:from-indigo-700 hover:to-sky-600 text-white shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Candidate
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="cursor-pointer gap-2 rounded-lg border-slate-200 bg-white/70 backdrop-blur-xl hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition-all duration-200 shadow-sm"
+                        onClick={() => {
+                          resetParseResumeModal();
+                          setParseResumeModalOpen(true);
+                        }}
+                      >
+                        <Upload className="h-4 w-4" />
+                        Parse Resume
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {!jobPosting || jobPosting.status !== "open" ? (
@@ -3111,6 +3385,486 @@ export default function RecruiterJobDetailPage() {
                 ? "Delete Permanently"
                 : "Close Temporarily"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Candidate Dialog */}
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-slate-200 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
+              <div className="p-2 rounded-lg bg-linear-to-br from-cyan-400/20 to-blue-500/20">
+                <UserPlus className="h-6 w-6 text-cyan-600" />
+              </div>
+              Add New Candidate
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              Fill in the details to create a new candidate profile
+            </DialogDescription>
+          </DialogHeader>
+
+          {candidateError && (
+            <Alert
+              variant="destructive"
+              className="mt-4 border-red-200 bg-red-50"
+            >
+              <AlertDescription className="text-red-800">
+                {candidateError}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {candidateSuccess && (
+            <Alert className="mt-4 bg-green-50 border-green-200">
+              <AlertDescription className="text-green-800">
+                {candidateSuccess}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-slate-900 font-medium">
+                Full Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="name"
+                name="name"
+                type="text"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Enter full name"
+                required
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-slate-900 font-medium">
+                Email Address <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter email address"
+                required
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone_no" className="text-slate-900 font-medium">
+                Phone Number
+              </Label>
+              <Input
+                id="phone_no"
+                name="phone_no"
+                type="tel"
+                value={formData.phone_no}
+                onChange={handleChange}
+                placeholder="Enter phone number"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="experience"
+                className="text-slate-900 font-medium"
+              >
+                Experience (Years)
+              </Label>
+              <Input
+                id="experience"
+                name="experience"
+                type="number"
+                min="0"
+                value={formData.experience}
+                onChange={handleChange}
+                placeholder="Enter years of experience"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-900 font-medium">Roles</Label>
+              <div className="flex flex-wrap gap-2">
+                {validRoles.map((role) => (
+                  <Button
+                    key={role}
+                    type="button"
+                    variant={
+                      formData.role?.includes(role) ? "default" : "outline"
+                    }
+                    onClick={() => handleRoleChange(role)}
+                    className={
+                      formData.role?.includes(role)
+                        ? "bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                        : ""
+                    }
+                  >
+                    {role}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500">
+                Select one or more roles for this candidate
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="skills" className="text-slate-900 font-medium">
+                Skills
+              </Label>
+              <Input
+                id="skills"
+                name="skills"
+                type="text"
+                value={formData.skills}
+                onChange={handleChange}
+                placeholder="Enter skills separated by commas (e.g., React, Node.js, Python)"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+              <p className="text-xs text-slate-500">
+                Separate multiple skills with commas
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bio" className="text-slate-900 font-medium">
+                Bio
+              </Label>
+              <textarea
+                id="bio"
+                name="bio"
+                value={formData.bio}
+                onChange={handleChange}
+                placeholder="Enter a short bio about the candidate"
+                rows={3}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-slate-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setFormOpen(false);
+                  resetForm();
+                }}
+                className="border-slate-200 hover:bg-slate-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                {isSubmitting ? "Creating..." : "Create Candidate"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Parse Resume Dialog */}
+      <Dialog
+        open={parseResumeModalOpen}
+        onOpenChange={(open) => {
+          setParseResumeModalOpen(open);
+          if (!open) {
+            resetParseResumeModal();
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white border-slate-200 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200 shrink-0">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
+              <div className="p-2 rounded-lg bg-linear-to-br from-cyan-400/20 to-blue-500/20">
+                <FileText className="h-6 w-6 text-cyan-600" />
+              </div>
+              Parse Resume
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              Upload a resume file to automatically extract candidate
+              information
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {candidateError && (
+              <Alert
+                variant="destructive"
+                className="mt-4 border-red-200 bg-red-50"
+              >
+                <AlertDescription className="text-red-800">
+                  {candidateError}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {candidateSuccess && (
+              <Alert className="mt-4 bg-green-50 border-green-200">
+                <AlertDescription className="text-green-800">
+                  {candidateSuccess}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="mt-6 space-y-6">
+              {/* Drag and Drop Zone */}
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`relative border-2 border-dashed rounded-xl p-12 transition-all duration-300 ${
+                  dragActive
+                    ? "border-cyan-500 bg-cyan-50/50 scale-[1.02]"
+                    : "border-slate-300 bg-slate-50/50 hover:border-cyan-400 hover:bg-cyan-50/30"
+                }`}
+              >
+                <input
+                  type="file"
+                  id="parse-resume-file-input"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+
+                {isParsingResume ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="relative">
+                      <Loader2 className="h-16 w-16 text-cyan-600 animate-spin" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-12 w-12 border-4 border-cyan-200 border-t-cyan-600 rounded-full animate-spin"></div>
+                      </div>
+                    </div>
+                    <p className="mt-6 text-lg font-medium text-slate-700 animate-pulse">
+                      Parsing resume...
+                    </p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      Extracting information from your document
+                    </p>
+                  </div>
+                ) : parsedResumeData ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="p-4 rounded-full bg-green-100 mb-4 animate-bounce">
+                      <CheckCircle2 className="h-12 w-12 text-green-600" />
+                    </div>
+                    <p className="text-lg font-medium text-slate-700">
+                      Resume Parsed Successfully!
+                    </p>
+                    <div className="mt-6 w-full space-y-3">
+                      <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <p className="text-sm font-medium text-slate-600 mb-2">
+                          Extracted Information:
+                        </p>
+                        <div className="space-y-2 text-sm text-slate-700">
+                          <p>
+                            <span className="font-semibold">Name:</span>{" "}
+                            {parsedResumeData.name || (
+                              <span className="text-red-500 italic">
+                                Missing
+                              </span>
+                            )}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Email:</span>{" "}
+                            {parsedResumeData.email || (
+                              <span className="text-red-500 italic">
+                                Missing
+                              </span>
+                            )}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Phone:</span>{" "}
+                            {parsedResumeData.phone_no || (
+                              <span className="text-slate-400 italic">
+                                Not provided
+                              </span>
+                            )}
+                          </p>
+                          <div>
+                            <span className="font-semibold">Skills:</span>{" "}
+                            {parsedResumeData.skills?.length > 0 ? (
+                              <div className="mt-1 max-h-32 overflow-y-auto">
+                                <p className="text-sm text-slate-700 wrap-break-word">
+                                  {parsedResumeData.skills.join(", ")}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic">
+                                Not provided
+                              </span>
+                            )}
+                          </div>
+                          <p>
+                            <span className="font-semibold">Experience:</span>{" "}
+                            {parsedResumeData.experience || 0} years
+                          </p>
+                          {parsedResumeData.bio && (
+                            <p>
+                              <span className="font-semibold">Bio:</span>{" "}
+                              {parsedResumeData.bio}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {(!parsedResumeData.name || !parsedResumeData.email) && (
+                        <Alert variant="destructive" className="mt-4">
+                          <AlertDescription>
+                            <strong>Required fields missing:</strong>{" "}
+                            {!parsedResumeData.name && "Name "}
+                            {!parsedResumeData.email && "Email "}- Cannot save
+                            candidate without these fields.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                  </div>
+                ) : parseResumeFile ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="p-4 rounded-full bg-cyan-100 mb-4">
+                      <FileText className="h-12 w-12 text-cyan-600" />
+                    </div>
+                    <p className="text-lg font-medium text-slate-700 mb-2">
+                      {parseResumeFile.name}
+                    </p>
+                    <p className="text-sm text-slate-500 mb-6">
+                      {(parseResumeFile.size / 1024).toFixed(2)} KB
+                    </p>
+                    <div className="flex gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setParseResumeFile(null)}
+                        className="border-slate-200 hover:bg-slate-50"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Remove
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => handleParseResume(false)}
+                        className="bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                      >
+                        Parse Resume
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="p-4 rounded-full bg-linear-to-br from-cyan-400/20 to-blue-500/20 mb-6">
+                      <Upload className="h-12 w-12 text-cyan-600" />
+                    </div>
+                    <p className="text-lg font-medium text-slate-700 mb-2">
+                      Drag and drop your resume here
+                    </p>
+                    <p className="text-sm text-slate-500 mb-6">
+                      or click to browse from your device
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        document
+                          .getElementById("parse-resume-file-input")
+                          ?.click();
+                      }}
+                      className="border-slate-200 hover:bg-cyan-50 hover:border-cyan-300"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Select File
+                    </Button>
+                    <p className="mt-4 text-xs text-slate-500">
+                      Supported formats: PDF, DOC, DOCX (Max 5MB)
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-4 border-t border-slate-200 mt-6 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setParseResumeModalOpen(false);
+                resetParseResumeModal();
+              }}
+              className="border-slate-200 hover:bg-slate-50"
+            >
+              {parsedResumeData ? "Close" : "Cancel"}
+            </Button>
+            {parsedResumeData && (
+              <>
+                {parsedResumeData.name && parsedResumeData.email ? (
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setIsParsingResume(true);
+                        await handleParseResume(true);
+                        setCandidateSuccess("Candidate saved successfully!");
+                        setTimeout(() => {
+                          setParseResumeModalOpen(false);
+                          resetParseResumeModal();
+                        }, 2000);
+                      } catch (err) {
+                        setCandidateError(
+                          err.message || "Failed to save candidate"
+                        );
+                      } finally {
+                        setIsParsingResume(false);
+                      }
+                    }}
+                    disabled={isParsingResume}
+                    className="bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                  >
+                    {isParsingResume ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save to Database"
+                    )}
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  onClick={() => {
+                    // Auto-populate the add candidate form
+                    setFormData((prev) => ({
+                      ...prev,
+                      name: parsedResumeData.name || prev.name,
+                      email: parsedResumeData.email || prev.email,
+                      phone_no: parsedResumeData.phone_no || prev.phone_no,
+                      skills:
+                        parsedResumeData.skills?.join(", ") || prev.skills,
+                      experience:
+                        parsedResumeData.experience?.toString() ||
+                        prev.experience,
+                      bio: parsedResumeData.bio || prev.bio,
+                    }));
+                    setParseResumeModalOpen(false);
+                    setFormOpen(true);
+                    resetParseResumeModal();
+                  }}
+                  className="bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                >
+                  Use This Data
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
