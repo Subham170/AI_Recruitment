@@ -439,3 +439,40 @@ export const chatAPI = {
     });
   },
 };
+
+// Candidate Progress API functions
+export const candidateProgressAPI = {
+  getOrCreateProgress: async (candidateId, jobPostingId) => {
+    return apiRequest(
+      `/candidate-progress/candidate/${candidateId}/job/${jobPostingId}`,
+      {
+        method: "GET",
+      }
+    );
+  },
+
+  updateStage: async (candidateId, jobPostingId, stage, status, notes) => {
+    return apiRequest(
+      `/candidate-progress/candidate/${candidateId}/job/${jobPostingId}/stage/${stage}`,
+      {
+        method: "PUT",
+        body: {
+          status,
+          notes,
+        },
+      }
+    );
+  },
+
+  getProgressByJob: async (jobPostingId) => {
+    return apiRequest(`/candidate-progress/job/${jobPostingId}`, {
+      method: "GET",
+    });
+  },
+
+  getProgressByCandidate: async (candidateId) => {
+    return apiRequest(`/candidate-progress/candidate/${candidateId}`, {
+      method: "GET",
+    });
+  },
+};

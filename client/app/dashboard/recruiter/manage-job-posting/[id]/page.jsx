@@ -1165,8 +1165,27 @@ export default function RecruiterJobDetailPage() {
                             scheduledCandidateIds.has(candidateId);
                           const callStatus = callStatuses.get(candidateId);
 
+                          const handleRowClick = (e) => {
+                            // Don't navigate if clicking on a button or interactive element
+                            if (
+                              e.target.closest("button") ||
+                              e.target.closest("a") ||
+                              e.target.closest('[role="button"]')
+                            ) {
+                              return;
+                            }
+                            const role = user?.role || "recruiter";
+                            router.push(
+                              `/dashboard/${role}/manage-job-posting/${jobId}/candidate/${candidateId}`
+                            );
+                          };
+
                           return (
-                            <TableRow key={candidate._id || index}>
+                            <TableRow
+                              key={candidate._id || index}
+                              onClick={handleRowClick}
+                              className="cursor-pointer hover:bg-slate-50/50 transition-colors"
+                            >
                               <TableCell>
                                 <div className="flex items-center gap-3">
                                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50 border border-cyan-200">

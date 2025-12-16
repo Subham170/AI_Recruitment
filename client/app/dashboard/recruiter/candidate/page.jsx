@@ -407,7 +407,7 @@ export default function CandidatesPage() {
                   placeholder="Search by name, email, or skills..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-12 rounded-lg border border-white/70 bg-white text-slate-900 placeholder:text-slate-500 pl-10 pr-4 shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition-all focus:outline-none focus:ring-2 focus:ring-indigo-200/80 focus:border-indigo-400"
+                  className="w-full h-12 rounded-lg border border-white/70 bg-white! text-slate-900 placeholder:text-slate-500 pl-10 pr-4 shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition-all focus:outline-none focus:ring-2 focus:ring-indigo-200/80 focus:border-indigo-400"
                 />
               </div>
 

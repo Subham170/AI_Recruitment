@@ -2,6 +2,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import bolnaRoutes from "./bolna/route.js";
+import candidateProgressRoutes from "./candidate_progress/route.js";
 import candidateRoutes from "./candidates/route.js";
 import chatRoutes from "./chat/route.js";
 import connectDB from "./config/database.js";
@@ -57,6 +58,9 @@ app.use("/api/auth", userRoutes);
 
 // Candidate routes
 app.use("/api/candidates", candidateRoutes);
+
+// Candidate progress routes
+app.use("/api/candidate-progress", candidateProgressRoutes);
 
 // Job posting routes
 app.use("/api/job-postings", jobPostingRoutes);
