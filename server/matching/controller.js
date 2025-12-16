@@ -11,7 +11,7 @@ import { CandidateMatches, JobMatches } from "./model.js";
 export const getJobMatches = async (req, res) => {
   try {
     const { jobId } = req.params;
-    const { search } = req.query;
+    const { search, status } = req.query; // Add status filter
 
     // Validate ObjectId format
     const isObjectId = /^[0-9a-fA-F]{24}$/.test(jobId);
@@ -39,19 +39,27 @@ export const getJobMatches = async (req, res) => {
 
     let matches = jobMatches.matches || [];
 
+    // Apply status filter if provided
+    if (status) {
+      matches = matches.filter((match) => {
+        const matchStatus = match.status || "pending";
+        return matchStatus === status;
+      });
+    }
+
     // Apply search filter if provided
     if (search) {
       const searchLower = search.toLowerCase();
       matches = matches.filter((match) => {
         const candidate = match.candidateId;
         if (!candidate) return false;
-        
+
         const nameMatch = candidate.name?.toLowerCase().includes(searchLower);
         const emailMatch = candidate.email?.toLowerCase().includes(searchLower);
         const skillsMatch = candidate.skills?.some((skill) =>
           skill.toLowerCase().includes(searchLower)
         );
-        
+
         return nameMatch || emailMatch || skillsMatch;
       });
     }
@@ -64,6 +72,60 @@ export const getJobMatches = async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting job matches:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Mark a candidate as applied for a job
+ * POST /api/matching/job/:jobId/candidate/:candidateId/apply
+ */
+export const markCandidateAsApplied = async (req, res) => {
+  try {
+    const { jobId, candidateId } = req.params;
+
+    // Validate ObjectId format
+    const isJobIdValid = /^[0-9a-fA-F]{24}$/.test(jobId);
+    const isCandidateIdValid = /^[0-9a-fA-F]{24}$/.test(candidateId);
+
+    if (!isJobIdValid || !isCandidateIdValid) {
+      return res.status(400).json({
+        message: "Invalid job ID or candidate ID format",
+      });
+    }
+
+    const jobMatches = await JobMatches.findOne({ jobId });
+
+    if (!jobMatches) {
+      return res.status(404).json({
+        message: "Job matches not found",
+      });
+    }
+
+    // Find the candidate match and update status
+    const matchIndex = jobMatches.matches.findIndex(
+      (match) => match.candidateId.toString() === candidateId
+    );
+
+    if (matchIndex === -1) {
+      return res.status(404).json({
+        message: "Candidate match not found for this job",
+      });
+    }
+
+    // Update status to applied
+    jobMatches.matches[matchIndex].status = "applied";
+    jobMatches.lastUpdated = new Date();
+    await jobMatches.save();
+
+    res.status(200).json({
+      message: "Candidate marked as applied successfully",
+      jobId: jobMatches.jobId,
+      candidateId,
+      status: "applied",
+    });
+  } catch (error) {
+    console.error("Error marking candidate as applied:", error);
     res.status(500).json({ message: error.message });
   }
 };

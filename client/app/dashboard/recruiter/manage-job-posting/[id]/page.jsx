@@ -32,7 +32,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
-import { bolnaAPI, jobPostingAPI, matchingAPI, userAPI } from "@/lib/api";
+import {
+  bolnaAPI,
+  candidateProgressAPI,
+  jobPostingAPI,
+  matchingAPI,
+  userAPI,
+} from "@/lib/api";
 import { formatFullDateTimeWithAMPM } from "@/lib/timeFormatter";
 import {
   ArrowLeft,
@@ -64,10 +70,19 @@ export default function RecruiterJobDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("details");
+  const [aiMatches, setAiMatches] = useState([]);
   const [applicants, setApplicants] = useState([]);
   const [screenings, setScreenings] = useState([]);
+  const [interviews, setInterviews] = useState([]);
+  const [offers, setOffers] = useState([]);
+  const [rejected, setRejected] = useState([]);
+  const [loadingAiMatches, setLoadingAiMatches] = useState(false);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
   const [loadingScreenings, setLoadingScreenings] = useState(false);
+  const [loadingInterviews, setLoadingInterviews] = useState(false);
+  const [loadingOffers, setLoadingOffers] = useState(false);
+  const [loadingRejected, setLoadingRejected] = useState(false);
+  const [applyingCandidateId, setApplyingCandidateId] = useState(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [closeType, setCloseType] = useState(null); // "permanent" or "temporary"
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -117,6 +132,19 @@ export default function RecruiterJobDetailPage() {
     }
   }, [user, authLoading, jobId, router]);
 
+  // Fetch AI matches when AI Match tab is active
+  useEffect(() => {
+    if (
+      jobPosting &&
+      jobPosting.status === "open" &&
+      activeTab === "ai-match" &&
+      !loadingAiMatches
+    ) {
+      fetchAiMatches();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobPosting?.status, activeTab]);
+
   // Fetch applicants when job is open and applicants tab is active
   useEffect(() => {
     if (
@@ -137,8 +165,16 @@ export default function RecruiterJobDetailPage() {
   }, [jobPosting?.status, activeTab]);
 
   useEffect(() => {
-    if (jobPosting && activeTab === "screenings") {
-      fetchScreenings();
+    if (jobPosting && jobPosting.status === "open") {
+      if (activeTab === "screenings") {
+        fetchScreenings();
+      } else if (activeTab === "interviews") {
+        fetchInterviews();
+      } else if (activeTab === "offers") {
+        fetchOffers();
+      } else if (activeTab === "rejected") {
+        fetchRejected();
+      }
     }
   }, [jobPosting, activeTab]);
 
@@ -172,25 +208,50 @@ export default function RecruiterJobDetailPage() {
     }
   };
 
-  const fetchApplicants = async (forceFetch = false) => {
-    // Allow force fetch even if status check fails (for status updates)
+  // Fetch AI matches (top 20) for AI Match tab
+  const fetchAiMatches = async () => {
     if (!jobId) return;
 
-    // Check status unless force fetch is requested
+    if (!jobPosting || jobPosting.status !== "open") {
+      return;
+    }
+
+    try {
+      setLoadingAiMatches(true);
+      // Refresh matches first
+      await matchingAPI.refreshJobMatches(jobId);
+
+      // Get top 20 matches (all statuses)
+      const response = await matchingAPI.getJobMatches(jobId);
+      const sortedMatches = (response.matches || [])
+        .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
+        .slice(0, 20);
+
+      console.log("Fetched AI matches:", sortedMatches.length);
+      setAiMatches(sortedMatches);
+    } catch (err) {
+      console.error("Error fetching AI matches:", err);
+      toast.error(err.message || "Failed to load AI matches");
+    } finally {
+      setLoadingAiMatches(false);
+    }
+  };
+
+  // Fetch applied candidates for Applicants tab
+  const fetchApplicants = async (forceFetch = false) => {
+    if (!jobId) return;
+
     if (!forceFetch && (!jobPosting || jobPosting.status !== "open")) {
       return;
     }
 
     try {
       setLoadingApplicants(true);
-      // Refresh matches first
-      await matchingAPI.refreshJobMatches(jobId);
-
-      // Get top matches
-      const response = await matchingAPI.getJobMatches(jobId);
-      const sortedMatches = (response.matches || [])
-        .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
-        .slice(0, 10);
+      // Get only applied candidates
+      const response = await matchingAPI.getJobMatches(jobId, "", "applied");
+      const sortedMatches = (response.matches || []).sort(
+        (a, b) => (b.matchScore || 0) - (a.matchScore || 0)
+      );
 
       console.log("Fetched applicants:", sortedMatches.length);
       setApplicants(sortedMatches);
@@ -201,9 +262,7 @@ export default function RecruiterJobDetailPage() {
         .filter(Boolean);
       if (candidateIds.length > 0) {
         const statusMap = await checkScheduledCalls(candidateIds);
-        // Update state for display
         setCallStatuses(statusMap);
-        // Update scheduled candidate IDs
         const scheduledIds = new Set();
         statusMap.forEach((status, candidateId) => {
           if (status.status === "completed" || status.status === "scheduled") {
@@ -217,6 +276,25 @@ export default function RecruiterJobDetailPage() {
       toast.error(err.message || "Failed to load applicants");
     } finally {
       setLoadingApplicants(false);
+    }
+  };
+
+  // Handle Apply button click in AI Match tab
+  const handleApplyCandidate = async (candidateId) => {
+    if (!jobId || !candidateId) return;
+
+    try {
+      setApplyingCandidateId(candidateId);
+      await matchingAPI.markCandidateAsApplied(jobId, candidateId);
+      toast.success("Candidate marked as applied successfully");
+      // Refresh both AI matches and applicants
+      await fetchAiMatches();
+      await fetchApplicants(true);
+    } catch (err) {
+      console.error("Error applying candidate:", err);
+      toast.error(err.message || "Failed to mark candidate as applied");
+    } finally {
+      setApplyingCandidateId(null);
     }
   };
 
@@ -258,6 +336,58 @@ export default function RecruiterJobDetailPage() {
     }
   };
 
+  // Helper function to fetch candidates by stage from candidate progress
+  const fetchCandidatesByStage = async (stage) => {
+    if (!jobId || !jobPosting || jobPosting.status !== "open") {
+      return [];
+    }
+
+    try {
+      const response = await candidateProgressAPI.getProgressByJob(jobId);
+      const allCandidates = response.candidates || [];
+
+      // Filter candidates where the specified stage is completed
+      const candidatesAtStage = allCandidates.filter(
+        (candidate) => candidate[stage]?.status === "completed"
+      );
+
+      // Get candidate details from matching API to include match scores
+      const candidateIds = candidatesAtStage
+        .map((c) => c.candidateId?.toString())
+        .filter(Boolean);
+
+      if (candidateIds.length === 0) {
+        return [];
+      }
+
+      // Get match scores from matching API
+      const matchResponse = await matchingAPI.getJobMatches(jobId);
+      const matchMap = new Map();
+      (matchResponse.matches || []).forEach((match) => {
+        const candidateId = match.candidateId?._id?.toString();
+        if (candidateId) {
+          matchMap.set(candidateId, match);
+        }
+      });
+
+      // Combine progress data with match data
+      const enrichedCandidates = candidatesAtStage.map((candidate) => {
+        const candidateId = candidate.candidateId?.toString();
+        const match = matchMap.get(candidateId);
+        return {
+          ...candidate,
+          candidateId: match?.candidateId || candidate.candidateId,
+          matchScore: match?.matchScore || 0,
+        };
+      });
+
+      return enrichedCandidates;
+    } catch (err) {
+      console.error(`Error fetching candidates by stage ${stage}:`, err);
+      throw err;
+    }
+  };
+
   const fetchScreenings = async () => {
     if (!jobPosting || jobPosting.status !== "open") {
       setScreenings([]);
@@ -266,37 +396,102 @@ export default function RecruiterJobDetailPage() {
 
     try {
       setLoadingScreenings(true);
-      // Get all matches
-      const response = await matchingAPI.getJobMatches(jobId);
-      const allMatches = response.matches || [];
+      const candidates = await fetchCandidatesByStage("screening");
+      console.log("Fetched screenings:", candidates.length);
+      setScreenings(candidates);
 
-      // Check which candidates have completed phone calls
-      const candidateIds = allMatches
-        .map((m) => m.candidateId?._id?.toString())
+      // Check scheduled calls for all screenings
+      const candidateIds = candidates
+        .map((c) => c.candidateId?._id?.toString() || c.candidateId?.toString())
         .filter(Boolean);
-
       if (candidateIds.length > 0) {
         const statusMap = await checkScheduledCalls(candidateIds);
-
-        // Filter candidates who have completed screening (status = "completed")
-        const completedCandidates = allMatches.filter((match) => {
-          const candidateId = match.candidateId?._id?.toString();
-          if (!candidateId) return false;
-
-          const callStatus = statusMap.get(candidateId);
-          return callStatus && callStatus.status === "completed";
-        });
-
-        console.log("Fetched screenings:", completedCandidates.length);
-        setScreenings(completedCandidates);
-      } else {
-        setScreenings([]);
+        setCallStatuses(statusMap);
       }
     } catch (err) {
       console.error("Error fetching screenings:", err);
       toast.error(err.message || "Failed to load screenings");
+      setScreenings([]);
     } finally {
       setLoadingScreenings(false);
+    }
+  };
+
+  const fetchInterviews = async () => {
+    if (!jobPosting || jobPosting.status !== "open") {
+      setInterviews([]);
+      return;
+    }
+
+    try {
+      setLoadingInterviews(true);
+      const candidates = await fetchCandidatesByStage("interviews");
+      console.log("Fetched interviews:", candidates.length);
+      setInterviews(candidates);
+
+      // Check scheduled calls for all interviews
+      const candidateIds = candidates
+        .map((c) => c.candidateId?._id?.toString() || c.candidateId?.toString())
+        .filter(Boolean);
+      if (candidateIds.length > 0) {
+        const statusMap = await checkScheduledCalls(candidateIds);
+        setCallStatuses(statusMap);
+      }
+    } catch (err) {
+      console.error("Error fetching interviews:", err);
+      toast.error(err.message || "Failed to load interviews");
+      setInterviews([]);
+    } finally {
+      setLoadingInterviews(false);
+    }
+  };
+
+  const fetchOffers = async () => {
+    if (!jobPosting || jobPosting.status !== "open") {
+      setOffers([]);
+      return;
+    }
+
+    try {
+      setLoadingOffers(true);
+      const candidates = await fetchCandidatesByStage("offer");
+      console.log("Fetched offers:", candidates.length);
+      setOffers(candidates);
+
+      // Check scheduled calls for all offers
+      const candidateIds = candidates
+        .map((c) => c.candidateId?._id?.toString() || c.candidateId?.toString())
+        .filter(Boolean);
+      if (candidateIds.length > 0) {
+        const statusMap = await checkScheduledCalls(candidateIds);
+        setCallStatuses(statusMap);
+      }
+    } catch (err) {
+      console.error("Error fetching offers:", err);
+      toast.error(err.message || "Failed to load offers");
+      setOffers([]);
+    } finally {
+      setLoadingOffers(false);
+    }
+  };
+
+  const fetchRejected = async () => {
+    if (!jobPosting || jobPosting.status !== "open") {
+      setRejected([]);
+      return;
+    }
+
+    try {
+      setLoadingRejected(true);
+      const candidates = await fetchCandidatesByStage("rejected");
+      console.log("Fetched rejected:", candidates.length);
+      setRejected(candidates);
+    } catch (err) {
+      console.error("Error fetching rejected:", err);
+      toast.error(err.message || "Failed to load rejected candidates");
+      setRejected([]);
+    } finally {
+      setLoadingRejected(false);
     }
   };
 
@@ -1043,8 +1238,12 @@ export default function RecruiterJobDetailPage() {
               <div className="inline-flex rounded-full bg-slate-100/70 border border-white/70 p-1 shadow-inner shadow-white/40">
                 {[
                   { id: "details", label: "Details" },
+                  { id: "ai-match", label: "AI Match" },
                   { id: "applicants", label: "Applicants" },
                   { id: "screenings", label: "Screenings" },
+                  { id: "interviews", label: "Interviews" },
+                  { id: "offers", label: "Offers" },
+                  { id: "rejected", label: "Rejected" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -1116,6 +1315,187 @@ export default function RecruiterJobDetailPage() {
                       ))}
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "ai-match" && (
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
+                <CardHeader>
+                  <CardTitle>AI Candidate Matches (Top 20)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!jobPosting || jobPosting.status !== "open" ? (
+                    <p className="text-center py-8 text-slate-500">
+                      Please open the job to view AI matches
+                    </p>
+                  ) : loadingAiMatches ? (
+                    <div className="text-center py-8">
+                      <Loading />
+                    </div>
+                  ) : aiMatches.length === 0 ? (
+                    <p className="text-center py-8 text-slate-500">
+                      No AI matches found
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Candidate</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Match %</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Experience</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-center">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {aiMatches.map((match, index) => {
+                          const candidate = match.candidateId;
+                          if (!candidate) return null;
+
+                          const matchScore = Math.round(
+                            (match.matchScore || 0) * 100
+                          );
+                          const candidateId = candidate._id?.toString();
+                          const isApplied = match.status === "applied";
+                          const isApplying =
+                            applyingCandidateId === candidateId;
+
+                          const handleRowClick = (e) => {
+                            if (
+                              e.target.closest("button") ||
+                              e.target.closest("a") ||
+                              e.target.closest('[role="button"]')
+                            ) {
+                              return;
+                            }
+                            const role = user?.role || "recruiter";
+                            router.push(
+                              `/dashboard/${role}/manage-job-posting/${jobId}/candidate/${candidateId}`
+                            );
+                          };
+
+                          return (
+                            <TableRow
+                              key={candidate._id || index}
+                              onClick={handleRowClick}
+                              className="cursor-pointer hover:bg-slate-50/50 transition-colors"
+                            >
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50 border border-cyan-200">
+                                    <span className="text-sm font-semibold text-cyan-700">
+                                      {candidate.name
+                                        ?.split(" ")
+                                        .map((n) => n[0])
+                                        .join("")
+                                        .toUpperCase() || "N/A"}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-slate-900">
+                                      {candidate.name || "Unknown"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {candidate.role?.join(", ") || "N/A"}
+                              </TableCell>
+                              <TableCell>
+                                <div
+                                  className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                    match.matchScore || 0
+                                  )}`}
+                                >
+                                  {matchScore}%
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {candidate.email ? (
+                                  <div className="flex items-center gap-2">
+                                    <Mail className="h-4 w-4 text-slate-500" />
+                                    <span className="text-sm">
+                                      {candidate.email}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {candidate.phone_no ? (
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="h-4 w-4 text-slate-500" />
+                                    <span className="text-sm">
+                                      {candidate.phone_no}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {candidate.experience !== undefined ? (
+                                  <span className="text-sm">
+                                    {candidate.experience} years
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    isApplied
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-slate-100 text-slate-600"
+                                  }`}
+                                >
+                                  {isApplied ? "Applied" : "Pending"}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleApplyCandidate(candidateId);
+                                  }}
+                                  disabled={isApplied || isApplying}
+                                  className={`${
+                                    isApplied
+                                      ? "bg-green-100 text-green-700 hover:bg-green-100 cursor-not-allowed"
+                                      : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                  }`}
+                                >
+                                  {isApplying ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      Applying...
+                                    </>
+                                  ) : isApplied ? (
+                                    "Applied"
+                                  ) : (
+                                    "Apply"
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -1324,13 +1704,207 @@ export default function RecruiterJobDetailPage() {
                   <CardTitle>Completed Screenings</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {loadingScreenings ? (
+                  {(() => {
+                    if (loadingScreenings) {
+                      return (
+                        <div className="text-center py-8">
+                          <Loading />
+                        </div>
+                      );
+                    }
+
+                    if (screenings.length === 0) {
+                      return (
+                        <p className="text-center py-8 text-slate-500">
+                          No candidates have completed screening yet
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Candidate</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Match %</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Phone</TableHead>
+                            <TableHead>Experience</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-center">Call</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {screenings.map((candidateData, index) => {
+                            const candidate = candidateData.candidateId;
+                            if (!candidate) return null;
+
+                            const matchScore = Math.round(
+                              (candidateData.matchScore || 0) * 100
+                            );
+                            const candidateId =
+                              candidate._id?.toString() ||
+                              candidateData.candidateId?.toString();
+                            const callStatus = callStatuses.get(candidateId);
+                            const isScheduled =
+                              scheduledCandidateIds.has(candidateId);
+
+                            const handleRowClick = (e) => {
+                              if (
+                                e.target.closest("button") ||
+                                e.target.closest("a") ||
+                                e.target.closest('[role="button"]')
+                              ) {
+                                return;
+                              }
+                              const role = user?.role || "recruiter";
+                              router.push(
+                                `/dashboard/${role}/manage-job-posting/${jobId}/candidate/${candidateId}`
+                              );
+                            };
+
+                            return (
+                              <TableRow
+                                key={candidate._id || candidateId || index}
+                                onClick={handleRowClick}
+                                className="cursor-pointer hover:bg-slate-50/50 transition-colors"
+                              >
+                                <TableCell>
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50 border border-cyan-200">
+                                      <span className="text-sm font-semibold text-cyan-700">
+                                        {candidate.name
+                                          ?.split(" ")
+                                          .map((n) => n[0])
+                                          .join("")
+                                          .toUpperCase() || "N/A"}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <p className="font-medium text-slate-900">
+                                        {candidate.name || "Unknown"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {candidate.role?.join(", ") || "N/A"}
+                                </TableCell>
+                                <TableCell>
+                                  <div
+                                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                      candidateData.matchScore || 0
+                                    )}`}
+                                  >
+                                    {matchScore}%
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {candidate.email ? (
+                                    <div className="flex items-center gap-2">
+                                      <Mail className="h-4 w-4 text-slate-500" />
+                                      <span className="text-sm">
+                                        {candidate.email}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-sm text-slate-600">
+                                      N/A
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {candidate.phone_no ? (
+                                    <div className="flex items-center gap-2">
+                                      <Phone className="h-4 w-4 text-slate-500" />
+                                      <span className="text-sm">
+                                        {candidate.phone_no}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-sm text-slate-600">
+                                      N/A
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {candidate.experience !== undefined ? (
+                                    <span className="text-sm">
+                                      {candidate.experience} years
+                                    </span>
+                                  ) : (
+                                    <span className="text-sm text-slate-600">
+                                      N/A
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {callStatus &&
+                                  callStatus.status === "completed" ? (
+                                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      Completed
+                                    </div>
+                                  ) : isScheduled ? (
+                                    <span className="text-sm text-slate-600">
+                                      Scheduled
+                                    </span>
+                                  ) : (
+                                    <span className="text-sm text-slate-600">
+                                      Not Scheduled
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleScheduleSingleCall(candidate);
+                                    }}
+                                    disabled={
+                                      !canCall ||
+                                      currentStatus === "closed" ||
+                                      callingCandidateId === candidateId ||
+                                      !candidate.phone_no ||
+                                      (callStatus &&
+                                        callStatus.status === "completed")
+                                    }
+                                    className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {callingCandidateId === candidateId ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <PhoneCall className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "interviews" && (
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
+                <CardHeader>
+                  <CardTitle>Interviews</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingInterviews ? (
                     <div className="text-center py-8">
                       <Loading />
                     </div>
-                  ) : screenings.length === 0 ? (
+                  ) : interviews.length === 0 ? (
                     <p className="text-center py-8 text-slate-500">
-                      No candidates have completed screening yet
+                      No candidates have completed interviews yet
                     </p>
                   ) : (
                     <Table>
@@ -1341,23 +1915,46 @@ export default function RecruiterJobDetailPage() {
                           <TableHead>Match %</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Phone</TableHead>
+                          <TableHead>Experience</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Call Details</TableHead>
+                          <TableHead className="text-center">Call</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {screenings.map((match, index) => {
-                          const candidate = match.candidateId;
+                        {interviews.map((candidateData, index) => {
+                          const candidate = candidateData.candidateId;
                           if (!candidate) return null;
 
                           const matchScore = Math.round(
-                            (match.matchScore || 0) * 100
+                            (candidateData.matchScore || 0) * 100
                           );
-                          const candidateId = candidate._id?.toString();
+                          const candidateId =
+                            candidate._id?.toString() ||
+                            candidateData.candidateId?.toString();
                           const callStatus = callStatuses.get(candidateId);
+                          const isScheduled =
+                            scheduledCandidateIds.has(candidateId);
+
+                          const handleRowClick = (e) => {
+                            if (
+                              e.target.closest("button") ||
+                              e.target.closest("a") ||
+                              e.target.closest('[role="button"]')
+                            ) {
+                              return;
+                            }
+                            const role = user?.role || "recruiter";
+                            router.push(
+                              `/dashboard/${role}/manage-job-posting/${jobId}/candidate/${candidateId}`
+                            );
+                          };
 
                           return (
-                            <TableRow key={candidate._id || index}>
+                            <TableRow
+                              key={candidate._id || candidateId || index}
+                              onClick={handleRowClick}
+                              className="cursor-pointer hover:bg-slate-50/50 transition-colors"
+                            >
                               <TableCell>
                                 <div className="flex items-center gap-3">
                                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50 border border-cyan-200">
@@ -1382,7 +1979,7 @@ export default function RecruiterJobDetailPage() {
                               <TableCell>
                                 <div
                                   className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                                    match.matchScore || 0
+                                    candidateData.matchScore || 0
                                   )}`}
                                 >
                                   {matchScore}%
@@ -1397,7 +1994,9 @@ export default function RecruiterJobDetailPage() {
                                     </span>
                                   </div>
                                 ) : (
-                                  "N/A"
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -1409,7 +2008,20 @@ export default function RecruiterJobDetailPage() {
                                     </span>
                                   </div>
                                 ) : (
-                                  "N/A"
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {candidate.experience !== undefined ? (
+                                  <span className="text-sm">
+                                    {candidate.experience} years
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -1419,6 +2031,177 @@ export default function RecruiterJobDetailPage() {
                                     <CheckCircle2 className="h-3 w-3" />
                                     Completed
                                   </div>
+                                ) : isScheduled ? (
+                                  <span className="text-sm text-slate-600">
+                                    Scheduled
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-slate-600">
+                                    Not Scheduled
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleScheduleSingleCall(candidate);
+                                  }}
+                                  disabled={
+                                    !canCall ||
+                                    currentStatus === "closed" ||
+                                    callingCandidateId === candidateId ||
+                                    !candidate.phone_no ||
+                                    (callStatus &&
+                                      callStatus.status === "completed")
+                                  }
+                                  className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {callingCandidateId === candidateId ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <PhoneCall className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "offers" && (
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
+                <CardHeader>
+                  <CardTitle>Offers</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingOffers ? (
+                    <div className="text-center py-8">
+                      <Loading />
+                    </div>
+                  ) : offers.length === 0 ? (
+                    <p className="text-center py-8 text-slate-500">
+                      No candidates have received offers yet
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Candidate</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Match %</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Experience</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-center">Call</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {offers.map((candidateData, index) => {
+                          const candidate = candidateData.candidateId;
+                          if (!candidate) return null;
+
+                          const matchScore = Math.round(
+                            (candidateData.matchScore || 0) * 100
+                          );
+                          const candidateId =
+                            candidate._id?.toString() ||
+                            candidateData.candidateId?.toString();
+                          const callStatus = callStatuses.get(candidateId);
+                          const isScheduled =
+                            scheduledCandidateIds.has(candidateId);
+
+                          const handleRowClick = (e) => {
+                            if (
+                              e.target.closest("button") ||
+                              e.target.closest("a") ||
+                              e.target.closest('[role="button"]')
+                            ) {
+                              return;
+                            }
+                            const role = user?.role || "recruiter";
+                            router.push(
+                              `/dashboard/${role}/manage-job-posting/${jobId}/candidate/${candidateId}`
+                            );
+                          };
+
+                          return (
+                            <TableRow
+                              key={candidate._id || candidateId || index}
+                              onClick={handleRowClick}
+                              className="cursor-pointer hover:bg-slate-50/50 transition-colors"
+                            >
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50 border border-cyan-200">
+                                    <span className="text-sm font-semibold text-cyan-700">
+                                      {candidate.name
+                                        ?.split(" ")
+                                        .map((n) => n[0])
+                                        .join("")
+                                        .toUpperCase() || "N/A"}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-slate-900">
+                                      {candidate.name || "Unknown"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {candidate.role?.join(", ") || "N/A"}
+                              </TableCell>
+                              <TableCell>
+                                <div
+                                  className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                    candidateData.matchScore || 0
+                                  )}`}
+                                >
+                                  {matchScore}%
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {candidate.email ? (
+                                  <div className="flex items-center gap-2">
+                                    <Mail className="h-4 w-4 text-slate-500" />
+                                    <span className="text-sm">
+                                      {candidate.email}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {candidate.phone_no ? (
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="h-4 w-4 text-slate-500" />
+                                    <span className="text-sm">
+                                      {candidate.phone_no}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {candidate.experience !== undefined ? (
+                                  <span className="text-sm">
+                                    {candidate.experience} years
+                                  </span>
                                 ) : (
                                   <span className="text-sm text-slate-600">
                                     N/A
@@ -1427,21 +2210,177 @@ export default function RecruiterJobDetailPage() {
                               </TableCell>
                               <TableCell>
                                 {callStatus &&
-                                (callStatus.callScheduledAt ||
-                                  callStatus.userScheduledAt ||
-                                  callStatus.executionId) ? (
-                                  <button
-                                    onClick={() =>
-                                      handleViewCallDetails(
-                                        candidateId,
-                                        callStatus.executionId
-                                      )
-                                    }
-                                    className="flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer"
-                                    title="View call details"
-                                  >
-                                    <Calendar className="h-5 w-5 text-blue-600" />
-                                  </button>
+                                callStatus.status === "completed" ? (
+                                  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Completed
+                                  </div>
+                                ) : isScheduled ? (
+                                  <span className="text-sm text-slate-600">
+                                    Scheduled
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-slate-600">
+                                    Not Scheduled
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleScheduleSingleCall(candidate);
+                                  }}
+                                  disabled={
+                                    !canCall ||
+                                    currentStatus === "closed" ||
+                                    callingCandidateId === candidateId ||
+                                    !candidate.phone_no ||
+                                    (callStatus &&
+                                      callStatus.status === "completed")
+                                  }
+                                  className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {callingCandidateId === candidateId ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <PhoneCall className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "rejected" && (
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
+                <CardHeader>
+                  <CardTitle>Rejected Candidates</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingRejected ? (
+                    <div className="text-center py-8">
+                      <Loading />
+                    </div>
+                  ) : rejected.length === 0 ? (
+                    <p className="text-center py-8 text-slate-500">
+                      No candidates have been rejected yet
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Candidate</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Match %</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Experience</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {rejected.map((candidateData, index) => {
+                          const candidate = candidateData.candidateId;
+                          if (!candidate) return null;
+
+                          const matchScore = Math.round(
+                            (candidateData.matchScore || 0) * 100
+                          );
+                          const candidateId =
+                            candidate._id?.toString() ||
+                            candidateData.candidateId?.toString();
+
+                          const handleRowClick = (e) => {
+                            if (
+                              e.target.closest("button") ||
+                              e.target.closest("a") ||
+                              e.target.closest('[role="button"]')
+                            ) {
+                              return;
+                            }
+                            const role = user?.role || "recruiter";
+                            router.push(
+                              `/dashboard/${role}/manage-job-posting/${jobId}/candidate/${candidateId}`
+                            );
+                          };
+
+                          return (
+                            <TableRow
+                              key={candidate._id || candidateId || index}
+                              onClick={handleRowClick}
+                              className="cursor-pointer hover:bg-slate-50/50 transition-colors"
+                            >
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 border border-red-200">
+                                    <span className="text-sm font-semibold text-red-700">
+                                      {candidate.name
+                                        ?.split(" ")
+                                        .map((n) => n[0])
+                                        .join("")
+                                        .toUpperCase() || "N/A"}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-slate-900">
+                                      {candidate.name || "Unknown"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {candidate.role?.join(", ") || "N/A"}
+                              </TableCell>
+                              <TableCell>
+                                <div
+                                  className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                    candidateData.matchScore || 0
+                                  )}`}
+                                >
+                                  {matchScore}%
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {candidate.email ? (
+                                  <div className="flex items-center gap-2">
+                                    <Mail className="h-4 w-4 text-slate-500" />
+                                    <span className="text-sm">
+                                      {candidate.email}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {candidate.phone_no ? (
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="h-4 w-4 text-slate-500" />
+                                    <span className="text-sm">
+                                      {candidate.phone_no}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {candidate.experience !== undefined ? (
+                                  <span className="text-sm">
+                                    {candidate.experience} years
+                                  </span>
                                 ) : (
                                   <span className="text-sm text-slate-600">
                                     N/A

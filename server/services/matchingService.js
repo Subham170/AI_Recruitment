@@ -6,9 +6,9 @@ import { CandidateMatches, JobMatches } from "../matching/model.js";
 // Configuration for vector search
 const VECTOR_SEARCH_INDEX_CANDIDATE = "candidate_job_posting_index";
 const VECTOR_SEARCH_INDEX_JOB = "vector_index";
-const VECTOR_SEARCH_LIMIT = 10; // Get top 10 matches
+const VECTOR_SEARCH_LIMIT = 20; // Get top 20 matches for AI Match tab
 const MIN_MATCH_SCORE = 0.3; // Minimum similarity score to consider a match
-const MAX_MATCHES_TO_STORE = 10; // Maximum matches to store per job/candidate (should match VECTOR_SEARCH_LIMIT)
+const MAX_MATCHES_TO_STORE = 20; // Maximum matches to store per job/candidate (for AI Match tab)
 
 /**
  * Find matching candidates for a job posting using vector search
@@ -175,14 +175,33 @@ export async function updateJobMatches(jobPostingId, filters = {}) {
     // Find matching candidates
     const matches = await findMatchingCandidates(jobPostingId, filters);
 
-    // Format matches for storage and limit to top 10
+    // Get existing job matches to preserve status
+    const existingJobMatches = await JobMatches.findOne({
+      jobId: new mongoose.Types.ObjectId(jobPostingId),
+    });
+
+    // Create a map of existing candidate statuses
+    const existingStatusMap = new Map();
+    if (existingJobMatches && existingJobMatches.matches) {
+      existingJobMatches.matches.forEach((match) => {
+        const candidateIdStr = match.candidateId.toString();
+        existingStatusMap.set(candidateIdStr, match.status || "pending");
+      });
+    }
+
+    // Format matches for storage and limit to top 20 (for AI Match tab)
     const matchesToStore = matches
-      .slice(0, VECTOR_SEARCH_LIMIT) // Ensure only top 10 candidates
-      .map((match) => ({
-        candidateId: new mongoose.Types.ObjectId(match.candidateId),
-        matchScore: match.matchScore,
-        matchedAt: new Date(),
-      }));
+      .slice(0, 20) // Top 20 for AI Match tab
+      .map((match) => {
+        const candidateIdStr = match.candidateId.toString();
+        const existingStatus = existingStatusMap.get(candidateIdStr);
+        return {
+          candidateId: new mongoose.Types.ObjectId(match.candidateId),
+          matchScore: match.matchScore,
+          matchedAt: new Date(),
+          status: existingStatus || "pending", // Preserve existing status or default to pending
+        };
+      });
 
     // Update or create job_matches document
     const jobMatches = await JobMatches.findOneAndUpdate(

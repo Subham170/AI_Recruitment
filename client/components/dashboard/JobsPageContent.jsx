@@ -567,18 +567,20 @@ export default function JobsPageContent() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditDialog(job);
-                          }}
-                          className="border-slate-200 hover:bg-cyan-50 hover:border-cyan-300 hover:text-cyan-700"
-                          title="Edit Job"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        {showEdit && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditDialog(job);
+                            }}
+                            className="border-slate-200 hover:bg-cyan-50 hover:border-cyan-300 hover:text-cyan-700"
+                            title="Edit Job"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

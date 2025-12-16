@@ -27,6 +27,11 @@ const jobMatchesSchema = new mongoose.Schema(
           type: Date,
           default: Date.now,
         },
+        status: {
+          type: String,
+          enum: ["pending", "applied"],
+          default: "pending",
+        },
       },
     ],
     lastUpdated: {
