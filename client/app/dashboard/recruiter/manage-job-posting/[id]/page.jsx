@@ -35,14 +35,17 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import {
   bolnaAPI,
+  calcomCredentialsAPI,
   candidateAPI,
   candidateProgressAPI,
   jobPostingAPI,
   matchingAPI,
+  recruiterAvailabilityAPI,
   resumeParserAPI,
   userAPI,
 } from "@/lib/api";
-import { formatFullDateTimeWithAMPM } from "@/lib/timeFormatter";
+import { formatFullDateTimeWithAMPM, convert24To12Hour } from "@/lib/timeFormatter";
+import { format } from "date-fns";
 import {
   ArrowLeft,
   Briefcase,
@@ -50,6 +53,7 @@ import {
   CheckCircle2,
   Clock,
   Edit,
+  Eye,
   FileText,
   Globe,
   Loader2,
@@ -57,11 +61,13 @@ import {
   Phone,
   PhoneCall,
   Plus,
+  Square,
   Upload,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
+import RecruiterAvailability from "@/components/RecruiterAvailability";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -114,10 +120,28 @@ export default function RecruiterJobDetailPage() {
   const [scheduledCandidateIds, setScheduledCandidateIds] = useState(new Set());
   const [callStatuses, setCallStatuses] = useState(new Map());
   const [callingCandidateId, setCallingCandidateId] = useState(null);
+  const [stoppingCandidateId, setStoppingCandidateId] = useState(null);
   const [callDetailsDialogOpen, setCallDetailsDialogOpen] = useState(false);
   const [selectedCallDetails, setSelectedCallDetails] = useState(null);
+  const [selectedCallCandidateId, setSelectedCallCandidateId] = useState(null);
   const [loadingCallDetails, setLoadingCallDetails] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [availabilityDialogOpen, setAvailabilityDialogOpen] = useState(false);
+  const [scheduleInterviewDialogOpen, setScheduleInterviewDialogOpen] = useState(false);
+  const [selectedCandidateForInterview, setSelectedCandidateForInterview] = useState(null);
+  const [selectedRecruiter, setSelectedRecruiter] = useState("");
+  const [recruiterAvailability, setRecruiterAvailability] = useState(null);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [jobRecruiters, setJobRecruiters] = useState([]);
+  const [interviewAlreadyScheduled, setInterviewAlreadyScheduled] = useState(false);
+  const [existingInterviewDetails, setExistingInterviewDetails] = useState(null);
+  const [offerRejectDialogOpen, setOfferRejectDialogOpen] = useState(false);
+  const [selectedInterviewForAction, setSelectedInterviewForAction] = useState(null);
+  const [actionType, setActionType] = useState(""); // "offer" or "reject"
+  const [feedback, setFeedback] = useState("");
+  const [submittingAction, setSubmittingAction] = useState(false);
   const [recruiters, setRecruiters] = useState([]);
   const [loadingRecruiters, setLoadingRecruiters] = useState(false);
   const [jobForm, setJobForm] = useState({
@@ -647,13 +671,16 @@ export default function RecruiterJobDetailPage() {
 
     try {
       setLoadingScreenings(true);
-      const candidates = await fetchCandidatesByStage("screening");
-      console.log("Fetched screenings:", candidates.length);
-      setScreenings(candidates);
+      // Fetch screenings with scores from the new API endpoint
+      const response = await bolnaAPI.getJobScreenings(jobId);
+      const screeningsData = response.screenings || [];
+      
+      console.log("Fetched screenings with scores:", screeningsData.length);
+      setScreenings(screeningsData);
 
       // Check scheduled calls for all screenings
-      const candidateIds = candidates
-        .map((c) => c.candidateId?._id?.toString() || c.candidateId?.toString())
+      const candidateIds = screeningsData
+        .map((s) => s.candidateId?._id?.toString() || s.candidateId?.toString())
         .filter(Boolean);
       if (candidateIds.length > 0) {
         const statusMap = await checkScheduledCalls(candidateIds);
@@ -676,18 +703,17 @@ export default function RecruiterJobDetailPage() {
 
     try {
       setLoadingInterviews(true);
-      const candidates = await fetchCandidatesByStage("interviews");
-      console.log("Fetched interviews:", candidates.length);
-      setInterviews(candidates);
-
-      // Check scheduled calls for all interviews
-      const candidateIds = candidates
-        .map((c) => c.candidateId?._id?.toString() || c.candidateId?.toString())
-        .filter(Boolean);
-      if (candidateIds.length > 0) {
-        const statusMap = await checkScheduledCalls(candidateIds);
-        setCallStatuses(statusMap);
-      }
+      const response = await bolnaAPI.getJobInterviews(jobId);
+      const interviewsData = response.interviews || [];
+      console.log("Fetched interviews:", interviewsData.length);
+      
+      // Filter to only show interviews with screeningScore
+      const interviewsWithScore = interviewsData.filter(
+        (interview) => interview.screeningScore !== null && interview.screeningScore !== undefined
+      );
+      
+      console.log("Interviews with screening score:", interviewsWithScore.length);
+      setInterviews(interviewsWithScore);
     } catch (err) {
       console.error("Error fetching interviews:", err);
       toast.error(err.message || "Failed to load interviews");
@@ -705,18 +731,41 @@ export default function RecruiterJobDetailPage() {
 
     try {
       setLoadingOffers(true);
-      const candidates = await fetchCandidatesByStage("offer");
-      console.log("Fetched offers:", candidates.length);
-      setOffers(candidates);
-
-      // Check scheduled calls for all offers
-      const candidateIds = candidates
-        .map((c) => c.candidateId?._id?.toString() || c.candidateId?.toString())
+      // Get all interviews and filter for offers
+      const response = await bolnaAPI.getJobInterviews(jobId);
+      const allInterviews = response.interviews || [];
+      const offersData = allInterviews.filter(i => i.interviewOutcome === "offer");
+      
+      // Get match scores
+      const candidateIds = offersData
+        .map((i) => i.candidateId?._id?.toString() || i.candidateId?.toString())
         .filter(Boolean);
+      
       if (candidateIds.length > 0) {
-        const statusMap = await checkScheduledCalls(candidateIds);
-        setCallStatuses(statusMap);
+        const matchResponse = await matchingAPI.getJobMatches(jobId);
+        const matchMap = new Map();
+        (matchResponse.matches || []).forEach((match) => {
+          const candidateId = match.candidateId?._id?.toString();
+          if (candidateId) {
+            matchMap.set(candidateId, match);
+          }
+        });
+
+        const enrichedOffers = offersData.map((offer) => {
+          const candidateId = offer.candidateId?._id?.toString() || offer.candidateId?.toString();
+          const match = matchMap.get(candidateId);
+          return {
+            ...offer,
+            matchScore: match?.matchScore || 0,
+          };
+        });
+        
+        setOffers(enrichedOffers);
+      } else {
+        setOffers([]);
       }
+      
+      console.log("Fetched offers:", offersData.length);
     } catch (err) {
       console.error("Error fetching offers:", err);
       toast.error(err.message || "Failed to load offers");
@@ -734,9 +783,41 @@ export default function RecruiterJobDetailPage() {
 
     try {
       setLoadingRejected(true);
-      const candidates = await fetchCandidatesByStage("rejected");
-      console.log("Fetched rejected:", candidates.length);
-      setRejected(candidates);
+      // Get all interviews and filter for rejected
+      const response = await bolnaAPI.getJobInterviews(jobId);
+      const allInterviews = response.interviews || [];
+      const rejectedData = allInterviews.filter(i => i.interviewOutcome === "reject");
+      
+      // Get match scores
+      const candidateIds = rejectedData
+        .map((i) => i.candidateId?._id?.toString() || i.candidateId?.toString())
+        .filter(Boolean);
+      
+      if (candidateIds.length > 0) {
+        const matchResponse = await matchingAPI.getJobMatches(jobId);
+        const matchMap = new Map();
+        (matchResponse.matches || []).forEach((match) => {
+          const candidateId = match.candidateId?._id?.toString();
+          if (candidateId) {
+            matchMap.set(candidateId, match);
+          }
+        });
+
+        const enrichedRejected = rejectedData.map((rejected) => {
+          const candidateId = rejected.candidateId?._id?.toString() || rejected.candidateId?.toString();
+          const match = matchMap.get(candidateId);
+          return {
+            ...rejected,
+            matchScore: match?.matchScore || 0,
+          };
+        });
+        
+        setRejected(enrichedRejected);
+      } else {
+        setRejected([]);
+      }
+      
+      console.log("Fetched rejected:", rejectedData.length);
     } catch (err) {
       console.error("Error fetching rejected:", err);
       toast.error(err.message || "Failed to load rejected candidates");
@@ -1009,12 +1090,20 @@ export default function RecruiterJobDetailPage() {
       const scheduledTime = new Date();
       scheduledTime.setMinutes(scheduledTime.getMinutes() + 5);
 
-      // Prepare user_data
+      // Prepare comprehensive user_data with candidate information
       const userData = {
+        candidate_name: candidate.name || "",
+        candidate_email: candidate.email || "",
+        candidate_phone: candidate.phone_no || "",
         bio: candidate.bio || "",
         role: candidate.role?.join(", ") || "",
         experience: candidate.experience ? `${candidate.experience} years` : "",
+        skills: candidate.skills?.join(", ") || (typeof candidate.skills === "string" ? candidate.skills : ""),
+        company_name: jobPosting.company || "", // Add company name from the job posting
       };
+
+      // Get job description from job posting
+      const jobDescription = jobPosting.description || "";
 
       // Schedule the call
       const callData = {
@@ -1022,7 +1111,8 @@ export default function RecruiterJobDetailPage() {
         jobId: jobPosting._id,
         recipient_phone_number: candidate.phone_no,
         scheduled_at: scheduledTime.toISOString(),
-        user_data: userData,
+        job_description: jobDescription, // Add job description to payload
+        user_data: userData, // Include comprehensive candidate data
       };
 
       await bolnaAPI.scheduleCall(callData);
@@ -1044,9 +1134,214 @@ export default function RecruiterJobDetailPage() {
     }
   };
 
+  const handleStopCall = async (candidateId, executionId) => {
+    if (!executionId) {
+      toast.error("No execution ID found for this call");
+      return;
+    }
+
+    try {
+      setStoppingCandidateId(candidateId);
+      await bolnaAPI.stopCall(executionId);
+      toast.success("Call stopped successfully!");
+
+      // Refresh call statuses for all tabs
+      const allCandidateIds = new Set();
+      
+      // Add applicants candidate IDs
+      applicants.forEach((m) => {
+        const id = m.candidateId?._id?.toString();
+        if (id) allCandidateIds.add(id);
+      });
+      
+      // Add screenings candidate IDs
+      screenings.forEach((c) => {
+        const id = c.candidateId?._id?.toString() || c.candidateId?.toString();
+        if (id) allCandidateIds.add(id);
+      });
+      
+      // Add interviews candidate IDs
+      interviews.forEach((c) => {
+        const id = c.candidateId?._id?.toString() || c.candidateId?.toString();
+        if (id) allCandidateIds.add(id);
+      });
+
+      if (allCandidateIds.size > 0) {
+        await checkScheduledCalls(Array.from(allCandidateIds));
+      }
+    } catch (err) {
+      console.error("Error stopping call:", err);
+      toast.error(err.message || "Failed to stop call");
+    } finally {
+      setStoppingCandidateId(null);
+    }
+  };
+
   const handleViewProfile = (candidate) => {
     // Navigate to candidate profile or open a dialog
     router.push(`/dashboard/recruiter/candidate/${candidate._id}`);
+  };
+
+  const handleOpenScheduleInterview = async (screeningData) => {
+    setSelectedCandidateForInterview(screeningData);
+    setScheduleInterviewDialogOpen(true);
+    setSelectedRecruiter("");
+    setRecruiterAvailability(null);
+    setSelectedSlot("");
+    setInterviewAlreadyScheduled(false);
+    setExistingInterviewDetails(null);
+    
+    // Check if interview is already scheduled
+    const isScheduled = screeningData.emailSent || screeningData.meetLink;
+    if (isScheduled) {
+      setInterviewAlreadyScheduled(true);
+      setExistingInterviewDetails({
+        recruiterId: screeningData.assignRecruiter?._id?.toString() || 
+                    screeningData.assignRecruiter?.toString() || 
+                    screeningData.assignRecruiter,
+        recruiterName: screeningData.assignRecruiter?.name || "Recruiter",
+        scheduledTime: screeningData.userScheduledAt || screeningData.emailSentAt,
+        meetLink: screeningData.meetLink,
+        emailSentAt: screeningData.emailSentAt,
+      });
+      
+      // Pre-populate with existing data
+      if (screeningData.assignRecruiter) {
+        const recruiterId = screeningData.assignRecruiter._id?.toString() || 
+                           screeningData.assignRecruiter.toString();
+        setSelectedRecruiter(recruiterId);
+        // Fetch availability for display
+        if (screeningData.userScheduledAt) {
+          setSelectedSlot(new Date(screeningData.userScheduledAt).toISOString());
+        }
+      }
+    }
+    
+    // Get recruiters for this job (primary + secondary)
+    const recruitersList = [];
+    if (jobPosting?.primary_recruiter_id) {
+      const primaryId = typeof jobPosting.primary_recruiter_id === 'object' 
+        ? jobPosting.primary_recruiter_id._id?.toString() 
+        : jobPosting.primary_recruiter_id.toString();
+      const primaryName = typeof jobPosting.primary_recruiter_id === 'object'
+        ? jobPosting.primary_recruiter_id.name
+        : 'Primary Recruiter';
+      recruitersList.push({ id: primaryId, name: primaryName, type: 'primary' });
+    }
+    if (jobPosting?.secondary_recruiter_id && Array.isArray(jobPosting.secondary_recruiter_id)) {
+      jobPosting.secondary_recruiter_id.forEach(sec => {
+        if (sec) {
+          const secId = typeof sec === 'object' ? sec._id?.toString() : sec.toString();
+          const secName = typeof sec === 'object' ? sec.name : 'Secondary Recruiter';
+          recruitersList.push({ id: secId, name: secName, type: 'secondary' });
+        }
+      });
+    }
+    setJobRecruiters(recruitersList);
+    
+    // If interview is scheduled, fetch availability for display
+    if (isScheduled && screeningData.assignRecruiter) {
+      const recruiterId = screeningData.assignRecruiter._id?.toString() || 
+                         screeningData.assignRecruiter.toString();
+      await handleRecruiterChange(recruiterId);
+    }
+  };
+
+  const handleRecruiterChange = async (recruiterId) => {
+    if (!recruiterId || !jobId) return;
+    
+    setSelectedRecruiter(recruiterId);
+    setRecruiterAvailability(null);
+    setSelectedSlot("");
+    
+    try {
+      setLoadingAvailability(true);
+      // Get all availability for the job and filter by recruiter
+      const allResponse = await recruiterAvailabilityAPI.getAllAvailabilityByJob(jobId);
+      const allAvail = allResponse?.availabilities || [];
+      const recruiterAvail = allAvail.find(avail => {
+        const availRecruiterId = avail.recruiter_id?._id?.toString() || 
+                                  avail.recruiter_id?.toString();
+        return availRecruiterId === recruiterId;
+      });
+      
+      if (recruiterAvail && recruiterAvail.availability_slots) {
+        // Filter only available slots
+        const availableSlots = recruiterAvail.availability_slots.filter(
+          slot => slot.is_available !== false
+        );
+        setRecruiterAvailability(availableSlots);
+      } else {
+        setRecruiterAvailability([]);
+        toast.warning("No availability found for this recruiter. Please ask them to set their availability.");
+      }
+    } catch (err) {
+      console.error("Error fetching availability:", err);
+      toast.error(err.message || "Failed to load recruiter availability");
+      setRecruiterAvailability([]);
+    } finally {
+      setLoadingAvailability(false);
+    }
+  };
+
+  const handleSendInterviewEmail = async () => {
+    if (!selectedCandidateForInterview || !selectedRecruiter || !selectedSlot) {
+      toast.error("Please select recruiter and time slot");
+      return;
+    }
+
+    const candidateId = selectedCandidateForInterview.candidateId?._id?.toString() || 
+                        selectedCandidateForInterview.candidateId?.toString();
+    
+    if (!candidateId) {
+      toast.error("Candidate ID not found");
+      return;
+    }
+
+    // Check if recruiter has Cal.com credentials
+    try {
+      const credentials = await calcomCredentialsAPI.getCredentials(selectedRecruiter);
+      if (!credentials.credentials || !credentials.credentials.eventTypeId) {
+        toast.error("Please configure Cal.com credentials for this recruiter. Go to Cal.com Setup page.");
+        return;
+      }
+    } catch (err) {
+      // If credentials not found, the backend will handle the error
+      // But we can show a helpful message
+      if (err.message?.includes("not found")) {
+        toast.error("Cal.com credentials not configured for this recruiter. Please ask them to configure it in Cal.com Setup.");
+        return;
+      }
+      // Continue - backend will check credentials and return proper error
+    }
+
+    try {
+      setSendingEmail(true);
+      
+      // Format the slot as ISO string
+      const slotDate = new Date(selectedSlot);
+      
+      await bolnaAPI.sendEmail({
+        candidateId,
+        recruiterId: selectedRecruiter,
+        slot: slotDate.toISOString(),
+      });
+
+      toast.success("Interview email sent successfully!");
+      setScheduleInterviewDialogOpen(false);
+      setSelectedCandidateForInterview(null);
+      setSelectedRecruiter("");
+      setRecruiterAvailability(null);
+      setSelectedSlot("");
+      
+      // Refresh screenings
+      await fetchScreenings();
+    } catch (err) {
+      console.error("Error sending interview email:", err);
+      toast.error(err.message || "Failed to send interview email");
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const handleEdit = () => {
@@ -1155,6 +1450,7 @@ export default function RecruiterJobDetailPage() {
     try {
       setLoadingCallDetails(true);
       setCallDetailsDialogOpen(true);
+      setSelectedCallCandidateId(candidateIdStr);
       const response = await bolnaAPI.getCallStatus(executionId);
       setSelectedCallDetails(response);
     } catch (err) {
@@ -1337,9 +1633,9 @@ export default function RecruiterJobDetailPage() {
                   <Briefcase className="h-8 w-8 text-slate-700" />
                   <div>
                     <h1 className="text-3xl font-bold text-slate-900">
-                      {jobPosting.title}
+                      {jobPosting?.title || "Loading..."}
                     </h1>
-                    <p className="text-slate-600 mt-1">{jobPosting.company}</p>
+                    <p className="text-slate-600 mt-1">{jobPosting?.company || ""}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -1363,6 +1659,27 @@ export default function RecruiterJobDetailPage() {
                   >
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={
+                      canEdit && currentStatus !== "closed"
+                        ? "cursor-pointer"
+                        : "cursor-not-allowed opacity-50"
+                    }
+                    onClick={() => setAvailabilityDialogOpen(true)}
+                    disabled={!canEdit || currentStatus === "closed"}
+                    title={
+                      currentStatus === "closed"
+                        ? "Cannot set availability for a closed job posting"
+                        : !canEdit
+                        ? "You do not have permission to set availability"
+                        : "Select your availability for interviews"
+                    }
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Select Availability
                   </Button>
                   {jobPosting?.status === "draft" ? (
                     <Button
@@ -1518,54 +1835,77 @@ export default function RecruiterJobDetailPage() {
                   <CardTitle>Job Description</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase mb-1">
-                        Title
-                      </p>
-                      <p className="text-sm font-medium text-slate-900">
-                        {jobPosting.title}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase mb-1">
-                        Department
-                      </p>
-                      <p className="text-sm font-medium text-slate-900">
-                        {jobPosting.role?.join(", ") || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase mb-1">
-                        Experience Required
-                      </p>
-                      <p className="text-sm font-medium text-slate-900">
-                        {jobPosting.exp_req || 0} Years
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 uppercase mb-1">
-                        Visa Sponsorship
-                      </p>
-                      <p className="text-sm font-medium text-slate-900">Yes</p>
-                    </div>
-                  </div>
+                  {jobPosting ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-slate-500 uppercase mb-1">
+                            Title
+                          </p>
+                          <p className="text-sm font-medium text-slate-900">
+                            {jobPosting.title}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-500 uppercase mb-1">
+                            Department
+                          </p>
+                          <p className="text-sm font-medium text-slate-900">
+                            {jobPosting.role?.join(", ") || "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-500 uppercase mb-1">
+                            Experience Required
+                          </p>
+                          <p className="text-sm font-medium text-slate-900">
+                            {jobPosting.exp_req || 0} Years
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-500 uppercase mb-1">
+                            Job Type
+                          </p>
+                          <p className="text-sm font-medium text-slate-900">
+                            {jobPosting.job_type || "N/A"}
+                          </p>
+                        </div>
+                      </div>
 
-                  <div>
-                    <p className="text-xs text-slate-500 uppercase mb-2">
-                      Skills Matrix
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {jobPosting.skills?.map((skill, idx) => (
-                        <span
-                          key={idx}
-                          className="px-3 py-1 bg-slate-100 text-slate-700 rounded-md text-sm"
-                        >
-                          {skill}
-                        </span>
-                      ))}
+                      {jobPosting.description && (
+                        <div>
+                          <p className="text-xs text-slate-500 uppercase mb-2">
+                            Job Description
+                          </p>
+                          <p className="text-sm text-slate-900 whitespace-pre-wrap">
+                            {jobPosting.description}
+                          </p>
+                        </div>
+                      )}
+
+                      {jobPosting.skills && jobPosting.skills.length > 0 && (
+                        <div>
+                          <p className="text-xs text-slate-500 uppercase mb-2">
+                            Skills Matrix
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {jobPosting.skills.map((skill, idx) => (
+                              <span
+                                key={idx}
+                                className="px-3 py-1 bg-slate-100 text-slate-700 rounded-md text-sm"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      Loading job details...
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -1802,7 +2142,7 @@ export default function RecruiterJobDetailPage() {
                           <TableHead>Email</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>Experience</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead className="text-center">Call Status</TableHead>
                           <TableHead className="text-center">Call</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1909,58 +2249,65 @@ export default function RecruiterJobDetailPage() {
                                   </span>
                                 )}
                               </TableCell>
-                              <TableCell>
-                                {callStatus &&
-                                callStatus.status === "completed" ? (
-                                  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    Completed
-                                  </div>
-                                ) : isScheduled ? (
-                                  <span className="text-sm text-slate-600">
-                                    Scheduled
-                                  </span>
+                              <TableCell className="text-center">
+                                {callStatus && callStatus.executionId ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewCallDetails(candidateId, callStatus.executionId);
+                                    }}
+                                    className="bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50"
+                                    title="View call details and status"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
                                 ) : (
-                                  <span className="text-sm text-slate-600">
-                                    Not Scheduled
-                                  </span>
+                                  <span className="text-sm text-slate-500">-</span>
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleScheduleSingleCall(candidate)
-                                  }
-                                  disabled={
-                                    !canCall ||
-                                    currentStatus === "closed" ||
-                                    callingCandidateId === candidateId ||
-                                    !candidate.phone_no ||
-                                    (callStatus &&
-                                      callStatus.status === "completed")
-                                  }
-                                  className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  title={
-                                    currentStatus === "closed"
-                                      ? "Cannot make calls for a closed job posting"
-                                      : !canCall
-                                      ? "You do not have permission to make calls. Only recruiters can make calls."
-                                      : !candidate.phone_no
-                                      ? "No phone number available"
-                                      : callStatus &&
-                                        callStatus.status === "completed"
-                                      ? "Call already completed"
-                                      : "Schedule a call for this candidate"
-                                  }
-                                >
-                                  {callingCandidateId === candidateId ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <PhoneCall className="h-4 w-4" />
-                                  )}
-                                </Button>
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleScheduleSingleCall(candidate);
+                                    }}
+                                    disabled={
+                                      !canCall ||
+                                      currentStatus === "closed" ||
+                                      callingCandidateId === candidateId ||
+                                      !candidate.phone_no ||
+                                      (callStatus &&
+                                        callStatus.status === "completed") ||
+                                      (callStatus && callStatus.status === "scheduled")
+                                    }
+                                    className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={
+                                      currentStatus === "closed"
+                                        ? "Cannot make calls for a closed job posting"
+                                        : !canCall
+                                        ? "You do not have permission to make calls. Only recruiters can make calls."
+                                        : !candidate.phone_no
+                                        ? "No phone number available"
+                                        : callStatus &&
+                                          callStatus.status === "completed"
+                                        ? "Call already completed"
+                                        : callStatus && callStatus.status === "scheduled"
+                                        ? "Call already scheduled"
+                                        : "Schedule a call for this candidate"
+                                    }
+                                  >
+                                    {callingCandidateId === candidateId ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <PhoneCall className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
@@ -2001,25 +2348,24 @@ export default function RecruiterJobDetailPage() {
                           <TableRow>
                             <TableHead>Candidate</TableHead>
                             <TableHead>Role</TableHead>
-                            <TableHead>Match %</TableHead>
+                            <TableHead>Score</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead>Phone</TableHead>
                             <TableHead>Experience</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-center">Call</TableHead>
+                            <TableHead className="text-center">Schedule Interview</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {screenings.map((candidateData, index) => {
-                            const candidate = candidateData.candidateId;
+                          {screenings.map((screeningData, index) => {
+                            const candidate = screeningData.candidateId;
                             if (!candidate) return null;
 
-                            const matchScore = Math.round(
-                              (candidateData.matchScore || 0) * 100
-                            );
+                            const screeningScore = screeningData.screeningScore || 0;
                             const candidateId =
                               candidate._id?.toString() ||
-                              candidateData.candidateId?.toString();
+                              screeningData.candidateId?.toString();
                             const callStatus = callStatuses.get(candidateId);
                             const isScheduled =
                               scheduledCandidateIds.has(candidateId);
@@ -2066,13 +2412,17 @@ export default function RecruiterJobDetailPage() {
                                   {candidate.role?.join(", ") || "N/A"}
                                 </TableCell>
                                 <TableCell>
-                                  <div
-                                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                                      candidateData.matchScore || 0
-                                    )}`}
-                                  >
-                                    {matchScore}%
-                                  </div>
+                                  {screeningScore !== null && screeningScore !== undefined ? (
+                                    <div
+                                      className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                        screeningScore / 100
+                                      )}`}
+                                    >
+                                      {Math.round(screeningScore)}%
+                                    </div>
+                                  ) : (
+                                    <span className="text-sm text-slate-500">Pending</span>
+                                  )}
                                 </TableCell>
                                 <TableCell>
                                   {candidate.email ? (
@@ -2131,28 +2481,50 @@ export default function RecruiterJobDetailPage() {
                                   )}
                                 </TableCell>
                                 <TableCell className="text-center">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleScheduleSingleCall(candidate);
+                                      }}
+                                      disabled={
+                                        !canCall ||
+                                        currentStatus === "closed" ||
+                                        callingCandidateId === candidateId ||
+                                        !candidate.phone_no ||
+                                        (callStatus &&
+                                          callStatus.status === "completed") ||
+                                        (callStatus && callStatus.status === "scheduled")
+                                      }
+                                      className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      {callingCandidateId === candidateId ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <PhoneCall className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-center">
                                   <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleScheduleSingleCall(candidate);
+                                      handleOpenScheduleInterview(screeningData);
                                     }}
-                                    disabled={
-                                      !canCall ||
-                                      currentStatus === "closed" ||
-                                      callingCandidateId === candidateId ||
-                                      !candidate.phone_no ||
-                                      (callStatus &&
-                                        callStatus.status === "completed")
+                                    disabled={!screeningScore || screeningScore === 0}
+                                    className="bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={
+                                      !screeningScore || screeningScore === 0
+                                        ? "Screening not completed yet"
+                                        : "Schedule interview with recruiter"
                                     }
-                                    className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
-                                    {callingCandidateId === candidateId ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <PhoneCall className="h-4 w-4" />
-                                    )}
+                                    <Calendar className="h-4 w-4" />
                                   </Button>
                                 </TableCell>
                               </TableRow>
@@ -2178,7 +2550,7 @@ export default function RecruiterJobDetailPage() {
                     </div>
                   ) : interviews.length === 0 ? (
                     <p className="text-center py-8 text-slate-500">
-                      No candidates have completed interviews yet
+                      No interviews scheduled yet
                     </p>
                   ) : (
                     <Table>
@@ -2186,28 +2558,34 @@ export default function RecruiterJobDetailPage() {
                         <TableRow>
                           <TableHead>Candidate</TableHead>
                           <TableHead>Role</TableHead>
-                          <TableHead>Match %</TableHead>
+                          <TableHead>Score</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>Experience</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-center">Call</TableHead>
+                          <TableHead>Interview Status</TableHead>
+                          <TableHead className="text-center">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {interviews.map((candidateData, index) => {
-                          const candidate = candidateData.candidateId;
+                        {interviews.map((interviewData, index) => {
+                          const candidate = interviewData.candidateId;
                           if (!candidate) return null;
 
-                          const matchScore = Math.round(
-                            (candidateData.matchScore || 0) * 100
-                          );
+                          // Use screeningScore instead of matchScore
+                          const screeningScore = interviewData.screeningScore !== null && interviewData.screeningScore !== undefined
+                            ? Math.round(interviewData.screeningScore)
+                            : null;
+                          
                           const candidateId =
                             candidate._id?.toString() ||
-                            candidateData.candidateId?.toString();
-                          const callStatus = callStatuses.get(candidateId);
-                          const isScheduled =
-                            scheduledCandidateIds.has(candidateId);
+                            interviewData.candidateId?.toString();
+                          
+                          // Determine interview status based on userScheduledAt
+                          const interviewStatus = interviewData.userScheduledAt
+                            ? new Date(interviewData.userScheduledAt) <= new Date()
+                              ? "completed"
+                              : "pending"
+                            : "pending";
 
                           const handleRowClick = (e) => {
                             if (
@@ -2222,6 +2600,19 @@ export default function RecruiterJobDetailPage() {
                               `/dashboard/${role}/manage-job-posting/${jobId}/candidate/${candidateId}`
                             );
                           };
+
+                          const handleOpenOfferReject = (e) => {
+                            e.stopPropagation();
+                            setSelectedInterviewForAction(interviewData);
+                            setActionType("");
+                            setFeedback("");
+                            setOfferRejectDialogOpen(true);
+                          };
+
+                          // Check if action button should be disabled
+                          const isActionDisabled = interviewStatus === "pending" || 
+                                                  interviewData.interviewOutcome === "offer" || 
+                                                  interviewData.interviewOutcome === "reject";
 
                           return (
                             <TableRow
@@ -2251,13 +2642,17 @@ export default function RecruiterJobDetailPage() {
                                 {candidate.role?.join(", ") || "N/A"}
                               </TableCell>
                               <TableCell>
-                                <div
-                                  className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                                    candidateData.matchScore || 0
-                                  )}`}
-                                >
-                                  {matchScore}%
-                                </div>
+                                {screeningScore !== null ? (
+                                  <div
+                                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                      screeningScore / 100
+                                    )}`}
+                                  >
+                                    {screeningScore}%
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-600">N/A</span>
+                                )}
                               </TableCell>
                               <TableCell>
                                 {candidate.email ? (
@@ -2299,44 +2694,50 @@ export default function RecruiterJobDetailPage() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                {callStatus &&
-                                callStatus.status === "completed" ? (
+                                {interviewStatus === "completed" ? (
                                   <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
                                     <CheckCircle2 className="h-3 w-3" />
                                     Completed
                                   </div>
-                                ) : isScheduled ? (
-                                  <span className="text-sm text-slate-600">
-                                    Scheduled
-                                  </span>
                                 ) : (
-                                  <span className="text-sm text-slate-600">
-                                    Not Scheduled
-                                  </span>
+                                  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-yellow-500 text-white">
+                                    <Clock className="h-3 w-3" />
+                                    Pending
+                                  </div>
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleScheduleSingleCall(candidate);
-                                  }}
-                                  disabled={
-                                    !canCall ||
-                                    currentStatus === "closed" ||
-                                    callingCandidateId === candidateId ||
-                                    !candidate.phone_no ||
-                                    (callStatus &&
-                                      callStatus.status === "completed")
+                                  onClick={handleOpenOfferReject}
+                                  disabled={isActionDisabled}
+                                  className="bg-linear-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title={
+                                    interviewStatus === "pending"
+                                      ? "Interview is still pending. Please wait for the interview to complete."
+                                      : interviewData.interviewOutcome === "offer"
+                                      ? "Offer already sent"
+                                      : interviewData.interviewOutcome === "reject"
+                                      ? "Candidate already rejected"
+                                      : "Select offer or reject"
                                   }
-                                  className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  {callingCandidateId === candidateId ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  {interviewData.interviewOutcome === "offer" ? (
+                                    <>
+                                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                                      Offered
+                                    </>
+                                  ) : interviewData.interviewOutcome === "reject" ? (
+                                    <>
+                                      <X className="h-4 w-4 mr-1" />
+                                      Rejected
+                                    </>
                                   ) : (
-                                    <PhoneCall className="h-4 w-4" />
+                                    <>
+                                      <Briefcase className="h-4 w-4 mr-1" />
+                                      Action
+                                    </>
                                   )}
                                 </Button>
                               </TableCell>
@@ -2370,12 +2771,11 @@ export default function RecruiterJobDetailPage() {
                         <TableRow>
                           <TableHead>Candidate</TableHead>
                           <TableHead>Role</TableHead>
-                          <TableHead>Match %</TableHead>
+                          <TableHead>Score</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>Experience</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead className="text-center">Call</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2383,15 +2783,14 @@ export default function RecruiterJobDetailPage() {
                           const candidate = candidateData.candidateId;
                           if (!candidate) return null;
 
-                          const matchScore = Math.round(
-                            (candidateData.matchScore || 0) * 100
-                          );
+                          // Use screeningScore instead of matchScore
+                          const screeningScore = candidateData.screeningScore !== null && candidateData.screeningScore !== undefined
+                            ? Math.round(candidateData.screeningScore)
+                            : null;
+                          
                           const candidateId =
                             candidate._id?.toString() ||
                             candidateData.candidateId?.toString();
-                          const callStatus = callStatuses.get(candidateId);
-                          const isScheduled =
-                            scheduledCandidateIds.has(candidateId);
 
                           const handleRowClick = (e) => {
                             if (
@@ -2435,13 +2834,17 @@ export default function RecruiterJobDetailPage() {
                                 {candidate.role?.join(", ") || "N/A"}
                               </TableCell>
                               <TableCell>
-                                <div
-                                  className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                                    candidateData.matchScore || 0
-                                  )}`}
-                                >
-                                  {matchScore}%
-                                </div>
+                                {screeningScore !== null ? (
+                                  <div
+                                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                      screeningScore / 100
+                                    )}`}
+                                  >
+                                    {screeningScore}%
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-600">N/A</span>
+                                )}
                               </TableCell>
                               <TableCell>
                                 {candidate.email ? (
@@ -2483,46 +2886,10 @@ export default function RecruiterJobDetailPage() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                {callStatus &&
-                                callStatus.status === "completed" ? (
-                                  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    Completed
-                                  </div>
-                                ) : isScheduled ? (
-                                  <span className="text-sm text-slate-600">
-                                    Scheduled
-                                  </span>
-                                ) : (
-                                  <span className="text-sm text-slate-600">
-                                    Not Scheduled
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleScheduleSingleCall(candidate);
-                                  }}
-                                  disabled={
-                                    !canCall ||
-                                    currentStatus === "closed" ||
-                                    callingCandidateId === candidateId ||
-                                    !candidate.phone_no ||
-                                    (callStatus &&
-                                      callStatus.status === "completed")
-                                  }
-                                  className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {callingCandidateId === candidateId ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <PhoneCall className="h-4 w-4" />
-                                  )}
-                                </Button>
+                                <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  Selected
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
@@ -2554,10 +2921,11 @@ export default function RecruiterJobDetailPage() {
                         <TableRow>
                           <TableHead>Candidate</TableHead>
                           <TableHead>Role</TableHead>
-                          <TableHead>Match %</TableHead>
+                          <TableHead>Score</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>Experience</TableHead>
+                          <TableHead>Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -2565,9 +2933,11 @@ export default function RecruiterJobDetailPage() {
                           const candidate = candidateData.candidateId;
                           if (!candidate) return null;
 
-                          const matchScore = Math.round(
-                            (candidateData.matchScore || 0) * 100
-                          );
+                          // Use screeningScore instead of matchScore
+                          const screeningScore = candidateData.screeningScore !== null && candidateData.screeningScore !== undefined
+                            ? Math.round(candidateData.screeningScore)
+                            : null;
+                          
                           const candidateId =
                             candidate._id?.toString() ||
                             candidateData.candidateId?.toString();
@@ -2614,13 +2984,17 @@ export default function RecruiterJobDetailPage() {
                                 {candidate.role?.join(", ") || "N/A"}
                               </TableCell>
                               <TableCell>
-                                <div
-                                  className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                                    candidateData.matchScore || 0
-                                  )}`}
-                                >
-                                  {matchScore}%
-                                </div>
+                                {screeningScore !== null ? (
+                                  <div
+                                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                      screeningScore / 100
+                                    )}`}
+                                  >
+                                    {screeningScore}%
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-600">N/A</span>
+                                )}
                               </TableCell>
                               <TableCell>
                                 {candidate.email ? (
@@ -2660,6 +3034,12 @@ export default function RecruiterJobDetailPage() {
                                     N/A
                                   </span>
                                 )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-red-500 text-white">
+                                  <X className="h-3 w-3" />
+                                  Rejected
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
@@ -2876,11 +3256,82 @@ export default function RecruiterJobDetailPage() {
                   </div>
                 </div>
               )}
+
+              {/* Transcript from Database */}
+              {selectedCallDetails.call?.transcript && !selectedCallDetails.execution?.transcript && (
+                <div className="p-5 rounded-xl border border-slate-200 bg-white">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">
+                    Transcript
+                  </h3>
+                  <div className="p-4 bg-slate-50 rounded-lg text-sm max-h-60 overflow-y-auto border border-slate-200">
+                    <p className="whitespace-pre-wrap text-slate-900">
+                      {selectedCallDetails.call.transcript}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-8 text-slate-500">
               No call details available
             </div>
+          )}
+
+          {/* Dialog Footer */}
+          {selectedCallDetails?.call && (
+            <DialogFooter className="mt-6 border-t border-slate-200 pt-4">
+              <div className="flex gap-2 w-full justify-end">
+                {selectedCallDetails.call?.executionId &&
+                  selectedCallDetails.call?.status !== "completed" &&
+                  selectedCallDetails.call?.status !== "stopped" &&
+                  selectedCallDetails.call?.status !== "cancelled" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        if (
+                          selectedCallDetails.call?.executionId &&
+                          selectedCallCandidateId
+                        ) {
+                          await handleStopCall(
+                            selectedCallCandidateId,
+                            selectedCallDetails.call.executionId
+                          );
+                          // Refresh call details after stopping
+                          if (selectedCallDetails.call?.executionId) {
+                            try {
+                              const response = await bolnaAPI.getCallStatus(
+                                selectedCallDetails.call.executionId
+                              );
+                              setSelectedCallDetails(response);
+                            } catch (err) {
+                              console.error("Error refreshing call details:", err);
+                            }
+                          }
+                        }
+                      }}
+                      disabled={
+                        stoppingCandidateId === selectedCallCandidateId
+                      }
+                      className="bg-linear-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-red-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Stop the call"
+                    >
+                      {stoppingCandidateId === selectedCallCandidateId ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Square className="h-4 w-4 mr-2" />
+                      )}
+                      Stop Call
+                    </Button>
+                  )}
+                <Button
+                  variant="outline"
+                  onClick={() => setCallDetailsDialogOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </DialogFooter>
           )}
         </DialogContent>
       </Dialog>
@@ -3865,6 +4316,467 @@ export default function RecruiterJobDetailPage() {
                 </Button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Select Availability Dialog */}
+      <Dialog
+        open={availabilityDialogOpen}
+        onOpenChange={setAvailabilityDialogOpen}
+      >
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-white/95 border-white/70 backdrop-blur-2xl shadow-[0_18px_60px_rgba(15,23,42,0.35)]">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="text-2xl font-bold text-slate-900">
+              Select Availability
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-1">
+              Set your available time slots for interviews for this job posting.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            <RecruiterAvailability jobId={jobId} user={user} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Interview Dialog */}
+      <Dialog
+        open={scheduleInterviewDialogOpen}
+        onOpenChange={(open) => {
+          setScheduleInterviewDialogOpen(open);
+          if (!open) {
+            setSelectedCandidateForInterview(null);
+            setSelectedRecruiter("");
+            setRecruiterAvailability(null);
+            setSelectedSlot("");
+            setInterviewAlreadyScheduled(false);
+            setExistingInterviewDetails(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white/95 border-white/70 backdrop-blur-2xl shadow-[0_18px_60px_rgba(15,23,42,0.35)]">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <Calendar className="h-6 w-6 text-blue-600" />
+              {interviewAlreadyScheduled ? "Interview Scheduled" : "Schedule Interview"}
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-1">
+              {interviewAlreadyScheduled 
+                ? `Interview has already been scheduled for ${selectedCandidateForInterview?.candidateId?.name || "the candidate"}.`
+                : `Select a recruiter and available time slot to schedule an interview with ${selectedCandidateForInterview?.candidateId?.name || "the candidate"}.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-6 space-y-6">
+            {/* Show existing interview details if already scheduled */}
+            {interviewAlreadyScheduled && existingInterviewDetails && (
+              <div className="p-4 rounded-lg border-2 border-green-200 bg-green-50">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <p className="font-semibold text-green-900">Interview Already Scheduled</p>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <span className="font-medium text-slate-900">Recruiter:</span>{" "}
+                    <span className="text-slate-700">{existingInterviewDetails.recruiterName}</span>
+                  </p>
+                  {existingInterviewDetails.scheduledTime && (
+                    <p>
+                      <span className="font-medium text-slate-900">Scheduled Time:</span>{" "}
+                      <span className="text-slate-700">
+                        {format(new Date(existingInterviewDetails.scheduledTime), "EEEE, MMMM d, yyyy 'at' h:mm a")}
+                      </span>
+                    </p>
+                  )}
+                  {existingInterviewDetails.emailSentAt && (
+                    <p>
+                      <span className="font-medium text-slate-900">Email Sent:</span>{" "}
+                      <span className="text-slate-700">
+                        {format(new Date(existingInterviewDetails.emailSentAt), "MMM d, yyyy 'at' h:mm a")}
+                      </span>
+                    </p>
+                  )}
+                  {existingInterviewDetails.meetLink && (
+                    <p>
+                      <span className="font-medium text-slate-900">Meeting Link:</span>{" "}
+                      <a 
+                        href={existingInterviewDetails.meetLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        {existingInterviewDetails.meetLink}
+                      </a>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Recruiter Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="recruiter" className="text-slate-900 font-semibold">
+                {interviewAlreadyScheduled ? "Selected Recruiter" : "Select Recruiter *"}
+              </Label>
+              <Select
+                value={selectedRecruiter}
+                onValueChange={handleRecruiterChange}
+                disabled={loadingAvailability || interviewAlreadyScheduled}
+              >
+                <SelectTrigger id="recruiter" className="bg-white border-slate-200">
+                  <SelectValue placeholder="Choose a recruiter" />
+                </SelectTrigger>
+                <SelectContent>
+                  {jobRecruiters.map((recruiter) => (
+                    <SelectItem key={recruiter.id} value={recruiter.id}>
+                      {recruiter.name} ({recruiter.type === 'primary' ? 'Primary' : 'Secondary'})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {jobRecruiters.length === 0 && (
+                <p className="text-sm text-slate-500">
+                  No recruiters assigned to this job posting.
+                </p>
+              )}
+            </div>
+
+            {/* Availability Slots */}
+            {selectedRecruiter && (
+              <div className="space-y-2">
+                <Label className="text-slate-900 font-semibold">
+                  {interviewAlreadyScheduled ? "Selected Time Slot" : "Available Time Slots *"}
+                </Label>
+                {loadingAvailability ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                    <span className="ml-2 text-slate-600">Loading availability...</span>
+                  </div>
+                ) : recruiterAvailability && recruiterAvailability.length > 0 ? (
+                  <div className="space-y-2 max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4 bg-slate-50">
+                    {recruiterAvailability.map((slot, index) => {
+                      const slotDate = new Date(slot.date);
+                      const slotDateTime = new Date(slotDate);
+                      const [hours, minutes] = slot.start_time.split(":").map(Number);
+                      slotDateTime.setHours(hours, minutes, 0, 0);
+                      const slotValue = slotDateTime.toISOString();
+                      const isSelected = selectedSlot === slotValue;
+                      // Check if this is the scheduled slot
+                      const isScheduledSlot = interviewAlreadyScheduled && 
+                        existingInterviewDetails?.scheduledTime &&
+                        Math.abs(new Date(slotValue).getTime() - new Date(existingInterviewDetails.scheduledTime).getTime()) < 60000; // Within 1 minute
+
+                      return (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => !interviewAlreadyScheduled && setSelectedSlot(slotValue)}
+                          disabled={interviewAlreadyScheduled}
+                          className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
+                            isSelected || isScheduledSlot
+                              ? "bg-blue-50 border-blue-500 ring-2 ring-blue-500/20"
+                              : interviewAlreadyScheduled
+                              ? "bg-slate-100 border-slate-300 opacity-60 cursor-not-allowed"
+                              : "bg-white border-slate-200 hover:border-blue-300 hover:bg-blue-50/50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-1.5 rounded ${
+                              isSelected || isScheduledSlot ? "bg-blue-100" : "bg-slate-100"
+                            }`}>
+                              <Clock className={`h-4 w-4 ${
+                                isSelected || isScheduledSlot ? "text-blue-600" : "text-slate-600"
+                              }`} />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-slate-900">
+                                {format(slotDate, "EEEE, MMMM d, yyyy")}
+                              </p>
+                              <p className="text-sm text-slate-600">
+                                {convert24To12Hour(slot.start_time)} - {convert24To12Hour(slot.end_time)}
+                              </p>
+                            </div>
+                            {(isSelected || isScheduledSlot) && (
+                              <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-lg border border-slate-200 bg-slate-50">
+                    <p className="text-sm text-slate-600 text-center">
+                      No available time slots found for this recruiter. Please ask them to set their availability.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Candidate Info */}
+            {selectedCandidateForInterview && (
+              <div className="p-4 rounded-lg border border-slate-200 bg-slate-50">
+                <p className="text-sm font-semibold text-slate-900 mb-2">Candidate Information</p>
+                <div className="space-y-1 text-sm text-slate-600">
+                  <p>
+                    <span className="font-medium">Name:</span>{" "}
+                    {selectedCandidateForInterview.candidateId?.name || "N/A"}
+                  </p>
+                  <p>
+                    <span className="font-medium">Email:</span>{" "}
+                    {selectedCandidateForInterview.candidateId?.email || "N/A"}
+                  </p>
+                  {selectedCandidateForInterview.screeningScore !== null && (
+                    <p>
+                      <span className="font-medium">Screening Score:</span>{" "}
+                      {Math.round(selectedCandidateForInterview.screeningScore)}%
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setScheduleInterviewDialogOpen(false);
+                setSelectedCandidateForInterview(null);
+                setSelectedRecruiter("");
+                setRecruiterAvailability(null);
+                setSelectedSlot("");
+              }}
+              disabled={sendingEmail}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendInterviewEmail}
+              disabled={interviewAlreadyScheduled || !selectedRecruiter || !selectedSlot || sendingEmail}
+              className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {sendingEmail ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : interviewAlreadyScheduled ? (
+                <>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Interview Already Scheduled
+                </>
+              ) : (
+                <>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Send Interview Email
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Offer/Reject Dialog */}
+      <Dialog
+        open={offerRejectDialogOpen}
+        onOpenChange={(open) => {
+          setOfferRejectDialogOpen(open);
+          if (!open) {
+            setSelectedInterviewForAction(null);
+            setActionType("");
+            setFeedback("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white/95 border-white/70 backdrop-blur-2xl shadow-[0_18px_60px_rgba(15,23,42,0.35)]">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <Briefcase className="h-6 w-6 text-purple-600" />
+              Interview Outcome
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-1">
+              Select the outcome for {selectedInterviewForAction?.candidateId?.name || "the candidate"}'s interview.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-6 space-y-6">
+            {/* Action Type Selection */}
+            <div className="space-y-2">
+              <Label className="text-slate-900 font-semibold">
+                Select Outcome *
+              </Label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setActionType("offer")}
+                  className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                    actionType === "offer"
+                      ? "bg-green-50 border-green-500 ring-2 ring-green-500/20"
+                      : "bg-white border-slate-200 hover:border-green-300 hover:bg-green-50/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded ${
+                      actionType === "offer" ? "bg-green-100" : "bg-slate-100"
+                    }`}>
+                      <CheckCircle2 className={`h-5 w-5 ${
+                        actionType === "offer" ? "text-green-600" : "text-slate-600"
+                      }`} />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold text-slate-900">Offer</p>
+                      <p className="text-sm text-slate-600">Candidate selected and got offer</p>
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActionType("reject")}
+                  className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                    actionType === "reject"
+                      ? "bg-red-50 border-red-500 ring-2 ring-red-500/20"
+                      : "bg-white border-slate-200 hover:border-red-300 hover:bg-red-50/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded ${
+                      actionType === "reject" ? "bg-red-100" : "bg-slate-100"
+                    }`}>
+                      <X className={`h-5 w-5 ${
+                        actionType === "reject" ? "text-red-600" : "text-slate-600"
+                      }`} />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold text-slate-900">Reject</p>
+                      <p className="text-sm text-slate-600">Candidate rejected</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Feedback Input */}
+            {actionType && (
+              <div className="space-y-2">
+                <Label htmlFor="feedback" className="text-slate-900 font-semibold">
+                  {actionType === "offer" ? "Offer Details" : "Rejection Feedback"} *
+                </Label>
+                <textarea
+                  id="feedback"
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  placeholder={
+                    actionType === "offer"
+                      ? "Enter offer details, salary, start date, etc."
+                      : "Enter feedback for rejection..."
+                  }
+                  rows={4}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                  required
+                />
+              </div>
+            )}
+
+            {/* Candidate Info */}
+            {selectedInterviewForAction && (
+              <div className="p-4 rounded-lg border border-slate-200 bg-slate-50">
+                <p className="text-sm font-semibold text-slate-900 mb-2">Candidate Information</p>
+                <div className="space-y-1 text-sm text-slate-600">
+                  <p>
+                    <span className="font-medium">Name:</span>{" "}
+                    {selectedInterviewForAction.candidateId?.name || "N/A"}
+                  </p>
+                  <p>
+                    <span className="font-medium">Email:</span>{" "}
+                    {selectedInterviewForAction.candidateId?.email || "N/A"}
+                  </p>
+                  {selectedInterviewForAction.userScheduledAt && (
+                    <p>
+                      <span className="font-medium">Interview Scheduled:</span>{" "}
+                      {format(new Date(selectedInterviewForAction.userScheduledAt), "EEEE, MMMM d, yyyy 'at' h:mm a")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOfferRejectDialogOpen(false);
+                setSelectedInterviewForAction(null);
+                setActionType("");
+                setFeedback("");
+              }}
+              disabled={submittingAction}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!actionType || !feedback.trim()) {
+                  toast.error(`Please select an outcome and provide ${actionType === "offer" ? "offer details" : "rejection feedback"}`);
+                  return;
+                }
+
+                try {
+                  setSubmittingAction(true);
+                  await bolnaAPI.updateInterviewOutcome(
+                    selectedInterviewForAction.executionId,
+                    actionType,
+                    feedback
+                  );
+                  
+                  toast.success(`Candidate ${actionType === "offer" ? "offered" : "rejected"} successfully!`);
+                  setOfferRejectDialogOpen(false);
+                  setSelectedInterviewForAction(null);
+                  setActionType("");
+                  setFeedback("");
+                  
+                  // Refresh interviews and offers/rejected lists
+                  await fetchInterviews();
+                  await fetchOffers();
+                  await fetchRejected();
+                } catch (err) {
+                  console.error("Error updating interview outcome:", err);
+                  toast.error(err.message || "Failed to update interview outcome");
+                } finally {
+                  setSubmittingAction(false);
+                }
+              }}
+              disabled={!actionType || !feedback.trim() || submittingAction}
+              className={`bg-linear-to-r text-white border-0 ${
+                actionType === "offer"
+                  ? "from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                  : "from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {submittingAction ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  {actionType === "offer" ? (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Send Offer
+                    </>
+                  ) : (
+                    <>
+                      <X className="mr-2 h-4 w-4" />
+                      Reject Candidate
+                    </>
+                  )}
+                </>
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

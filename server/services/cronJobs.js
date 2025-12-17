@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { syncBolnaCall } from "../bolna/controller.js";
+import { syncBolnaCall, screeningTranscript } from "../bolna/controller.js";
 import BolnaCall from "../bolna/model.js";
 import Candidate from "../candidates/model.js";
 import RecruiterAvailability from "../recruiter_availability/model.js";
@@ -19,6 +19,32 @@ const MAX_RETRY_ATTEMPTS = parseInt(
   10
 );
 // Note: PROCESSING_LOCK_TIMEOUT removed - using fresh DB check instead
+
+// Import Bolna API configuration for fetching execution data
+const BOLNA_EXECUTIONS_URL =
+  process.env.BOLNA_EXECUTIONS_URL || "https://api.bolna.ai/executions";
+const BOLNA_API_KEY = process.env.BOLNA_API_KEY;
+
+// Helper function to fetch execution data from Bolna API
+async function fetchBolnaExecution(executionId) {
+  const response = await fetch(`${BOLNA_EXECUTIONS_URL}/${executionId}`, {
+    headers: {
+      Authorization: `Bearer ${BOLNA_API_KEY}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data?.message ||
+        data?.error ||
+        `Bolna execution fetch failed with status ${response.status}`
+    );
+  }
+
+  return data;
+}
 
 /**
  * Get all available recruiters (primary and secondary) for a job at a specific time
@@ -641,22 +667,167 @@ export async function startCronJobs() {
   //   );
   // }
 
-  // Schedule email sending job
-  // Runs every minute to check for calls that need emails
-  cron.schedule(CRON_INTERVAL, async () => {
-    const runTime = formatDateTimeWithAMPM(new Date(), { includeWeekday: true });
-    console.log(`⏰ Running email scheduler at ${runTime}`);
+  // Email sending job disabled - emails are now sent manually via API
+  // Recruiters will select slots and send emails through POST /api/bolna/send-email
+  // cron.schedule(CRON_INTERVAL, async () => {
+  //   const runTime = formatDateTimeWithAMPM(new Date(), { includeWeekday: true });
+  //   console.log(`⏰ Running email scheduler at ${runTime}`);
+  //
+  //   try {
+  //     await processScheduledCalls();
+  //   } catch (error) {
+  //     console.error("❌ Unhandled error in email cron job:", error);
+  //     // Don't let cron job crash - log and continue
+  //   }
+  // });
 
+  // Screening trigger cron job - runs every minute to check for calls that need screening
+  console.log("📅 Setting up screening cron job (pattern: */1 * * * *)...");
+  const screeningCronJob = cron.schedule("*/1 * * * *", async () => {
+    const runTime = new Date().toISOString();
+    console.log(`🔍 [${runTime}] Screening cron job triggered`);
     try {
-      await processScheduledCalls();
+      const now = new Date();
+      // Check for calls that were completed at least 10 minutes ago
+      // We want calls that are at least 10 minutes old but not more than 1 hour old (to avoid processing very old calls)
+      const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+      // Find calls that:
+      // 1. Have status "completed" (call was completed)
+      // 2. Have screeningStatus "pending" (not yet screened)
+      // 3. Were updated (completed) at least 10 minutes ago (but not more than 1 hour ago to avoid old calls)
+      // 4. Don't have a transcript yet (or have null/empty transcript)
+      const callsToProcess = await BolnaCall.find({
+        status: "completed",
+        screeningStatus: "pending",
+        $or: [
+          { transcript: { $exists: false } },
+          { transcript: null },
+          { transcript: "" },
+        ],
+        updatedAt: {
+          $gte: oneHourAgo, // Not more than 1 hour old (upper bound to avoid very old calls)
+          $lte: tenMinutesAgo, // At least 10 minutes old (lower bound)
+        },
+      });
+
+      if (callsToProcess.length > 0) {
+        console.log(
+          `🔍 Found ${callsToProcess.length} call(s) ready for processing (completed at least 10 minutes ago)`
+        );
+        console.log(
+          `   Current time: ${now.toISOString()}`
+        );
+        console.log(
+          `   Time range: ${oneHourAgo.toISOString()} to ${tenMinutesAgo.toISOString()}`
+        );
+        callsToProcess.forEach(call => {
+          console.log(
+            `   - Call ${call.executionId}: updatedAt=${call.updatedAt.toISOString()}, status=${call.status}, screeningStatus=${call.screeningStatus}`
+          );
+        });
+      } else {
+        console.log(`ℹ️ No calls found in the 10-minute window (${tenMinutesAgo.toISOString()} to ${oneHourAgo.toISOString()})`);
+        // Debug: Check if there are any completed calls with pending screening
+        const allPendingCalls = await BolnaCall.find({
+          status: "completed",
+          screeningStatus: "pending",
+        }).limit(5);
+        if (allPendingCalls.length > 0) {
+          console.log(
+            `ℹ️ Found ${allPendingCalls.length} completed calls with pending screening, but none in the 10-minute window`
+          );
+          allPendingCalls.forEach(call => {
+            const minutesAgo = Math.round((now.getTime() - call.updatedAt.getTime()) / (60 * 1000));
+            console.log(
+              `   - Call ${call.executionId}: updatedAt=${call.updatedAt.toISOString()} (${minutesAgo} minutes ago)`
+            );
+          });
+        } else {
+          console.log(`ℹ️ No pending screening calls found at all`);
+        }
+      }
+
+      if (callsToProcess.length > 0) {
+        console.log(
+          `🔍 Found ${callsToProcess.length} call(s) ready for processing`
+        );
+
+        for (const call of callsToProcess) {
+          try {
+            // Step 1: Fetch transcript from Bolna API
+            console.log(
+              `📥 Fetching transcript for executionId: ${call.executionId}`
+            );
+            let executionData = null;
+            let transcript = null;
+
+            try {
+              executionData = await fetchBolnaExecution(call.executionId);
+              transcript = executionData?.transcript || null;
+
+              // Step 2: Update BolnaCall collection with transcript
+              if (transcript && transcript.trim().length > 0) {
+                call.transcript = transcript;
+                call.status = executionData.status || call.status;
+                await call.save();
+                console.log(
+                  `✅ Transcript updated for executionId: ${call.executionId}`
+                );
+              } else {
+                console.log(
+                  `⚠️ No transcript available yet for executionId: ${call.executionId}`
+                );
+                // Skip screening if no transcript
+                continue;
+              }
+            } catch (fetchError) {
+              console.error(
+                `❌ Error fetching transcript for ${call.executionId}:`,
+                fetchError.message
+              );
+              // Continue to next call if transcript fetch fails
+              continue;
+            }
+
+            // Step 3: Trigger screening with the updated transcript
+            console.log(
+              `📞 Triggering screening for executionId: ${call.executionId}`
+            );
+            await screeningTranscript(call.executionId);
+            console.log(
+              `✅ Screening completed for executionId: ${call.executionId}`
+            );
+          } catch (error) {
+            console.error(
+              `❌ Error processing call ${call.executionId}:`,
+              error.message
+            );
+            // Continue with other calls even if one fails
+          }
+        }
+      }
     } catch (error) {
-      console.error("❌ Unhandled error in email cron job:", error);
+      console.error("❌ Error in screening cron job:", error);
+      console.error("Error stack:", error.stack);
       // Don't let cron job crash - log and continue
     }
+  }, {
+    scheduled: true,
+    timezone: "UTC"
   });
 
+  // Explicitly start the cron job (though it should start automatically with scheduled: true)
+  if (screeningCronJob) {
+    screeningCronJob.start();
+    console.log("✅ Screening cron job started and will run every minute");
+  } else {
+    console.error("❌ Failed to create screening cron job");
+  }
+
   console.log(
-    `✅ Email cron job scheduled (interval: ${CRON_INTERVAL}, window: ±${EMAIL_WINDOW_MINUTES}min, max retries: ${MAX_RETRY_ATTEMPTS})`
+    `✅ Cron jobs initialized (email sending disabled - use manual API endpoint, screening enabled)`
   );
 }
 

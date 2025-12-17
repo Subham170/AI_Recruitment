@@ -5,6 +5,7 @@ import {
   FileText,
   Home,
   Users,
+  Key,
 } from "lucide-react";
 
 export const roleMenuConfig = {
@@ -43,6 +44,13 @@ export const roleMenuConfig = {
       icon: Calendar,
       path: "/dashboard/recruiter/calendar",
       description: "View interviews on calendar",
+    },
+    {
+      id: "calcom-credentials",
+      label: "Cal.com Setup",
+      icon: Key,
+      path: "/dashboard/recruiter/calcom-credentials",
+      description: "Configure Cal.com API credentials",
     },
   ],
   manager: [

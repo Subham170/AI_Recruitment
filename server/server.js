@@ -13,6 +13,7 @@ import recruiterAvailabilityRoutes from "./recruiter_availability/route.js";
 import recruiterTasksRoutes from "./recruiter_tasks/route.js";
 import resumeParserRoutes from "./resume_parser/route.js";
 import userRoutes from "./user/route.js";
+import calcomCredentialsRoutes from "./calcom_credentials/route.js";
 
 // TODO: Uncomment when these route files are created
 // import applicationRoutes from "./routes/application.routes.js";
@@ -85,6 +86,9 @@ app.use("/api/resume-parser", resumeParserRoutes);
 
 // Chat routes
 app.use("/api/chat", chatRoutes);
+
+// Cal.com credentials routes
+app.use("/api/calcom-credentials", calcomCredentialsRoutes);
 
 // TODO: Uncomment when these route files are created
 // app.use("/api/applications", applicationRoutes);

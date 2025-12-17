@@ -319,6 +319,32 @@ export const bolnaAPI = {
       method: "GET",
     });
   },
+
+  getJobScreenings: async (jobId) => {
+    return apiRequest(`/bolna/job/${jobId}/screenings`, {
+      method: "GET",
+    });
+  },
+
+  getJobInterviews: async (jobId) => {
+    return apiRequest(`/bolna/job/${jobId}/interviews`, {
+      method: "GET",
+    });
+  },
+
+  updateInterviewOutcome: async (executionId, outcome, feedback) => {
+    return apiRequest(`/bolna/call/${executionId}/outcome`, {
+      method: "POST",
+      body: { outcome, feedback },
+    });
+  },
+
+  sendEmail: async (emailData) => {
+    return apiRequest("/bolna/send-email", {
+      method: "POST",
+      body: emailData,
+    });
+  },
 };
 
 // Recruiter Availability API functions
@@ -480,6 +506,41 @@ export const candidateProgressAPI = {
 
   getProgressByCandidate: async (candidateId) => {
     return apiRequest(`/candidate-progress/candidate/${candidateId}`, {
+      method: "GET",
+    });
+  },
+};
+
+// Cal.com Credentials API functions
+export const calcomCredentialsAPI = {
+  saveApiSecretKey: async (recruiterId, apiSecretKey) => {
+    return apiRequest("/calcom-credentials/save-key", {
+      method: "POST",
+      body: {
+        recruiterId,
+        apiSecretKey,
+      },
+    });
+  },
+
+  getEventTypes: async (recruiterId) => {
+    return apiRequest(`/calcom-credentials/${recruiterId}/event-types`, {
+      method: "GET",
+    });
+  },
+
+  saveEventType: async (recruiterId, eventTypeId) => {
+    return apiRequest("/calcom-credentials/save-event-type", {
+      method: "POST",
+      body: {
+        recruiterId,
+        eventTypeId,
+      },
+    });
+  },
+
+  getCredentials: async (recruiterId) => {
+    return apiRequest(`/calcom-credentials/${recruiterId}`, {
       method: "GET",
     });
   },

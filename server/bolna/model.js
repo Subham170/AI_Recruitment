@@ -75,6 +75,42 @@ const bolnaCallSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    jobDescription: {
+      type: String,
+      default: null,
+    },
+    transcript: {
+      type: String,
+      default: null,
+    },
+    screeningScore: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 100,
+    },
+    screeningAnalyzedAt: {
+      type: Date,
+      default: null,
+    },
+    screeningStatus: {
+      type: String,
+      enum: ["pending", "completed", "failed"],
+      default: "pending",
+    },
+    interviewOutcome: {
+      type: String,
+      enum: ["offer", "reject", null],
+      default: null,
+    },
+    interviewFeedback: {
+      type: String,
+      default: null,
+    },
+    interviewOutcomeAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

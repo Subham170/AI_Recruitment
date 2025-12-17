@@ -4,6 +4,7 @@ import {
   formatFullDateTimeWithAMPM,
   formatDateTimeWithAMPM,
 } from "../utils/timeFormatter.js";
+import CalcomCredentials from "../calcom_credentials/model.js";
 
 // Email configuration from environment variables
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
@@ -44,6 +45,7 @@ const transporter = nodemailer.createTransport({
  * @param {string} candidateEmail - Candidate email for the booking
  * @param {string} recruiterName - Recruiter name (optional)
  * @param {string} recruiterEmail - Recruiter email (optional)
+ * @param {string} recruiterId - Recruiter ID to use recruiter-specific Cal.com credentials (optional)
  * @returns {Promise<string>} - Google Meet link
  */
 export async function generateGoogleMeetLink(
@@ -51,18 +53,47 @@ export async function generateGoogleMeetLink(
   candidateName,
   candidateEmail,
   recruiterName = null,
-  recruiterEmail = null
+  recruiterEmail = null,
+  recruiterId = null
 ) {
   try {
-    // Validate environment variables
-    if (!CAL_SECRET_KEY) {
-      throw new Error("CAL_SECRET_KEY environment variable is not set");
+    let apiSecretKey = CAL_SECRET_KEY;
+    let eventTypeId = EVENT_TYPE_ID;
+
+    // If recruiterId is provided, use recruiter-specific credentials
+    if (recruiterId) {
+      const credentials = await CalcomCredentials.findOne({ 
+        recruiterId,
+        isActive: true 
+      });
+
+      if (!credentials) {
+        throw new Error(
+          "Cal.com credentials not found for this recruiter. Please configure your Cal.com API secret key and event type."
+        );
+      }
+
+      if (!credentials.apiSecretKey) {
+        throw new Error("Cal.com API secret key not configured for this recruiter");
+      }
+
+      if (!credentials.eventTypeId) {
+        throw new Error("Cal.com event type ID not configured for this recruiter");
+      }
+
+      apiSecretKey = credentials.apiSecretKey;
+      eventTypeId = credentials.eventTypeId;
+    }
+
+    // Validate credentials
+    if (!apiSecretKey) {
+      throw new Error("Cal.com API secret key is not configured");
     }
     if (!CAL_API_VERSION) {
       throw new Error("CAL_API_VERSION environment variable is not set");
     }
-    if (!EVENT_TYPE_ID) {
-      throw new Error("CAL_EVENT_TYPE_ID environment variable is not set");
+    if (!eventTypeId) {
+      throw new Error("Cal.com event type ID is not configured");
     }
 
     // Convert scheduledTime to Date object for validation
@@ -93,11 +124,14 @@ export async function generateGoogleMeetLink(
       scheduledDate = minFutureTime;
     }
 
-    console.log("Fetching available slots for event type:", EVENT_TYPE_ID);
+    console.log("Fetching available slots for event type:", eventTypeId);
     console.log("Requested time:", formatDateTimeWithAMPM(scheduledDate, { includeWeekday: true }));
     console.log("Candidate:", candidateName, candidateEmail);
     if (recruiterName && recruiterEmail) {
       console.log("Recruiter:", recruiterName, recruiterEmail);
+    }
+    if (recruiterId) {
+      console.log("Using recruiter-specific Cal.com credentials");
     }
 
     // Step 1: Fetch available slots (Cal.com requires this)
@@ -119,10 +153,10 @@ export async function generateGoogleMeetLink(
             params: {
               startTime: slotsStartTime,
               endTime: slotsEndTime,
-              eventTypeId: parseInt(EVENT_TYPE_ID, 10), // Ensure it's an integer
+              eventTypeId: parseInt(eventTypeId, 10), // Ensure it's an integer
             },
             headers: {
-              Authorization: `Bearer ${CAL_SECRET_KEY}`,
+              Authorization: `Bearer ${apiSecretKey}`,
               "cal-api-version": CAL_API_VERSION,
             },
             timeout: 30000, // 30 seconds timeout
@@ -195,7 +229,7 @@ export async function generateGoogleMeetLink(
     // The Cal.com account owner (event organizer) will automatically receive notifications
     // Recruiter will be added as a guest to receive email invitation
     const requestBody = {
-      eventTypeId: parseInt(EVENT_TYPE_ID, 10), // Cal.com API requires integer, not string
+      eventTypeId: parseInt(eventTypeId, 10), // Cal.com API requires integer, not string
       start: selectedSlot,
       location: "integrations:google_meet",
       attendee: {
@@ -228,7 +262,7 @@ export async function generateGoogleMeetLink(
           requestBody,
           {
             headers: {
-              Authorization: `Bearer ${CAL_SECRET_KEY}`,
+              Authorization: `Bearer ${apiSecretKey}`,
               "cal-api-version": CAL_API_VERSION,
               "Content-Type": "application/json",
             },
@@ -298,7 +332,7 @@ export async function generateGoogleMeetLink(
           `https://api.cal.com/v2/bookings/${bookingUid}`,
           {
             headers: {
-              Authorization: `Bearer ${CAL_SECRET_KEY}`,
+              Authorization: `Bearer ${apiSecretKey}`,
               "cal-api-version": CAL_API_VERSION,
             },
             timeout: 30000, // 30 seconds timeout
@@ -422,9 +456,9 @@ const genSampleGoogleMeetLink = async () => {
     const meetLink = await generateGoogleMeetLink(
       new Date("2025-12-20T10:00:00Z"),
       "Subham Dey1",
-      "22je0094@iitism.ac.in",
+      "22je0094@gmail.com",
       "Subham Dey2",
-      "amankasaudhanak07@gmail.com"
+      "amankasaudhandk07@gmail.com"
     );
     const duration = Date.now() - startTime;
     console.log(`✅ genSampleGoogleMeetLink completed in ${duration}ms`);
