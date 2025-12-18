@@ -2,6 +2,7 @@
 
 import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
+import RecruiterAvailability from "@/components/RecruiterAvailability";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,10 @@ import {
   resumeParserAPI,
   userAPI,
 } from "@/lib/api";
-import { formatFullDateTimeWithAMPM, convert24To12Hour } from "@/lib/timeFormatter";
+import {
+  convert24To12Hour,
+  formatFullDateTimeWithAMPM,
+} from "@/lib/timeFormatter";
 import { format } from "date-fns";
 import {
   ArrowLeft,
@@ -67,7 +71,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import RecruiterAvailability from "@/components/RecruiterAvailability";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -127,18 +130,23 @@ export default function RecruiterJobDetailPage() {
   const [loadingCallDetails, setLoadingCallDetails] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [availabilityDialogOpen, setAvailabilityDialogOpen] = useState(false);
-  const [scheduleInterviewDialogOpen, setScheduleInterviewDialogOpen] = useState(false);
-  const [selectedCandidateForInterview, setSelectedCandidateForInterview] = useState(null);
+  const [scheduleInterviewDialogOpen, setScheduleInterviewDialogOpen] =
+    useState(false);
+  const [selectedCandidateForInterview, setSelectedCandidateForInterview] =
+    useState(null);
   const [selectedRecruiter, setSelectedRecruiter] = useState("");
   const [recruiterAvailability, setRecruiterAvailability] = useState(null);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [jobRecruiters, setJobRecruiters] = useState([]);
-  const [interviewAlreadyScheduled, setInterviewAlreadyScheduled] = useState(false);
-  const [existingInterviewDetails, setExistingInterviewDetails] = useState(null);
+  const [interviewAlreadyScheduled, setInterviewAlreadyScheduled] =
+    useState(false);
+  const [existingInterviewDetails, setExistingInterviewDetails] =
+    useState(null);
   const [offerRejectDialogOpen, setOfferRejectDialogOpen] = useState(false);
-  const [selectedInterviewForAction, setSelectedInterviewForAction] = useState(null);
+  const [selectedInterviewForAction, setSelectedInterviewForAction] =
+    useState(null);
   const [actionType, setActionType] = useState(""); // "offer" or "reject"
   const [feedback, setFeedback] = useState("");
   const [submittingAction, setSubmittingAction] = useState(false);
@@ -155,6 +163,24 @@ export default function RecruiterJobDetailPage() {
     skills: "",
     secondary_recruiter_id: [],
   });
+
+  const normalizeCtcValue = (ctc) => {
+    if (ctc === null || ctc === undefined) return "";
+    if (typeof ctc === "number") return ctc.toString();
+    const match = ctc.toString().match(/[\d.]+/);
+    return match ? match[0] : "";
+  };
+
+  const formatCtcDisplay = (ctc, fallback = "N/A") => {
+    if (ctc === null || ctc === undefined || ctc === "") {
+      return fallback;
+    }
+    const num = typeof ctc === "number" ? ctc : parseFloat(ctc);
+    if (!Number.isNaN(num)) {
+      return `${num} LPA`;
+    }
+    return ctc;
+  };
 
   const fetchRecruiters = async () => {
     try {
@@ -674,7 +700,7 @@ export default function RecruiterJobDetailPage() {
       // Fetch screenings with scores from the new API endpoint
       const response = await bolnaAPI.getJobScreenings(jobId);
       const screeningsData = response.screenings || [];
-      
+
       console.log("Fetched screenings with scores:", screeningsData.length);
       setScreenings(screeningsData);
 
@@ -706,13 +732,18 @@ export default function RecruiterJobDetailPage() {
       const response = await bolnaAPI.getJobInterviews(jobId);
       const interviewsData = response.interviews || [];
       console.log("Fetched interviews:", interviewsData.length);
-      
+
       // Filter to only show interviews with screeningScore
       const interviewsWithScore = interviewsData.filter(
-        (interview) => interview.screeningScore !== null && interview.screeningScore !== undefined
+        (interview) =>
+          interview.screeningScore !== null &&
+          interview.screeningScore !== undefined
       );
-      
-      console.log("Interviews with screening score:", interviewsWithScore.length);
+
+      console.log(
+        "Interviews with screening score:",
+        interviewsWithScore.length
+      );
       setInterviews(interviewsWithScore);
     } catch (err) {
       console.error("Error fetching interviews:", err);
@@ -734,13 +765,15 @@ export default function RecruiterJobDetailPage() {
       // Get all interviews and filter for offers
       const response = await bolnaAPI.getJobInterviews(jobId);
       const allInterviews = response.interviews || [];
-      const offersData = allInterviews.filter(i => i.interviewOutcome === "offer");
-      
+      const offersData = allInterviews.filter(
+        (i) => i.interviewOutcome === "offer"
+      );
+
       // Get match scores
       const candidateIds = offersData
         .map((i) => i.candidateId?._id?.toString() || i.candidateId?.toString())
         .filter(Boolean);
-      
+
       if (candidateIds.length > 0) {
         const matchResponse = await matchingAPI.getJobMatches(jobId);
         const matchMap = new Map();
@@ -752,19 +785,20 @@ export default function RecruiterJobDetailPage() {
         });
 
         const enrichedOffers = offersData.map((offer) => {
-          const candidateId = offer.candidateId?._id?.toString() || offer.candidateId?.toString();
+          const candidateId =
+            offer.candidateId?._id?.toString() || offer.candidateId?.toString();
           const match = matchMap.get(candidateId);
           return {
             ...offer,
             matchScore: match?.matchScore || 0,
           };
         });
-        
+
         setOffers(enrichedOffers);
       } else {
         setOffers([]);
       }
-      
+
       console.log("Fetched offers:", offersData.length);
     } catch (err) {
       console.error("Error fetching offers:", err);
@@ -786,13 +820,15 @@ export default function RecruiterJobDetailPage() {
       // Get all interviews and filter for rejected
       const response = await bolnaAPI.getJobInterviews(jobId);
       const allInterviews = response.interviews || [];
-      const rejectedData = allInterviews.filter(i => i.interviewOutcome === "reject");
-      
+      const rejectedData = allInterviews.filter(
+        (i) => i.interviewOutcome === "reject"
+      );
+
       // Get match scores
       const candidateIds = rejectedData
         .map((i) => i.candidateId?._id?.toString() || i.candidateId?.toString())
         .filter(Boolean);
-      
+
       if (candidateIds.length > 0) {
         const matchResponse = await matchingAPI.getJobMatches(jobId);
         const matchMap = new Map();
@@ -804,19 +840,21 @@ export default function RecruiterJobDetailPage() {
         });
 
         const enrichedRejected = rejectedData.map((rejected) => {
-          const candidateId = rejected.candidateId?._id?.toString() || rejected.candidateId?.toString();
+          const candidateId =
+            rejected.candidateId?._id?.toString() ||
+            rejected.candidateId?.toString();
           const match = matchMap.get(candidateId);
           return {
             ...rejected,
             matchScore: match?.matchScore || 0,
           };
         });
-        
+
         setRejected(enrichedRejected);
       } else {
         setRejected([]);
       }
-      
+
       console.log("Fetched rejected:", rejectedData.length);
     } catch (err) {
       console.error("Error fetching rejected:", err);
@@ -1098,7 +1136,9 @@ export default function RecruiterJobDetailPage() {
         bio: candidate.bio || "",
         role: candidate.role?.join(", ") || "",
         experience: candidate.experience ? `${candidate.experience} years` : "",
-        skills: candidate.skills?.join(", ") || (typeof candidate.skills === "string" ? candidate.skills : ""),
+        skills:
+          candidate.skills?.join(", ") ||
+          (typeof candidate.skills === "string" ? candidate.skills : ""),
         company_name: jobPosting.company || "", // Add company name from the job posting
       };
 
@@ -1147,19 +1187,19 @@ export default function RecruiterJobDetailPage() {
 
       // Refresh call statuses for all tabs
       const allCandidateIds = new Set();
-      
+
       // Add applicants candidate IDs
       applicants.forEach((m) => {
         const id = m.candidateId?._id?.toString();
         if (id) allCandidateIds.add(id);
       });
-      
+
       // Add screenings candidate IDs
       screenings.forEach((c) => {
         const id = c.candidateId?._id?.toString() || c.candidateId?.toString();
         if (id) allCandidateIds.add(id);
       });
-      
+
       // Add interviews candidate IDs
       interviews.forEach((c) => {
         const id = c.candidateId?._id?.toString() || c.candidateId?.toString();
@@ -1190,90 +1230,110 @@ export default function RecruiterJobDetailPage() {
     setSelectedSlot("");
     setInterviewAlreadyScheduled(false);
     setExistingInterviewDetails(null);
-    
+
     // Check if interview is already scheduled
     const isScheduled = screeningData.emailSent || screeningData.meetLink;
     if (isScheduled) {
       setInterviewAlreadyScheduled(true);
       setExistingInterviewDetails({
-        recruiterId: screeningData.assignRecruiter?._id?.toString() || 
-                    screeningData.assignRecruiter?.toString() || 
-                    screeningData.assignRecruiter,
+        recruiterId:
+          screeningData.assignRecruiter?._id?.toString() ||
+          screeningData.assignRecruiter?.toString() ||
+          screeningData.assignRecruiter,
         recruiterName: screeningData.assignRecruiter?.name || "Recruiter",
-        scheduledTime: screeningData.userScheduledAt || screeningData.emailSentAt,
+        scheduledTime:
+          screeningData.userScheduledAt || screeningData.emailSentAt,
         meetLink: screeningData.meetLink,
         emailSentAt: screeningData.emailSentAt,
       });
-      
+
       // Pre-populate with existing data
       if (screeningData.assignRecruiter) {
-        const recruiterId = screeningData.assignRecruiter._id?.toString() || 
-                           screeningData.assignRecruiter.toString();
+        const recruiterId =
+          screeningData.assignRecruiter._id?.toString() ||
+          screeningData.assignRecruiter.toString();
         setSelectedRecruiter(recruiterId);
         // Fetch availability for display
         if (screeningData.userScheduledAt) {
-          setSelectedSlot(new Date(screeningData.userScheduledAt).toISOString());
+          setSelectedSlot(
+            new Date(screeningData.userScheduledAt).toISOString()
+          );
         }
       }
     }
-    
+
     // Get recruiters for this job (primary + secondary)
     const recruitersList = [];
     if (jobPosting?.primary_recruiter_id) {
-      const primaryId = typeof jobPosting.primary_recruiter_id === 'object' 
-        ? jobPosting.primary_recruiter_id._id?.toString() 
-        : jobPosting.primary_recruiter_id.toString();
-      const primaryName = typeof jobPosting.primary_recruiter_id === 'object'
-        ? jobPosting.primary_recruiter_id.name
-        : 'Primary Recruiter';
-      recruitersList.push({ id: primaryId, name: primaryName, type: 'primary' });
+      const primaryId =
+        typeof jobPosting.primary_recruiter_id === "object"
+          ? jobPosting.primary_recruiter_id._id?.toString()
+          : jobPosting.primary_recruiter_id.toString();
+      const primaryName =
+        typeof jobPosting.primary_recruiter_id === "object"
+          ? jobPosting.primary_recruiter_id.name
+          : "Primary Recruiter";
+      recruitersList.push({
+        id: primaryId,
+        name: primaryName,
+        type: "primary",
+      });
     }
-    if (jobPosting?.secondary_recruiter_id && Array.isArray(jobPosting.secondary_recruiter_id)) {
-      jobPosting.secondary_recruiter_id.forEach(sec => {
+    if (
+      jobPosting?.secondary_recruiter_id &&
+      Array.isArray(jobPosting.secondary_recruiter_id)
+    ) {
+      jobPosting.secondary_recruiter_id.forEach((sec) => {
         if (sec) {
-          const secId = typeof sec === 'object' ? sec._id?.toString() : sec.toString();
-          const secName = typeof sec === 'object' ? sec.name : 'Secondary Recruiter';
-          recruitersList.push({ id: secId, name: secName, type: 'secondary' });
+          const secId =
+            typeof sec === "object" ? sec._id?.toString() : sec.toString();
+          const secName =
+            typeof sec === "object" ? sec.name : "Secondary Recruiter";
+          recruitersList.push({ id: secId, name: secName, type: "secondary" });
         }
       });
     }
     setJobRecruiters(recruitersList);
-    
+
     // If interview is scheduled, fetch availability for display
     if (isScheduled && screeningData.assignRecruiter) {
-      const recruiterId = screeningData.assignRecruiter._id?.toString() || 
-                         screeningData.assignRecruiter.toString();
+      const recruiterId =
+        screeningData.assignRecruiter._id?.toString() ||
+        screeningData.assignRecruiter.toString();
       await handleRecruiterChange(recruiterId);
     }
   };
 
   const handleRecruiterChange = async (recruiterId) => {
     if (!recruiterId || !jobId) return;
-    
+
     setSelectedRecruiter(recruiterId);
     setRecruiterAvailability(null);
     setSelectedSlot("");
-    
+
     try {
       setLoadingAvailability(true);
       // Get all availability for the job and filter by recruiter
-      const allResponse = await recruiterAvailabilityAPI.getAllAvailabilityByJob(jobId);
+      const allResponse =
+        await recruiterAvailabilityAPI.getAllAvailabilityByJob(jobId);
       const allAvail = allResponse?.availabilities || [];
-      const recruiterAvail = allAvail.find(avail => {
-        const availRecruiterId = avail.recruiter_id?._id?.toString() || 
-                                  avail.recruiter_id?.toString();
+      const recruiterAvail = allAvail.find((avail) => {
+        const availRecruiterId =
+          avail.recruiter_id?._id?.toString() || avail.recruiter_id?.toString();
         return availRecruiterId === recruiterId;
       });
-      
+
       if (recruiterAvail && recruiterAvail.availability_slots) {
         // Filter only available slots
         const availableSlots = recruiterAvail.availability_slots.filter(
-          slot => slot.is_available !== false
+          (slot) => slot.is_available !== false
         );
         setRecruiterAvailability(availableSlots);
       } else {
         setRecruiterAvailability([]);
-        toast.warning("No availability found for this recruiter. Please ask them to set their availability.");
+        toast.warning(
+          "No availability found for this recruiter. Please ask them to set their availability."
+        );
       }
     } catch (err) {
       console.error("Error fetching availability:", err);
@@ -1290,9 +1350,10 @@ export default function RecruiterJobDetailPage() {
       return;
     }
 
-    const candidateId = selectedCandidateForInterview.candidateId?._id?.toString() || 
-                        selectedCandidateForInterview.candidateId?.toString();
-    
+    const candidateId =
+      selectedCandidateForInterview.candidateId?._id?.toString() ||
+      selectedCandidateForInterview.candidateId?.toString();
+
     if (!candidateId) {
       toast.error("Candidate ID not found");
       return;
@@ -1300,16 +1361,22 @@ export default function RecruiterJobDetailPage() {
 
     // Check if recruiter has Cal.com credentials
     try {
-      const credentials = await calcomCredentialsAPI.getCredentials(selectedRecruiter);
+      const credentials = await calcomCredentialsAPI.getCredentials(
+        selectedRecruiter
+      );
       if (!credentials.credentials || !credentials.credentials.eventTypeId) {
-        toast.error("Please configure Cal.com credentials for this recruiter. Go to Cal.com Setup page.");
+        toast.error(
+          "Please configure Cal.com credentials for this recruiter. Go to Cal.com Setup page."
+        );
         return;
       }
     } catch (err) {
       // If credentials not found, the backend will handle the error
       // But we can show a helpful message
       if (err.message?.includes("not found")) {
-        toast.error("Cal.com credentials not configured for this recruiter. Please ask them to configure it in Cal.com Setup.");
+        toast.error(
+          "Cal.com credentials not configured for this recruiter. Please ask them to configure it in Cal.com Setup."
+        );
         return;
       }
       // Continue - backend will check credentials and return proper error
@@ -1317,10 +1384,10 @@ export default function RecruiterJobDetailPage() {
 
     try {
       setSendingEmail(true);
-      
+
       // Format the slot as ISO string
       const slotDate = new Date(selectedSlot);
-      
+
       await bolnaAPI.sendEmail({
         candidateId,
         recruiterId: selectedRecruiter,
@@ -1333,7 +1400,7 @@ export default function RecruiterJobDetailPage() {
       setSelectedRecruiter("");
       setRecruiterAvailability(null);
       setSelectedSlot("");
-      
+
       // Refresh screenings
       await fetchScreenings();
     } catch (err) {
@@ -1371,7 +1438,7 @@ export default function RecruiterJobDetailPage() {
       description: jobPosting.description || "",
       company: jobPosting.company || "",
       role: jobPosting.role || [],
-      ctc: jobPosting.ctc || "",
+      ctc: normalizeCtcValue(jobPosting.ctc),
       exp_req: jobPosting.exp_req || 0,
       job_type: jobPosting.job_type || "Full time",
       skills: (jobPosting.skills || []).join(", "),
@@ -1635,7 +1702,9 @@ export default function RecruiterJobDetailPage() {
                     <h1 className="text-3xl font-bold text-slate-900">
                       {jobPosting?.title || "Loading..."}
                     </h1>
-                    <p className="text-slate-600 mt-1">{jobPosting?.company || ""}</p>
+                    <p className="text-slate-600 mt-1">
+                      {jobPosting?.company || ""}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -1739,7 +1808,7 @@ export default function RecruiterJobDetailPage() {
                     CTC Range
                   </p>
                   <p className="text-sm font-medium text-slate-900">
-                    {jobPosting.ctc || "N/A"}
+                    {formatCtcDisplay(jobPosting.ctc, "N/A")}
                   </p>
                 </div>
               </div>
@@ -2142,7 +2211,9 @@ export default function RecruiterJobDetailPage() {
                           <TableHead>Email</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>Experience</TableHead>
-                          <TableHead className="text-center">Call Status</TableHead>
+                          <TableHead className="text-center">
+                            Call Status
+                          </TableHead>
                           <TableHead className="text-center">Call</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -2256,7 +2327,10 @@ export default function RecruiterJobDetailPage() {
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleViewCallDetails(candidateId, callStatus.executionId);
+                                      handleViewCallDetails(
+                                        candidateId,
+                                        callStatus.executionId
+                                      );
                                     }}
                                     className="bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50"
                                     title="View call details and status"
@@ -2264,7 +2338,9 @@ export default function RecruiterJobDetailPage() {
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                 ) : (
-                                  <span className="text-sm text-slate-500">-</span>
+                                  <span className="text-sm text-slate-500">
+                                    -
+                                  </span>
                                 )}
                               </TableCell>
                               <TableCell className="text-center">
@@ -2283,7 +2359,8 @@ export default function RecruiterJobDetailPage() {
                                       !candidate.phone_no ||
                                       (callStatus &&
                                         callStatus.status === "completed") ||
-                                      (callStatus && callStatus.status === "scheduled")
+                                      (callStatus &&
+                                        callStatus.status === "scheduled")
                                     }
                                     className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                     title={
@@ -2296,7 +2373,8 @@ export default function RecruiterJobDetailPage() {
                                         : callStatus &&
                                           callStatus.status === "completed"
                                         ? "Call already completed"
-                                        : callStatus && callStatus.status === "scheduled"
+                                        : callStatus &&
+                                          callStatus.status === "scheduled"
                                         ? "Call already scheduled"
                                         : "Schedule a call for this candidate"
                                     }
@@ -2354,7 +2432,9 @@ export default function RecruiterJobDetailPage() {
                             <TableHead>Experience</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-center">Call</TableHead>
-                            <TableHead className="text-center">Schedule Interview</TableHead>
+                            <TableHead className="text-center">
+                              Schedule Interview
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -2362,7 +2442,8 @@ export default function RecruiterJobDetailPage() {
                             const candidate = screeningData.candidateId;
                             if (!candidate) return null;
 
-                            const screeningScore = screeningData.screeningScore || 0;
+                            const screeningScore =
+                              screeningData.screeningScore || 0;
                             const candidateId =
                               candidate._id?.toString() ||
                               screeningData.candidateId?.toString();
@@ -2412,7 +2493,8 @@ export default function RecruiterJobDetailPage() {
                                   {candidate.role?.join(", ") || "N/A"}
                                 </TableCell>
                                 <TableCell>
-                                  {screeningScore !== null && screeningScore !== undefined ? (
+                                  {screeningScore !== null &&
+                                  screeningScore !== undefined ? (
                                     <div
                                       className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
                                         screeningScore / 100
@@ -2421,7 +2503,9 @@ export default function RecruiterJobDetailPage() {
                                       {Math.round(screeningScore)}%
                                     </div>
                                   ) : (
-                                    <span className="text-sm text-slate-500">Pending</span>
+                                    <span className="text-sm text-slate-500">
+                                      Pending
+                                    </span>
                                   )}
                                 </TableCell>
                                 <TableCell>
@@ -2496,7 +2580,8 @@ export default function RecruiterJobDetailPage() {
                                         !candidate.phone_no ||
                                         (callStatus &&
                                           callStatus.status === "completed") ||
-                                        (callStatus && callStatus.status === "scheduled")
+                                        (callStatus &&
+                                          callStatus.status === "scheduled")
                                       }
                                       className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
@@ -2514,9 +2599,13 @@ export default function RecruiterJobDetailPage() {
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleOpenScheduleInterview(screeningData);
+                                      handleOpenScheduleInterview(
+                                        screeningData
+                                      );
                                     }}
-                                    disabled={!screeningScore || screeningScore === 0}
+                                    disabled={
+                                      !screeningScore || screeningScore === 0
+                                    }
                                     className="bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                     title={
                                       !screeningScore || screeningScore === 0
@@ -2572,17 +2661,20 @@ export default function RecruiterJobDetailPage() {
                           if (!candidate) return null;
 
                           // Use screeningScore instead of matchScore
-                          const screeningScore = interviewData.screeningScore !== null && interviewData.screeningScore !== undefined
-                            ? Math.round(interviewData.screeningScore)
-                            : null;
-                          
+                          const screeningScore =
+                            interviewData.screeningScore !== null &&
+                            interviewData.screeningScore !== undefined
+                              ? Math.round(interviewData.screeningScore)
+                              : null;
+
                           const candidateId =
                             candidate._id?.toString() ||
                             interviewData.candidateId?.toString();
-                          
+
                           // Determine interview status based on userScheduledAt
                           const interviewStatus = interviewData.userScheduledAt
-                            ? new Date(interviewData.userScheduledAt) <= new Date()
+                            ? new Date(interviewData.userScheduledAt) <=
+                              new Date()
                               ? "completed"
                               : "pending"
                             : "pending";
@@ -2610,9 +2702,10 @@ export default function RecruiterJobDetailPage() {
                           };
 
                           // Check if action button should be disabled
-                          const isActionDisabled = interviewStatus === "pending" || 
-                                                  interviewData.interviewOutcome === "offer" || 
-                                                  interviewData.interviewOutcome === "reject";
+                          const isActionDisabled =
+                            interviewStatus === "pending" ||
+                            interviewData.interviewOutcome === "offer" ||
+                            interviewData.interviewOutcome === "reject";
 
                           return (
                             <TableRow
@@ -2651,7 +2744,9 @@ export default function RecruiterJobDetailPage() {
                                     {screeningScore}%
                                   </div>
                                 ) : (
-                                  <span className="text-sm text-slate-600">N/A</span>
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -2716,19 +2811,23 @@ export default function RecruiterJobDetailPage() {
                                   title={
                                     interviewStatus === "pending"
                                       ? "Interview is still pending. Please wait for the interview to complete."
-                                      : interviewData.interviewOutcome === "offer"
+                                      : interviewData.interviewOutcome ===
+                                        "offer"
                                       ? "Offer already sent"
-                                      : interviewData.interviewOutcome === "reject"
+                                      : interviewData.interviewOutcome ===
+                                        "reject"
                                       ? "Candidate already rejected"
                                       : "Select offer or reject"
                                   }
                                 >
-                                  {interviewData.interviewOutcome === "offer" ? (
+                                  {interviewData.interviewOutcome ===
+                                  "offer" ? (
                                     <>
                                       <CheckCircle2 className="h-4 w-4 mr-1" />
                                       Offered
                                     </>
-                                  ) : interviewData.interviewOutcome === "reject" ? (
+                                  ) : interviewData.interviewOutcome ===
+                                    "reject" ? (
                                     <>
                                       <X className="h-4 w-4 mr-1" />
                                       Rejected
@@ -2784,10 +2883,12 @@ export default function RecruiterJobDetailPage() {
                           if (!candidate) return null;
 
                           // Use screeningScore instead of matchScore
-                          const screeningScore = candidateData.screeningScore !== null && candidateData.screeningScore !== undefined
-                            ? Math.round(candidateData.screeningScore)
-                            : null;
-                          
+                          const screeningScore =
+                            candidateData.screeningScore !== null &&
+                            candidateData.screeningScore !== undefined
+                              ? Math.round(candidateData.screeningScore)
+                              : null;
+
                           const candidateId =
                             candidate._id?.toString() ||
                             candidateData.candidateId?.toString();
@@ -2843,7 +2944,9 @@ export default function RecruiterJobDetailPage() {
                                     {screeningScore}%
                                   </div>
                                 ) : (
-                                  <span className="text-sm text-slate-600">N/A</span>
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -2934,10 +3037,12 @@ export default function RecruiterJobDetailPage() {
                           if (!candidate) return null;
 
                           // Use screeningScore instead of matchScore
-                          const screeningScore = candidateData.screeningScore !== null && candidateData.screeningScore !== undefined
-                            ? Math.round(candidateData.screeningScore)
-                            : null;
-                          
+                          const screeningScore =
+                            candidateData.screeningScore !== null &&
+                            candidateData.screeningScore !== undefined
+                              ? Math.round(candidateData.screeningScore)
+                              : null;
+
                           const candidateId =
                             candidate._id?.toString() ||
                             candidateData.candidateId?.toString();
@@ -2993,7 +3098,9 @@ export default function RecruiterJobDetailPage() {
                                     {screeningScore}%
                                   </div>
                                 ) : (
-                                  <span className="text-sm text-slate-600">N/A</span>
+                                  <span className="text-sm text-slate-600">
+                                    N/A
+                                  </span>
                                 )}
                               </TableCell>
                               <TableCell>
@@ -3258,18 +3365,19 @@ export default function RecruiterJobDetailPage() {
               )}
 
               {/* Transcript from Database */}
-              {selectedCallDetails.call?.transcript && !selectedCallDetails.execution?.transcript && (
-                <div className="p-5 rounded-xl border border-slate-200 bg-white">
-                  <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">
-                    Transcript
-                  </h3>
-                  <div className="p-4 bg-slate-50 rounded-lg text-sm max-h-60 overflow-y-auto border border-slate-200">
-                    <p className="whitespace-pre-wrap text-slate-900">
-                      {selectedCallDetails.call.transcript}
-                    </p>
+              {selectedCallDetails.call?.transcript &&
+                !selectedCallDetails.execution?.transcript && (
+                  <div className="p-5 rounded-xl border border-slate-200 bg-white">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-4 uppercase tracking-wide">
+                      Transcript
+                    </h3>
+                    <div className="p-4 bg-slate-50 rounded-lg text-sm max-h-60 overflow-y-auto border border-slate-200">
+                      <p className="whitespace-pre-wrap text-slate-900">
+                        {selectedCallDetails.call.transcript}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           ) : (
             <div className="text-center py-8 text-slate-500">
@@ -3305,14 +3413,15 @@ export default function RecruiterJobDetailPage() {
                               );
                               setSelectedCallDetails(response);
                             } catch (err) {
-                              console.error("Error refreshing call details:", err);
+                              console.error(
+                                "Error refreshing call details:",
+                                err
+                              );
                             }
                           }
                         }
                       }}
-                      disabled={
-                        stoppingCandidateId === selectedCallCandidateId
-                      }
+                      disabled={stoppingCandidateId === selectedCallCandidateId}
                       className="bg-linear-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-red-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Stop the call"
                     >
@@ -3421,101 +3530,43 @@ export default function RecruiterJobDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="role" className="text-slate-900 font-medium">
-                  Role
+                  Job Role
                 </Label>
-                <Select
-                  value={jobForm.role.length > 0 ? jobForm.role[0] : ""}
-                  onValueChange={(value) => {
-                    if (value && !jobForm.role.includes(value)) {
-                      setJobForm({
-                        ...jobForm,
-                        role: [...jobForm.role, value],
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="border-slate-200 bg-white text-slate-900 hover:border-cyan-500/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border-slate-200">
-                    <SelectItem
-                      value="SDET"
-                      className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                    >
-                      SDET
-                    </SelectItem>
-                    <SelectItem
-                      value="QA"
-                      className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                    >
-                      QA
-                    </SelectItem>
-                    <SelectItem
-                      value="DevOps"
-                      className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                    >
-                      DevOps
-                    </SelectItem>
-                    <SelectItem
-                      value="Frontend"
-                      className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                    >
-                      Frontend
-                    </SelectItem>
-                    <SelectItem
-                      value="Backend"
-                      className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                    >
-                      Backend
-                    </SelectItem>
-                    <SelectItem
-                      value="Full-stack"
-                      className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                    >
-                      Full-stack
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {jobForm.role.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {jobForm.role.map((r, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200"
-                      >
-                        {r}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setJobForm({
-                              ...jobForm,
-                              role: jobForm.role.filter((_, i) => i !== idx),
-                            });
-                          }}
-                          className="hover:text-red-500 transition-colors"
-                          title="Remove role"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <Input
+                  id="role"
+                  value={jobForm.role[0] || ""}
+                  onChange={(e) =>
+                    setJobForm({
+                      ...jobForm,
+                      role: e.target.value ? [e.target.value] : [],
+                    })
+                  }
+                  placeholder="e.g., SDE / Backend Engineer"
+                  className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
+                />
+                <p className="text-xs text-slate-500">
+                  Each job ID should have a single primary role.
+                </p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="ctc" className="text-slate-900 font-medium">
-                  CTC
+                  CTC (LPA)
                 </Label>
                 <Input
                   id="ctc"
+                  type="number"
+                  min="0"
                   value={jobForm.ctc}
                   onChange={(e) =>
                     setJobForm({ ...jobForm, ctc: e.target.value })
                   }
-                  placeholder="e.g., 10-15 LPA"
+                  placeholder="e.g., 10"
                   className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
                 />
+                <p className="text-xs text-slate-500">
+                  Enter CTC in LPA (e.g., 10 for 10 LPA)
+                </p>
               </div>
             </div>
 
@@ -4359,12 +4410,20 @@ export default function RecruiterJobDetailPage() {
           <DialogHeader className="pb-4 border-b border-slate-200">
             <DialogTitle className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <Calendar className="h-6 w-6 text-blue-600" />
-              {interviewAlreadyScheduled ? "Interview Scheduled" : "Schedule Interview"}
+              {interviewAlreadyScheduled
+                ? "Interview Scheduled"
+                : "Schedule Interview"}
             </DialogTitle>
             <DialogDescription className="text-slate-600 mt-1">
-              {interviewAlreadyScheduled 
-                ? `Interview has already been scheduled for ${selectedCandidateForInterview?.candidateId?.name || "the candidate"}.`
-                : `Select a recruiter and available time slot to schedule an interview with ${selectedCandidateForInterview?.candidateId?.name || "the candidate"}.`}
+              {interviewAlreadyScheduled
+                ? `Interview has already been scheduled for ${
+                    selectedCandidateForInterview?.candidateId?.name ||
+                    "the candidate"
+                  }.`
+                : `Select a recruiter and available time slot to schedule an interview with ${
+                    selectedCandidateForInterview?.candidateId?.name ||
+                    "the candidate"
+                  }.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -4374,35 +4433,53 @@ export default function RecruiterJobDetailPage() {
               <div className="p-4 rounded-lg border-2 border-green-200 bg-green-50">
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  <p className="font-semibold text-green-900">Interview Already Scheduled</p>
+                  <p className="font-semibold text-green-900">
+                    Interview Already Scheduled
+                  </p>
                 </div>
                 <div className="space-y-2 text-sm">
                   <p>
-                    <span className="font-medium text-slate-900">Recruiter:</span>{" "}
-                    <span className="text-slate-700">{existingInterviewDetails.recruiterName}</span>
+                    <span className="font-medium text-slate-900">
+                      Recruiter:
+                    </span>{" "}
+                    <span className="text-slate-700">
+                      {existingInterviewDetails.recruiterName}
+                    </span>
                   </p>
                   {existingInterviewDetails.scheduledTime && (
                     <p>
-                      <span className="font-medium text-slate-900">Scheduled Time:</span>{" "}
+                      <span className="font-medium text-slate-900">
+                        Scheduled Time:
+                      </span>{" "}
                       <span className="text-slate-700">
-                        {format(new Date(existingInterviewDetails.scheduledTime), "EEEE, MMMM d, yyyy 'at' h:mm a")}
+                        {format(
+                          new Date(existingInterviewDetails.scheduledTime),
+                          "EEEE, MMMM d, yyyy 'at' h:mm a"
+                        )}
                       </span>
                     </p>
                   )}
                   {existingInterviewDetails.emailSentAt && (
                     <p>
-                      <span className="font-medium text-slate-900">Email Sent:</span>{" "}
+                      <span className="font-medium text-slate-900">
+                        Email Sent:
+                      </span>{" "}
                       <span className="text-slate-700">
-                        {format(new Date(existingInterviewDetails.emailSentAt), "MMM d, yyyy 'at' h:mm a")}
+                        {format(
+                          new Date(existingInterviewDetails.emailSentAt),
+                          "MMM d, yyyy 'at' h:mm a"
+                        )}
                       </span>
                     </p>
                   )}
                   {existingInterviewDetails.meetLink && (
                     <p>
-                      <span className="font-medium text-slate-900">Meeting Link:</span>{" "}
-                      <a 
-                        href={existingInterviewDetails.meetLink} 
-                        target="_blank" 
+                      <span className="font-medium text-slate-900">
+                        Meeting Link:
+                      </span>{" "}
+                      <a
+                        href={existingInterviewDetails.meetLink}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 underline"
                       >
@@ -4416,21 +4493,30 @@ export default function RecruiterJobDetailPage() {
 
             {/* Recruiter Selection */}
             <div className="space-y-2">
-              <Label htmlFor="recruiter" className="text-slate-900 font-semibold">
-                {interviewAlreadyScheduled ? "Selected Recruiter" : "Select Recruiter *"}
+              <Label
+                htmlFor="recruiter"
+                className="text-slate-900 font-semibold"
+              >
+                {interviewAlreadyScheduled
+                  ? "Selected Recruiter"
+                  : "Select Recruiter *"}
               </Label>
               <Select
                 value={selectedRecruiter}
                 onValueChange={handleRecruiterChange}
                 disabled={loadingAvailability || interviewAlreadyScheduled}
               >
-                <SelectTrigger id="recruiter" className="bg-white border-slate-200">
+                <SelectTrigger
+                  id="recruiter"
+                  className="bg-white border-slate-200"
+                >
                   <SelectValue placeholder="Choose a recruiter" />
                 </SelectTrigger>
                 <SelectContent>
                   {jobRecruiters.map((recruiter) => (
                     <SelectItem key={recruiter.id} value={recruiter.id}>
-                      {recruiter.name} ({recruiter.type === 'primary' ? 'Primary' : 'Secondary'})
+                      {recruiter.name} (
+                      {recruiter.type === "primary" ? "Primary" : "Secondary"})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -4446,32 +4532,48 @@ export default function RecruiterJobDetailPage() {
             {selectedRecruiter && (
               <div className="space-y-2">
                 <Label className="text-slate-900 font-semibold">
-                  {interviewAlreadyScheduled ? "Selected Time Slot" : "Available Time Slots *"}
+                  {interviewAlreadyScheduled
+                    ? "Selected Time Slot"
+                    : "Available Time Slots *"}
                 </Label>
                 {loadingAvailability ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                    <span className="ml-2 text-slate-600">Loading availability...</span>
+                    <span className="ml-2 text-slate-600">
+                      Loading availability...
+                    </span>
                   </div>
-                ) : recruiterAvailability && recruiterAvailability.length > 0 ? (
+                ) : recruiterAvailability &&
+                  recruiterAvailability.length > 0 ? (
                   <div className="space-y-2 max-h-60 overflow-y-auto border border-slate-200 rounded-lg p-4 bg-slate-50">
                     {recruiterAvailability.map((slot, index) => {
                       const slotDate = new Date(slot.date);
                       const slotDateTime = new Date(slotDate);
-                      const [hours, minutes] = slot.start_time.split(":").map(Number);
+                      const [hours, minutes] = slot.start_time
+                        .split(":")
+                        .map(Number);
                       slotDateTime.setHours(hours, minutes, 0, 0);
                       const slotValue = slotDateTime.toISOString();
                       const isSelected = selectedSlot === slotValue;
                       // Check if this is the scheduled slot
-                      const isScheduledSlot = interviewAlreadyScheduled && 
+                      const isScheduledSlot =
+                        interviewAlreadyScheduled &&
                         existingInterviewDetails?.scheduledTime &&
-                        Math.abs(new Date(slotValue).getTime() - new Date(existingInterviewDetails.scheduledTime).getTime()) < 60000; // Within 1 minute
+                        Math.abs(
+                          new Date(slotValue).getTime() -
+                            new Date(
+                              existingInterviewDetails.scheduledTime
+                            ).getTime()
+                        ) < 60000; // Within 1 minute
 
                       return (
                         <button
                           key={index}
                           type="button"
-                          onClick={() => !interviewAlreadyScheduled && setSelectedSlot(slotValue)}
+                          onClick={() =>
+                            !interviewAlreadyScheduled &&
+                            setSelectedSlot(slotValue)
+                          }
                           disabled={interviewAlreadyScheduled}
                           className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
                             isSelected || isScheduledSlot
@@ -4482,19 +4584,28 @@ export default function RecruiterJobDetailPage() {
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`p-1.5 rounded ${
-                              isSelected || isScheduledSlot ? "bg-blue-100" : "bg-slate-100"
-                            }`}>
-                              <Clock className={`h-4 w-4 ${
-                                isSelected || isScheduledSlot ? "text-blue-600" : "text-slate-600"
-                              }`} />
+                            <div
+                              className={`p-1.5 rounded ${
+                                isSelected || isScheduledSlot
+                                  ? "bg-blue-100"
+                                  : "bg-slate-100"
+                              }`}
+                            >
+                              <Clock
+                                className={`h-4 w-4 ${
+                                  isSelected || isScheduledSlot
+                                    ? "text-blue-600"
+                                    : "text-slate-600"
+                                }`}
+                              />
                             </div>
                             <div className="flex-1">
                               <p className="font-medium text-slate-900">
                                 {format(slotDate, "EEEE, MMMM d, yyyy")}
                               </p>
                               <p className="text-sm text-slate-600">
-                                {convert24To12Hour(slot.start_time)} - {convert24To12Hour(slot.end_time)}
+                                {convert24To12Hour(slot.start_time)} -{" "}
+                                {convert24To12Hour(slot.end_time)}
                               </p>
                             </div>
                             {(isSelected || isScheduledSlot) && (
@@ -4508,7 +4619,8 @@ export default function RecruiterJobDetailPage() {
                 ) : (
                   <div className="p-4 rounded-lg border border-slate-200 bg-slate-50">
                     <p className="text-sm text-slate-600 text-center">
-                      No available time slots found for this recruiter. Please ask them to set their availability.
+                      No available time slots found for this recruiter. Please
+                      ask them to set their availability.
                     </p>
                   </div>
                 )}
@@ -4518,7 +4630,9 @@ export default function RecruiterJobDetailPage() {
             {/* Candidate Info */}
             {selectedCandidateForInterview && (
               <div className="p-4 rounded-lg border border-slate-200 bg-slate-50">
-                <p className="text-sm font-semibold text-slate-900 mb-2">Candidate Information</p>
+                <p className="text-sm font-semibold text-slate-900 mb-2">
+                  Candidate Information
+                </p>
                 <div className="space-y-1 text-sm text-slate-600">
                   <p>
                     <span className="font-medium">Name:</span>{" "}
@@ -4531,7 +4645,8 @@ export default function RecruiterJobDetailPage() {
                   {selectedCandidateForInterview.screeningScore !== null && (
                     <p>
                       <span className="font-medium">Screening Score:</span>{" "}
-                      {Math.round(selectedCandidateForInterview.screeningScore)}%
+                      {Math.round(selectedCandidateForInterview.screeningScore)}
+                      %
                     </p>
                   )}
                 </div>
@@ -4555,7 +4670,12 @@ export default function RecruiterJobDetailPage() {
             </Button>
             <Button
               onClick={handleSendInterviewEmail}
-              disabled={interviewAlreadyScheduled || !selectedRecruiter || !selectedSlot || sendingEmail}
+              disabled={
+                interviewAlreadyScheduled ||
+                !selectedRecruiter ||
+                !selectedSlot ||
+                sendingEmail
+              }
               className="bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {sendingEmail ? (
@@ -4598,7 +4718,9 @@ export default function RecruiterJobDetailPage() {
               Interview Outcome
             </DialogTitle>
             <DialogDescription className="text-slate-600 mt-1">
-              Select the outcome for {selectedInterviewForAction?.candidateId?.name || "the candidate"}'s interview.
+              Select the outcome for{" "}
+              {selectedInterviewForAction?.candidateId?.name || "the candidate"}
+              's interview.
             </DialogDescription>
           </DialogHeader>
 
@@ -4619,16 +4741,24 @@ export default function RecruiterJobDetailPage() {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded ${
-                      actionType === "offer" ? "bg-green-100" : "bg-slate-100"
-                    }`}>
-                      <CheckCircle2 className={`h-5 w-5 ${
-                        actionType === "offer" ? "text-green-600" : "text-slate-600"
-                      }`} />
+                    <div
+                      className={`p-2 rounded ${
+                        actionType === "offer" ? "bg-green-100" : "bg-slate-100"
+                      }`}
+                    >
+                      <CheckCircle2
+                        className={`h-5 w-5 ${
+                          actionType === "offer"
+                            ? "text-green-600"
+                            : "text-slate-600"
+                        }`}
+                      />
                     </div>
                     <div className="text-left">
                       <p className="font-semibold text-slate-900">Offer</p>
-                      <p className="text-sm text-slate-600">Candidate selected and got offer</p>
+                      <p className="text-sm text-slate-600">
+                        Candidate selected and got offer
+                      </p>
                     </div>
                   </div>
                 </button>
@@ -4642,16 +4772,24 @@ export default function RecruiterJobDetailPage() {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded ${
-                      actionType === "reject" ? "bg-red-100" : "bg-slate-100"
-                    }`}>
-                      <X className={`h-5 w-5 ${
-                        actionType === "reject" ? "text-red-600" : "text-slate-600"
-                      }`} />
+                    <div
+                      className={`p-2 rounded ${
+                        actionType === "reject" ? "bg-red-100" : "bg-slate-100"
+                      }`}
+                    >
+                      <X
+                        className={`h-5 w-5 ${
+                          actionType === "reject"
+                            ? "text-red-600"
+                            : "text-slate-600"
+                        }`}
+                      />
                     </div>
                     <div className="text-left">
                       <p className="font-semibold text-slate-900">Reject</p>
-                      <p className="text-sm text-slate-600">Candidate rejected</p>
+                      <p className="text-sm text-slate-600">
+                        Candidate rejected
+                      </p>
                     </div>
                   </div>
                 </button>
@@ -4661,8 +4799,14 @@ export default function RecruiterJobDetailPage() {
             {/* Feedback Input */}
             {actionType && (
               <div className="space-y-2">
-                <Label htmlFor="feedback" className="text-slate-900 font-semibold">
-                  {actionType === "offer" ? "Offer Details" : "Rejection Feedback"} *
+                <Label
+                  htmlFor="feedback"
+                  className="text-slate-900 font-semibold"
+                >
+                  {actionType === "offer"
+                    ? "Offer Details"
+                    : "Rejection Feedback"}{" "}
+                  *
                 </Label>
                 <textarea
                   id="feedback"
@@ -4683,7 +4827,9 @@ export default function RecruiterJobDetailPage() {
             {/* Candidate Info */}
             {selectedInterviewForAction && (
               <div className="p-4 rounded-lg border border-slate-200 bg-slate-50">
-                <p className="text-sm font-semibold text-slate-900 mb-2">Candidate Information</p>
+                <p className="text-sm font-semibold text-slate-900 mb-2">
+                  Candidate Information
+                </p>
                 <div className="space-y-1 text-sm text-slate-600">
                   <p>
                     <span className="font-medium">Name:</span>{" "}
@@ -4696,7 +4842,10 @@ export default function RecruiterJobDetailPage() {
                   {selectedInterviewForAction.userScheduledAt && (
                     <p>
                       <span className="font-medium">Interview Scheduled:</span>{" "}
-                      {format(new Date(selectedInterviewForAction.userScheduledAt), "EEEE, MMMM d, yyyy 'at' h:mm a")}
+                      {format(
+                        new Date(selectedInterviewForAction.userScheduledAt),
+                        "EEEE, MMMM d, yyyy 'at' h:mm a"
+                      )}
                     </p>
                   )}
                 </div>
@@ -4720,7 +4869,13 @@ export default function RecruiterJobDetailPage() {
             <Button
               onClick={async () => {
                 if (!actionType || !feedback.trim()) {
-                  toast.error(`Please select an outcome and provide ${actionType === "offer" ? "offer details" : "rejection feedback"}`);
+                  toast.error(
+                    `Please select an outcome and provide ${
+                      actionType === "offer"
+                        ? "offer details"
+                        : "rejection feedback"
+                    }`
+                  );
                   return;
                 }
 
@@ -4731,20 +4886,26 @@ export default function RecruiterJobDetailPage() {
                     actionType,
                     feedback
                   );
-                  
-                  toast.success(`Candidate ${actionType === "offer" ? "offered" : "rejected"} successfully!`);
+
+                  toast.success(
+                    `Candidate ${
+                      actionType === "offer" ? "offered" : "rejected"
+                    } successfully!`
+                  );
                   setOfferRejectDialogOpen(false);
                   setSelectedInterviewForAction(null);
                   setActionType("");
                   setFeedback("");
-                  
+
                   // Refresh interviews and offers/rejected lists
                   await fetchInterviews();
                   await fetchOffers();
                   await fetchRejected();
                 } catch (err) {
                   console.error("Error updating interview outcome:", err);
-                  toast.error(err.message || "Failed to update interview outcome");
+                  toast.error(
+                    err.message || "Failed to update interview outcome"
+                  );
                 } finally {
                   setSubmittingAction(false);
                 }

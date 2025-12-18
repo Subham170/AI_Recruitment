@@ -343,7 +343,7 @@ export default function JobsPageContent() {
       description: job.description,
       company: job.company,
       role: job.role || [],
-      ctc: job.ctc || "",
+      ctc: normalizeCtcValue(job.ctc),
       exp_req: job.exp_req || 0,
       job_type: job.job_type || "Full time",
       skills: (job.skills || []).join(", "),
@@ -439,6 +439,24 @@ export default function JobsPageContent() {
     );
   };
 
+  const normalizeCtcValue = (ctc) => {
+    if (ctc === null || ctc === undefined) return "";
+    if (typeof ctc === "number") return ctc.toString();
+    const match = ctc.toString().match(/[\d.]+/);
+    return match ? match[0] : "";
+  };
+
+  const formatCtcDisplay = (ctc) => {
+    if (ctc === null || ctc === undefined || ctc === "") {
+      return "Not specified";
+    }
+    const num = typeof ctc === "number" ? ctc : parseFloat(ctc);
+    if (!Number.isNaN(num)) {
+      return `${num} LPA`;
+    }
+    return ctc;
+  };
+
   // Job table component
   const JobTable = ({ jobs, showEdit = false }) => {
     if (!jobs || jobs.length === 0) {
@@ -513,7 +531,7 @@ export default function JobsPageContent() {
                     </td>
                     <td className="p-4">
                       <span className="text-slate-700">
-                        {job.ctc || "Not specified"}
+                        {formatCtcDisplay(job.ctc)}
                       </span>
                     </td>
                     {isRecruiter && (
@@ -1250,103 +1268,43 @@ export default function JobsPageContent() {
                       htmlFor="role"
                       className="text-slate-900 font-medium"
                     >
-                      Role
+                      Job Role
                     </Label>
-                    <Select
-                      value={jobForm.role.length > 0 ? jobForm.role[0] : ""}
-                      onValueChange={(value) => {
-                        if (value && !jobForm.role.includes(value)) {
-                          setJobForm({
-                            ...jobForm,
-                            role: [...jobForm.role, value],
-                          });
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="border-white/70 bg-white/80 text-slate-900 hover:border-indigo-400/50 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/70 focus:shadow-lg focus:shadow-indigo-400/20 transition-all duration-200 backdrop-blur">
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border-slate-200">
-                        <SelectItem
-                          value="SDET"
-                          className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                        >
-                          SDET
-                        </SelectItem>
-                        <SelectItem
-                          value="QA"
-                          className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                        >
-                          QA
-                        </SelectItem>
-                        <SelectItem
-                          value="DevOps"
-                          className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                        >
-                          DevOps
-                        </SelectItem>
-                        <SelectItem
-                          value="Frontend"
-                          className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                        >
-                          Frontend
-                        </SelectItem>
-                        <SelectItem
-                          value="Backend"
-                          className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                        >
-                          Backend
-                        </SelectItem>
-                        <SelectItem
-                          value="Full-stack"
-                          className="text-slate-900 hover:bg-cyan-50 hover:text-cyan-600"
-                        >
-                          Full-stack
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {jobForm.role.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {jobForm.role.map((r, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200"
-                          >
-                            {r}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setJobForm({
-                                  ...jobForm,
-                                  role: jobForm.role.filter(
-                                    (_, i) => i !== idx
-                                  ),
-                                });
-                              }}
-                              className="hover:text-red-500 transition-colors"
-                              title="Remove role"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <Input
+                      id="role"
+                      value={jobForm.role[0] || ""}
+                      onChange={(e) =>
+                        setJobForm({
+                          ...jobForm,
+                          role: e.target.value ? [e.target.value] : [],
+                        })
+                      }
+                      placeholder="e.g., SDE / Backend Engineer"
+                      className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Each job ID should have a single primary role.
+                    </p>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="ctc" className="text-slate-900 font-medium">
-                      CTC
+                      CTC (LPA)
                     </Label>
                     <Input
                       id="ctc"
+                      type="number"
+                      min="0"
                       value={jobForm.ctc}
                       onChange={(e) =>
                         setJobForm({ ...jobForm, ctc: e.target.value })
                       }
-                      placeholder="e.g., 10-15 LPA"
+                      placeholder="e.g., 10"
                       className="border-slate-200 bg-white text-slate-900 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
                     />
+                    <p className="text-xs text-slate-500">
+                      Enter CTC in LPA (e.g., 10 for 10 LPA)
+                    </p>
                   </div>
                 </div>
 

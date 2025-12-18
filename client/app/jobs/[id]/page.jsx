@@ -61,6 +61,24 @@ export default function JobDetailPage() {
     secondary_recruiter_id: [],
   });
 
+  const normalizeCtcValue = (ctc) => {
+    if (ctc === null || ctc === undefined) return "";
+    if (typeof ctc === "number") return ctc.toString();
+    const match = ctc.toString().match(/[\d.]+/);
+    return match ? match[0] : "";
+  };
+
+  const formatCtcDisplay = (ctc) => {
+    if (ctc === null || ctc === undefined || ctc === "") {
+      return null;
+    }
+    const num = typeof ctc === "number" ? ctc : parseFloat(ctc);
+    if (!Number.isNaN(num)) {
+      return `${num} LPA`;
+    }
+    return ctc;
+  };
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
@@ -112,7 +130,7 @@ export default function JobDetailPage() {
       description: jobPosting.description || "",
       company: jobPosting.company || "",
       role: jobPosting.role || [],
-      ctc: jobPosting.ctc || "",
+      ctc: normalizeCtcValue(jobPosting.ctc),
       exp_req: jobPosting.exp_req || 0,
       job_type: jobPosting.job_type || "Full time",
       skills: (jobPosting.skills || []).join(", "),
@@ -165,9 +183,7 @@ export default function JobDetailPage() {
         <div className="flex flex-1 flex-col overflow-hidden items-center justify-center p-8 relative z-10">
           <Card className="max-w-md border-red-200 bg-red-50">
             <CardContent className="pt-6">
-              <p className="text-red-900 text-center">
-                {error}
-              </p>
+              <p className="text-red-900 text-center">{error}</p>
               <Button
                 className="mt-4 w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white"
                 onClick={() => {
@@ -198,9 +214,7 @@ export default function JobDetailPage() {
           <Card className="max-w-md border-slate-200 bg-white">
             <CardContent className="pt-6 text-center">
               <FileQuestion className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-              <p className="text-slate-600">
-                Job posting not found
-              </p>
+              <p className="text-slate-600">Job posting not found</p>
               <Button
                 className="mt-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white"
                 onClick={() => {
@@ -351,11 +365,11 @@ export default function JobDetailPage() {
                   Job Details
                 </h2>
                 <div className="flex flex-wrap gap-4 text-sm text-slate-600">
-                  {jobPosting.ctc && (
+                  {formatCtcDisplay(jobPosting.ctc) && (
                     <div className="flex items-center gap-1.5">
                       <DollarSign className="h-3.5 w-3.5 text-cyan-600" />
                       <span className="text-slate-900">
-                        {jobPosting.ctc}
+                        {formatCtcDisplay(jobPosting.ctc)}
                       </span>
                     </div>
                   )}
@@ -449,10 +463,7 @@ export default function JobDetailPage() {
                             {jobPosting.secondary_recruiter_id
                               .filter((recruiter) => recruiter !== null)
                               .map((recruiter, idx) => (
-                                <p
-                                  key={idx}
-                                  className="text-sm text-slate-600"
-                                >
+                                <p key={idx} className="text-sm text-slate-600">
                                   {typeof recruiter === "object" &&
                                   recruiter.name
                                     ? `${recruiter.name}${

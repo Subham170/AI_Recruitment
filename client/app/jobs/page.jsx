@@ -76,6 +76,24 @@ export default function JobsPage() {
     secondary_recruiter_id: [],
   });
 
+  const normalizeCtcValue = (ctc) => {
+    if (ctc === null || ctc === undefined) return "";
+    if (typeof ctc === "number") return ctc.toString();
+    const match = ctc.toString().match(/[\d.]+/);
+    return match ? match[0] : "";
+  };
+
+  const formatCtcDisplay = (ctc) => {
+    if (ctc === null || ctc === undefined || ctc === "") {
+      return null;
+    }
+    const num = typeof ctc === "number" ? ctc : parseFloat(ctc);
+    if (!Number.isNaN(num)) {
+      return `${num} LPA`;
+    }
+    return ctc;
+  };
+
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
@@ -244,7 +262,7 @@ export default function JobsPage() {
       description: job.description,
       company: job.company,
       role: job.role || [],
-      ctc: job.ctc || "",
+      ctc: normalizeCtcValue(job.ctc),
       exp_req: job.exp_req || 0,
       skills: (job.skills || []).join(", "),
       secondary_recruiter_id: secondaryIds,
@@ -317,10 +335,10 @@ export default function JobsPage() {
                 ))}
               </div>
             )}
-            {job.ctc && (
+            {formatCtcDisplay(job.ctc) && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <DollarSign className="h-4 w-4" />
-                <span>{job.ctc}</span>
+                <span>{formatCtcDisplay(job.ctc)}</span>
               </div>
             )}
             {job.exp_req !== undefined && job.exp_req > 0 && (
@@ -641,68 +659,38 @@ export default function JobsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Select
-                      value={jobForm.role.length > 0 ? jobForm.role[0] : ""}
-                      onValueChange={(value) => {
-                        if (value && !jobForm.role.includes(value)) {
-                          setJobForm({
-                            ...jobForm,
-                            role: [...jobForm.role, value],
-                          });
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="SDET">SDET</SelectItem>
-                        <SelectItem value="QA">QA</SelectItem>
-                        <SelectItem value="DevOps">DevOps</SelectItem>
-                        <SelectItem value="Frontend">Frontend</SelectItem>
-                        <SelectItem value="Backend">Backend</SelectItem>
-                        <SelectItem value="Full-stack">Full-stack</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {jobForm.role.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {jobForm.role.map((r, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 flex items-center gap-1"
-                          >
-                            {r}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setJobForm({
-                                  ...jobForm,
-                                  role: jobForm.role.filter(
-                                    (_, i) => i !== idx
-                                  ),
-                                });
-                              }}
-                              className="ml-1 hover:text-blue-600"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <Label htmlFor="role">Job Role</Label>
+                    <Input
+                      id="role"
+                      value={jobForm.role[0] || ""}
+                      onChange={(e) =>
+                        setJobForm({
+                          ...jobForm,
+                          role: e.target.value ? [e.target.value] : [],
+                        })
+                      }
+                      placeholder="e.g., SDE / Backend Engineer"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Each job ID should have a single primary role.
+                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ctc">CTC</Label>
+                    <Label htmlFor="ctc">CTC (LPA)</Label>
                     <Input
                       id="ctc"
+                      type="number"
+                      min="0"
                       value={jobForm.ctc}
                       onChange={(e) =>
                         setJobForm({ ...jobForm, ctc: e.target.value })
                       }
-                      placeholder="e.g., 10-15 LPA"
+                      placeholder="e.g., 10"
                     />
+                    <p className="text-xs text-slate-500">
+                      Enter CTC in LPA (e.g., 10 for 10 LPA)
+                    </p>
                   </div>
                 </div>
 
