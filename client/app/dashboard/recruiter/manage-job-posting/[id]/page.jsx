@@ -362,9 +362,37 @@ export default function RecruiterJobDetailPage() {
       setApplyingCandidateId(candidateId);
       await matchingAPI.markCandidateAsApplied(jobId, candidateId);
       toast.success("Candidate marked as applied successfully");
-      // Refresh both AI matches and applicants
-      await fetchAiMatches();
-      await fetchApplicants(true);
+
+      // Optimistically update AI matches list
+      setAiMatches((prevMatches) => {
+        const updatedMatches = prevMatches.map((match) => {
+          const id = match.candidateId?._id?.toString();
+          if (id === candidateId) {
+            return { ...match, status: "applied" };
+          }
+          return match;
+        });
+
+        // Also ensure candidate appears in Applicants tab without refetch
+        const appliedMatch = updatedMatches.find((match) => {
+          const id = match.candidateId?._id?.toString();
+          return id === candidateId;
+        });
+
+        if (appliedMatch) {
+          setApplicants((prevApplicants) => {
+            const alreadyExists = prevApplicants.some((match) => {
+              const id = match.candidateId?._id?.toString();
+              return id === candidateId;
+            });
+
+            if (alreadyExists) return prevApplicants;
+            return [...prevApplicants, appliedMatch];
+          });
+        }
+
+        return updatedMatches;
+      });
     } catch (err) {
       console.error("Error applying candidate:", err);
       toast.error(err.message || "Failed to mark candidate as applied");
@@ -2186,7 +2214,7 @@ export default function RecruiterJobDetailPage() {
             {activeTab === "applicants" && (
               <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
-                  <CardTitle>AI Candidate Matches</CardTitle>
+                  <CardTitle>Applied Candidates</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {!jobPosting || jobPosting.status !== "open" ? (
