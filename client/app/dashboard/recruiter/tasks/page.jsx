@@ -33,7 +33,7 @@ import { recruiterTasksAPI, recruiterAvailabilityAPI, bolnaAPI, userAPI } from "
 import { Calendar, Clock, Mail, User, Briefcase, CheckCircle2, XCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { formatDateTimeShort, formatDateShort, formatFullDateTimeWithAMPM, formatTimeWithAMPM } from "@/lib/timeFormatter";
+import { formatDateTimeShort, formatDateShort, formatFullDateTimeWithAMPM, formatTimeWithAMPM, convert24To12Hour } from "@/lib/timeFormatter";
 import { toast } from "sonner";
 import RecruiterAvailability from "@/components/RecruiterAvailability";
 
@@ -181,7 +181,13 @@ export default function RecruiterTasksPage() {
 
     try {
       setLoadingAvailability(true);
-      const allResponse = await recruiterAvailabilityAPI.getAllAvailabilityByJob(jobId);
+      
+      // Fetch availability and booked slots in parallel
+      const [allResponse, bookedSlotsResponse] = await Promise.all([
+        recruiterAvailabilityAPI.getAllAvailabilityByJob(jobId),
+        recruiterTasksAPI.getBookedSlots(recruiterId, jobId),
+      ]);
+
       const allAvail = allResponse?.availabilities || [];
       const recruiterAvail = allAvail.find((avail) => {
         const availRecruiterId =
@@ -190,9 +196,105 @@ export default function RecruiterTasksPage() {
       });
 
       if (recruiterAvail && recruiterAvail.availability_slots) {
-        const availableSlots = recruiterAvail.availability_slots.filter(
+        // Filter only available slots (not marked as unavailable)
+        let availableSlots = recruiterAvail.availability_slots.filter(
           (slot) => slot.is_available !== false
         );
+
+        // Split slots that partially overlap with booked interviews
+        const bookedSlots = bookedSlotsResponse?.bookedSlots || [];
+        if (bookedSlots.length > 0) {
+          const processedSlots = [];
+          
+          availableSlots.forEach((slot) => {
+            const slotDate = new Date(slot.date);
+            const slotStartTime = new Date(slotDate);
+            const [hours, minutes] = slot.start_time.split(":").map(Number);
+            slotStartTime.setHours(hours, minutes, 0, 0);
+            
+            const slotEndTime = new Date(slotStartTime);
+            const [endHours, endMinutes] = slot.end_time.split(":").map(Number);
+            slotEndTime.setHours(endHours, endMinutes, 0, 0);
+
+            // Find all overlapping booked slots for this availability slot
+            const overlappingBookings = bookedSlots.filter((bookedSlot) => {
+              const bookedStart = new Date(bookedSlot.startTime);
+              const bookedEnd = new Date(bookedSlot.endTime);
+              
+              // Check for overlap: slot starts before booked ends AND slot ends after booked starts
+              return (
+                slotStartTime < bookedEnd &&
+                slotEndTime > bookedStart
+              );
+            });
+
+            if (overlappingBookings.length === 0) {
+              // No overlap, keep the slot as is
+              processedSlots.push(slot);
+            } else {
+              // Sort overlapping bookings by start time
+              overlappingBookings.sort((a, b) => 
+                new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+              );
+
+              // Create available segments by subtracting booked times
+              let currentStart = slotStartTime;
+              
+              overlappingBookings.forEach((bookedSlot) => {
+                const bookedStart = new Date(bookedSlot.startTime);
+                const bookedEnd = new Date(bookedSlot.endTime);
+                
+                // If there's available time before this booking, create a slot
+                if (currentStart < bookedStart) {
+                  const availableStart = new Date(currentStart);
+                  const availableEnd = new Date(bookedStart);
+                  
+                  // Only add if there's at least 15 minutes available
+                  if (availableEnd.getTime() - availableStart.getTime() >= 15 * 60 * 1000) {
+                    const startHours = availableStart.getHours().toString().padStart(2, '0');
+                    const startMinutes = availableStart.getMinutes().toString().padStart(2, '0');
+                    const endHours = availableEnd.getHours().toString().padStart(2, '0');
+                    const endMinutes = availableEnd.getMinutes().toString().padStart(2, '0');
+                    
+                    processedSlots.push({
+                      ...slot,
+                      start_time: `${startHours}:${startMinutes}`,
+                      end_time: `${endHours}:${endMinutes}`,
+                      _isSplit: true, // Mark as split slot
+                    });
+                  }
+                }
+                
+                // Update current start to after this booking
+                currentStart = bookedEnd > currentStart ? bookedEnd : currentStart;
+              });
+              
+              // If there's available time after the last booking, create a slot
+              if (currentStart < slotEndTime) {
+                const availableStart = new Date(currentStart);
+                const availableEnd = new Date(slotEndTime);
+                
+                // Only add if there's at least 15 minutes available
+                if (availableEnd.getTime() - availableStart.getTime() >= 15 * 60 * 1000) {
+                  const startHours = availableStart.getHours().toString().padStart(2, '0');
+                  const startMinutes = availableStart.getMinutes().toString().padStart(2, '0');
+                  const endHours = availableEnd.getHours().toString().padStart(2, '0');
+                  const endMinutes = availableEnd.getMinutes().toString().padStart(2, '0');
+                  
+                  processedSlots.push({
+                    ...slot,
+                    start_time: `${startHours}:${startMinutes}`,
+                    end_time: `${endHours}:${endMinutes}`,
+                    _isSplit: true, // Mark as split slot
+                  });
+                }
+              }
+            }
+          });
+          
+          availableSlots = processedSlots;
+        }
+
         setRecruiterAvailability(availableSlots);
       } else {
         setRecruiterAvailability([]);
@@ -293,18 +395,18 @@ export default function RecruiterTasksPage() {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      scheduled: { variant: "default", icon: Clock, label: "Scheduled" },
-      completed: { variant: "default", icon: CheckCircle2, label: "Completed", className: "bg-green-500" },
-      cancelled: { variant: "destructive", icon: XCircle, label: "Cancelled" },
-      rescheduled: { variant: "secondary", icon: AlertCircle, label: "Rescheduled" },
+      scheduled: { variant: "default", icon: Clock, label: "Scheduled", badgeClassName: "bg-slate-900 text-white" },
+      completed: { variant: "default", icon: CheckCircle2, label: "Completed", badgeClassName: "bg-green-500 text-white" },
+      cancelled: { variant: "destructive", icon: XCircle, label: "Cancelled", badgeClassName: "bg-red-500 text-white" },
+      rescheduled: { variant: "secondary", icon: AlertCircle, label: "Rescheduled", badgeClassName: "bg-yellow-500 text-white" },
     };
 
     const config = statusConfig[status] || statusConfig.scheduled;
     const Icon = config.icon;
 
     return (
-      <Badge variant={config.variant} className={config.className}>
-        <Icon className="w-3 h-3 mr-1" />
+      <Badge variant={config.variant} className={config.badgeClassName}>
+        <Icon className="w-3 h-3 mr-1 text-white" />
         {config.label}
       </Badge>
     );
@@ -670,20 +772,14 @@ export default function RecruiterTasksPage() {
                             }`}
                           >
                             <div className="text-sm font-medium">
-                              {formatFullDateTimeWithAMPM(slotDateTime)}
+                              {formatDateShort(slotDate)}
                             </div>
-                            {slot.end_time && (
-                              <div className="text-xs text-slate-500 mt-1">
-                                Ends: {formatTimeWithAMPM(
-                                  (() => {
-                                    const endDateTime = new Date(slotDate);
-                                    const [endHours, endMinutes] = slot.end_time
-                                      .split(":")
-                                      .map(Number);
-                                    endDateTime.setHours(endHours, endMinutes, 0, 0);
-                                    return endDateTime;
-                                  })()
-                                )}
+                            <div className="text-xs text-slate-600 mt-1">
+                              {convert24To12Hour(slot.start_time)} - {convert24To12Hour(slot.end_time)}
+                            </div>
+                            {slot._isSplit && (
+                              <div className="text-xs text-blue-600 mt-1 italic">
+                                Available segment
                               </div>
                             )}
                           </button>

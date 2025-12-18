@@ -38,6 +38,7 @@ import {
   DollarSign,
   Edit,
   Eye,
+  Loader2,
   Plus,
   Search,
 } from "lucide-react";
@@ -62,6 +63,7 @@ export default function JobsPage() {
   const [error, setError] = useState(null);
   const [recruiters, setRecruiters] = useState([]);
   const [loadingRecruiters, setLoadingRecruiters] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form state
   const [jobForm, setJobForm] = useState({
@@ -168,6 +170,7 @@ export default function JobsPage() {
 
   const handleCreateJob = async () => {
     try {
+      setIsSubmitting(true);
       const skillsArray = jobForm.skills
         ? jobForm.skills
             .split(",")
@@ -196,11 +199,14 @@ export default function JobsPage() {
     } catch (err) {
       console.error("Error creating job posting:", err);
       toast.error(err.message || "Failed to create job posting");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleUpdateJob = async () => {
     try {
+      setIsSubmitting(true);
       const skillsArray = jobForm.skills
         ? jobForm.skills
             .split(",")
@@ -228,6 +234,8 @@ export default function JobsPage() {
     } catch (err) {
       console.error("Error updating job posting:", err);
       toast.error(err.message || "Failed to update job posting");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -588,6 +596,7 @@ export default function JobsPage() {
               if (!open) {
                 setEditingJob(null);
                 resetForm();
+                setIsSubmitting(false);
               }
             }}
           >
@@ -828,15 +837,25 @@ export default function JobsPage() {
                     setShowCreateDialog(false);
                     setEditingJob(null);
                     resetForm();
+                    setIsSubmitting(false);
                   }}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   className="bg-green-500 hover:bg-green-600 text-white"
                   onClick={editingJob ? handleUpdateJob : handleCreateJob}
+                  disabled={isSubmitting}
                 >
-                  {editingJob ? "Update Job" : "Create Job"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {editingJob ? "Updating..." : "Creating..."}
+                    </>
+                  ) : (
+                    editingJob ? "Update Job" : "Create Job"
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>

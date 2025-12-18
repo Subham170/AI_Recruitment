@@ -408,6 +408,58 @@ export const updateTaskStatus = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
+/**
+ * Get booked slots for a recruiter (for filtering availability)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+export const getBookedSlots = async (req, res) => {
+  try {
+    const { recruiterId } = req.params;
+    const { jobId } = req.query; // Optional: filter by job
+
+    if (!recruiterId) {
+      return res.status(400).json({
+        message: "Recruiter ID is required",
+      });
+    }
+
+    // Build query for scheduled/completed interviews (not cancelled)
+    const query = {
+      recruiter_id: recruiterId,
+      status: { $in: ["scheduled", "completed"] }, // Only count active bookings
+    };
+
+    // Optionally filter by job
+    if (jobId) {
+      query.job_id = jobId;
+    }
+
+    // Fetch tasks with interview times
+    const bookedTasks = await RecruiterTask.find(query)
+      .select("interview_time interview_end_time status")
+      .lean();
+
+    // Format booked slots for easy comparison
+    const bookedSlots = bookedTasks.map((task) => ({
+      startTime: task.interview_time,
+      endTime: task.interview_end_time || new Date(task.interview_time.getTime() + 30 * 60 * 1000), // Default 30 min if no end time
+      status: task.status,
+    }));
+
+    res.status(200).json({
+      success: true,
+      bookedSlots,
+      count: bookedSlots.length,
+    });
+  } catch (error) {
+    console.error("Error fetching booked slots:", error);
+    res.status(500).json({
+      message: error.message || "Failed to fetch booked slots",
+    });
+  }
+};
+
 export const cancelInterview = async (req, res) => {
   try {
     const currentUserId = req.user?.id;

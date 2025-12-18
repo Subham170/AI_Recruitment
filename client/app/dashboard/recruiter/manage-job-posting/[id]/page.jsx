@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import Loading from "@/components/ui/loading";
 import {
   Select,
@@ -42,6 +43,7 @@ import {
   jobPostingAPI,
   matchingAPI,
   recruiterAvailabilityAPI,
+  recruiterTasksAPI,
   resumeParserAPI,
   userAPI,
 } from "@/lib/api";
@@ -102,25 +104,28 @@ export default function RecruiterJobDetailPage() {
   const isInitialMount = useRef(true);
   const hasLoadedFromStorage = useRef(false);
   
-  // Load saved tab from localStorage when component mounts or jobId changes
+  // Load saved tab from localStorage only on initial mount or when jobId changes
   // This runs first to ensure we have the correct tab before any saves happen
+  const loadedJobId = useRef(null);
+  
   useEffect(() => {
-    if (typeof window !== "undefined" && jobId) {
+    // Only load if this is a new jobId (different from what we've already loaded)
+    // This prevents the effect from overriding user clicks
+    if (typeof window !== "undefined" && jobId && loadedJobId.current !== jobId) {
       const stored = localStorage.getItem(`job-posting-tab-${jobId}`);
       const validTabs = ["details", "ai-match", "applicants", "screenings", "interviews", "offers", "rejected"];
       
-      // Mark as loaded immediately to prevent save useEffect from running prematurely
+      // Mark as loaded for this jobId
+      loadedJobId.current = jobId;
       hasLoadedFromStorage.current = true;
       
       if (stored && validTabs.includes(stored)) {
-        // Only update if different from current to avoid unnecessary re-renders
-        if (stored !== activeTab) {
-          setActiveTab(stored);
-        }
+        // Only set if we haven't loaded for this jobId yet
+        setActiveTab(stored);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId]); // Only depend on jobId - this ensures it runs when navigating back
+  }, [jobId]); // Only depend on jobId - this ensures it runs when navigating to a different job
   
   // Save activeTab to localStorage whenever it changes (but skip on initial mount)
   useEffect(() => {
@@ -131,19 +136,12 @@ export default function RecruiterJobDetailPage() {
     }
     
     // Only save after we've loaded from storage to prevent race conditions
+    // Allow user to switch to any tab, including "details", after initial mount
     if (typeof window !== "undefined" && jobId && activeTab && hasLoadedFromStorage.current) {
       const stored = localStorage.getItem(`job-posting-tab-${jobId}`);
       
-      // Prevent overwriting a stored non-default value with "details" on remount
-      // This protects against race conditions where "details" might be saved before the stored value loads
-      if (stored && stored !== "details" && activeTab === "details") {
-        // Don't overwrite a non-default stored value with "details"
-        // Restore the stored value instead
-        setActiveTab(stored);
-        return;
-      }
-      
       // Only save if different to avoid unnecessary writes
+      // Don't prevent user from explicitly switching to "details" - that's a valid action
       if (stored !== activeTab) {
         localStorage.setItem(`job-posting-tab-${jobId}`, activeTab);
       }
@@ -217,6 +215,9 @@ export default function RecruiterJobDetailPage() {
   const [submittingAction, setSubmittingAction] = useState(false);
   const [recruiters, setRecruiters] = useState([]);
   const [loadingRecruiters, setLoadingRecruiters] = useState(false);
+  const [slotsModalOpen, setSlotsModalOpen] = useState(false);
+  const [slotsData, setSlotsData] = useState({ available: [], booked: [] });
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [jobForm, setJobForm] = useState({
     title: "",
     description: "",
@@ -256,6 +257,189 @@ export default function RecruiterJobDetailPage() {
       console.error("Error fetching recruiters:", err);
     } finally {
       setLoadingRecruiters(false);
+    }
+  };
+
+  const fetchSlotsData = async () => {
+    if (!jobId) return;
+    
+    try {
+      setLoadingSlots(true);
+      
+      // Get all recruiters for this job
+      const jobRecruiters = [];
+      if (jobPosting?.primary_recruiter_id) {
+        const primaryId = jobPosting.primary_recruiter_id._id?.toString() || jobPosting.primary_recruiter_id.toString();
+        jobRecruiters.push(primaryId);
+      }
+      if (jobPosting?.secondary_recruiter_id) {
+        const secondaryIds = Array.isArray(jobPosting.secondary_recruiter_id)
+          ? jobPosting.secondary_recruiter_id.map(r => r._id?.toString() || r.toString())
+          : [jobPosting.secondary_recruiter_id._id?.toString() || jobPosting.secondary_recruiter_id.toString()];
+        jobRecruiters.push(...secondaryIds);
+      }
+
+      if (jobRecruiters.length === 0) {
+        setSlotsData({ available: [], booked: [] });
+        return;
+      }
+
+      // Fetch availability and booked slots for all recruiters
+      const [availabilityResponse, bookedSlotsPromises] = await Promise.all([
+        recruiterAvailabilityAPI.getAllAvailabilityByJob(jobId),
+        Promise.all(jobRecruiters.map(recruiterId => 
+          recruiterTasksAPI.getBookedSlots(recruiterId, jobId).catch(err => {
+            console.error(`Error fetching booked slots for recruiter ${recruiterId}:`, err);
+            return { bookedSlots: [] };
+          })
+        ))
+      ]);
+
+      // Process booked slots first (grouped by recruiter)
+      const bookedSlotsByRecruiter = new Map();
+      bookedSlotsPromises.forEach((response, index) => {
+        const recruiterId = jobRecruiters[index];
+        const recruiter = recruiters.find(r => 
+          (r._id?.toString() || r.toString()) === recruiterId
+        ) || allAvailabilities.find(a => 
+          (a.recruiter_id?._id?.toString() || a.recruiter_id?.toString()) === recruiterId
+        )?.recruiter_id;
+        const recruiterName = recruiter?.name || "Unknown Recruiter";
+        
+        if (response?.bookedSlots && response.bookedSlots.length > 0) {
+          const recruiterBookedSlots = response.bookedSlots.map(slot => ({
+            recruiterId,
+            recruiterName,
+            startTime: new Date(slot.startTime),
+            endTime: new Date(slot.endTime),
+            status: slot.status,
+          }));
+          bookedSlotsByRecruiter.set(recruiterId, recruiterBookedSlots);
+        } else {
+          bookedSlotsByRecruiter.set(recruiterId, []);
+        }
+      });
+
+      // Flatten booked slots for display
+      const bookedSlots = Array.from(bookedSlotsByRecruiter.values()).flat();
+
+      // Process available slots and split them based on booked slots
+      const allAvailabilities = availabilityResponse?.availabilities || [];
+      const availableSlots = [];
+      
+      allAvailabilities.forEach(avail => {
+        const recruiterId = avail.recruiter_id?._id?.toString() || avail.recruiter_id?.toString();
+        const recruiterName = avail.recruiter_id?.name || "Unknown Recruiter";
+        const recruiterBookedSlots = bookedSlotsByRecruiter.get(recruiterId) || [];
+        
+        if (avail.availability_slots && avail.availability_slots.length > 0) {
+          avail.availability_slots.forEach(slot => {
+            if (slot.is_available !== false) {
+              const slotDate = new Date(slot.date);
+              const slotStartTime = new Date(slotDate);
+              const [hours, minutes] = slot.start_time.split(":").map(Number);
+              slotStartTime.setHours(hours, minutes, 0, 0);
+              
+              const slotEndTime = new Date(slotStartTime);
+              const [endHours, endMinutes] = slot.end_time.split(":").map(Number);
+              slotEndTime.setHours(endHours, endMinutes, 0, 0);
+
+              // Find overlapping booked slots for this recruiter
+              const overlappingBookings = recruiterBookedSlots.filter((bookedSlot) => {
+                return (
+                  slotStartTime < bookedSlot.endTime &&
+                  slotEndTime > bookedSlot.startTime
+                );
+              });
+
+              if (overlappingBookings.length === 0) {
+                // No overlap, keep the slot as is
+                availableSlots.push({
+                  recruiterId,
+                  recruiterName,
+                  date: slot.date,
+                  start_time: slot.start_time,
+                  end_time: slot.end_time,
+                });
+              } else {
+                // Sort overlapping bookings by start time
+                overlappingBookings.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+
+                // Create available segments by subtracting booked times
+                let currentStart = slotStartTime;
+                
+                overlappingBookings.forEach((bookedSlot) => {
+                  // If there's available time before this booking, create a slot
+                  if (currentStart < bookedSlot.startTime) {
+                    const availableStart = new Date(currentStart);
+                    const availableEnd = new Date(bookedSlot.startTime);
+                    
+                    // Only add if there's at least 15 minutes available
+                    if (availableEnd.getTime() - availableStart.getTime() >= 15 * 60 * 1000) {
+                      const startHours = availableStart.getHours().toString().padStart(2, '0');
+                      const startMinutes = availableStart.getMinutes().toString().padStart(2, '0');
+                      const endHours = availableEnd.getHours().toString().padStart(2, '0');
+                      const endMinutes = availableEnd.getMinutes().toString().padStart(2, '0');
+                      
+                      availableSlots.push({
+                        recruiterId,
+                        recruiterName,
+                        date: slot.date,
+                        start_time: `${startHours}:${startMinutes}`,
+                        end_time: `${endHours}:${endMinutes}`,
+                        _isSplit: true, // Mark as split slot
+                      });
+                    }
+                  }
+                  
+                  // Update current start to after this booking
+                  currentStart = bookedSlot.endTime > currentStart ? bookedSlot.endTime : currentStart;
+                });
+                
+                // If there's available time after the last booking, create a slot
+                if (currentStart < slotEndTime) {
+                  const availableStart = new Date(currentStart);
+                  const availableEnd = new Date(slotEndTime);
+                  
+                  // Only add if there's at least 15 minutes available
+                  if (availableEnd.getTime() - availableStart.getTime() >= 15 * 60 * 1000) {
+                    const startHours = availableStart.getHours().toString().padStart(2, '0');
+                    const startMinutes = availableStart.getMinutes().toString().padStart(2, '0');
+                    const endHours = availableEnd.getHours().toString().padStart(2, '0');
+                    const endMinutes = availableEnd.getMinutes().toString().padStart(2, '0');
+                    
+                    availableSlots.push({
+                      recruiterId,
+                      recruiterName,
+                      date: slot.date,
+                      start_time: `${startHours}:${startMinutes}`,
+                      end_time: `${endHours}:${endMinutes}`,
+                      _isSplit: true, // Mark as split slot
+                    });
+                  }
+                }
+              }
+            }
+          });
+        }
+      });
+
+      // Sort by date/time
+      availableSlots.sort((a, b) => {
+        const dateA = new Date(`${a.date}T${a.start_time}`);
+        const dateB = new Date(`${b.date}T${b.start_time}`);
+        return dateA - dateB;
+      });
+
+      bookedSlots.sort((a, b) => a.startTime - b.startTime);
+
+      setSlotsData({ available: availableSlots, booked: bookedSlots });
+    } catch (err) {
+      console.error("Error fetching slots data:", err);
+      toast.error("Failed to load slots data");
+      setSlotsData({ available: [], booked: [] });
+    } finally {
+      setLoadingSlots(false);
     }
   };
 
@@ -1406,9 +1590,13 @@ export default function RecruiterJobDetailPage() {
 
     try {
       setLoadingAvailability(true);
-      // Get all availability for the job and filter by recruiter
-      const allResponse =
-        await recruiterAvailabilityAPI.getAllAvailabilityByJob(jobId);
+      
+      // Fetch availability and booked slots in parallel
+      const [allResponse, bookedSlotsResponse] = await Promise.all([
+        recruiterAvailabilityAPI.getAllAvailabilityByJob(jobId),
+        recruiterTasksAPI.getBookedSlots(recruiterId, jobId),
+      ]);
+
       const allAvail = allResponse?.availabilities || [];
       const recruiterAvail = allAvail.find((avail) => {
         const availRecruiterId =
@@ -1417,10 +1605,105 @@ export default function RecruiterJobDetailPage() {
       });
 
       if (recruiterAvail && recruiterAvail.availability_slots) {
-        // Filter only available slots
-        const availableSlots = recruiterAvail.availability_slots.filter(
+        // Filter only available slots (not marked as unavailable)
+        let availableSlots = recruiterAvail.availability_slots.filter(
           (slot) => slot.is_available !== false
         );
+
+        // Split slots that partially overlap with booked interviews
+        const bookedSlots = bookedSlotsResponse?.bookedSlots || [];
+        if (bookedSlots.length > 0) {
+          const processedSlots = [];
+          
+          availableSlots.forEach((slot) => {
+            const slotDate = new Date(slot.date);
+            const slotStartTime = new Date(slotDate);
+            const [hours, minutes] = slot.start_time.split(":").map(Number);
+            slotStartTime.setHours(hours, minutes, 0, 0);
+            
+            const slotEndTime = new Date(slotStartTime);
+            const [endHours, endMinutes] = slot.end_time.split(":").map(Number);
+            slotEndTime.setHours(endHours, endMinutes, 0, 0);
+
+            // Find all overlapping booked slots for this availability slot
+            const overlappingBookings = bookedSlots.filter((bookedSlot) => {
+              const bookedStart = new Date(bookedSlot.startTime);
+              const bookedEnd = new Date(bookedSlot.endTime);
+              
+              // Check for overlap: slot starts before booked ends AND slot ends after booked starts
+              return (
+                slotStartTime < bookedEnd &&
+                slotEndTime > bookedStart
+              );
+            });
+
+            if (overlappingBookings.length === 0) {
+              // No overlap, keep the slot as is
+              processedSlots.push(slot);
+            } else {
+              // Sort overlapping bookings by start time
+              overlappingBookings.sort((a, b) => 
+                new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+              );
+
+              // Create available segments by subtracting booked times
+              let currentStart = slotStartTime;
+              
+              overlappingBookings.forEach((bookedSlot) => {
+                const bookedStart = new Date(bookedSlot.startTime);
+                const bookedEnd = new Date(bookedSlot.endTime);
+                
+                // If there's available time before this booking, create a slot
+                if (currentStart < bookedStart) {
+                  const availableStart = new Date(currentStart);
+                  const availableEnd = new Date(bookedStart);
+                  
+                  // Only add if there's at least 15 minutes available
+                  if (availableEnd.getTime() - availableStart.getTime() >= 15 * 60 * 1000) {
+                    const startHours = availableStart.getHours().toString().padStart(2, '0');
+                    const startMinutes = availableStart.getMinutes().toString().padStart(2, '0');
+                    const endHours = availableEnd.getHours().toString().padStart(2, '0');
+                    const endMinutes = availableEnd.getMinutes().toString().padStart(2, '0');
+                    
+                    processedSlots.push({
+                      ...slot,
+                      start_time: `${startHours}:${startMinutes}`,
+                      end_time: `${endHours}:${endMinutes}`,
+                      _isSplit: true, // Mark as split slot
+                    });
+                  }
+                }
+                
+                // Update current start to after this booking
+                currentStart = bookedEnd > currentStart ? bookedEnd : currentStart;
+              });
+              
+              // If there's available time after the last booking, create a slot
+              if (currentStart < slotEndTime) {
+                const availableStart = new Date(currentStart);
+                const availableEnd = new Date(slotEndTime);
+                
+                // Only add if there's at least 15 minutes available
+                if (availableEnd.getTime() - availableStart.getTime() >= 15 * 60 * 1000) {
+                  const startHours = availableStart.getHours().toString().padStart(2, '0');
+                  const startMinutes = availableStart.getMinutes().toString().padStart(2, '0');
+                  const endHours = availableEnd.getHours().toString().padStart(2, '0');
+                  const endMinutes = availableEnd.getMinutes().toString().padStart(2, '0');
+                  
+                  processedSlots.push({
+                    ...slot,
+                    start_time: `${startHours}:${startMinutes}`,
+                    end_time: `${endHours}:${endMinutes}`,
+                    _isSplit: true, // Mark as split slot
+                  });
+                }
+              }
+            }
+          });
+          
+          availableSlots = processedSlots;
+        }
+
         setRecruiterAvailability(availableSlots);
       } else {
         setRecruiterAvailability([]);
@@ -1994,7 +2277,20 @@ export default function RecruiterJobDetailPage() {
             {activeTab === "details" && (
               <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
-                  <CardTitle>Job Description</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Job Description</CardTitle>
+                    <Button
+                      onClick={async () => {
+                        setSlotsModalOpen(true);
+                        await fetchSlotsData();
+                      }}
+                      variant="outline"
+                      className="gap-2 border-blue-200 bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+                    >
+                      <Calendar className="h-4 w-4" />
+                      View Recruiter Slots
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {jobPosting ? (
@@ -4521,7 +4817,11 @@ export default function RecruiterJobDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4">
-            <RecruiterAvailability jobId={jobId} user={user} />
+            <RecruiterAvailability 
+              jobId={jobId} 
+              user={user} 
+              onSaveSuccess={() => setAvailabilityDialogOpen(false)}
+            />
           </div>
         </DialogContent>
       </Dialog>
@@ -5391,6 +5691,145 @@ export default function RecruiterJobDetailPage() {
               <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Recruiter Slots Modal */}
+      <Dialog open={slotsModalOpen} onOpenChange={setSlotsModalOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-md border-white/60 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-2xl font-bold text-slate-900">
+              <div className="p-2 rounded-lg bg-blue-50">
+                <Calendar className="h-6 w-6 text-blue-600" />
+              </div>
+              Recruiter Availability & Booked Slots
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              View all available time slots and booked interviews for recruiters assigned to this job posting.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingSlots ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <span className="ml-3 text-slate-600">Loading slots data...</span>
+            </div>
+          ) : (
+            <div className="space-y-6 py-4">
+              {/* Available Slots Section */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-1.5 rounded bg-green-50">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Available Slots ({slotsData.available.length})
+                  </h3>
+                </div>
+                {slotsData.available.length > 0 ? (
+                  <div className="space-y-2 max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-4 bg-slate-50">
+                    {slotsData.available.map((slot, index) => {
+                      const slotDate = new Date(slot.date);
+                      const slotDateTime = new Date(slotDate);
+                      const [hours, minutes] = slot.start_time.split(":").map(Number);
+                      slotDateTime.setHours(hours, minutes, 0, 0);
+                      
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200 hover:border-green-300 hover:shadow-sm transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="p-1.5 rounded bg-green-100">
+                              <Clock className="h-4 w-4 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-slate-900">
+                                {slot.recruiterName}
+                              </p>
+                              <p className="text-sm text-slate-600">
+                                {format(slotDate, "EEEE, MMMM d, yyyy")} • {convert24To12Hour(slot.start_time)} - {convert24To12Hour(slot.end_time)}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge className="bg-green-100 text-green-700 border-green-200">
+                            Available
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 border border-slate-200 rounded-lg bg-slate-50">
+                    <Calendar className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                    <p className="text-slate-500">No available slots found</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Booked Slots Section */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-1.5 rounded bg-red-50">
+                    <X className="h-5 w-5 text-red-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Booked Slots ({slotsData.booked.length})
+                  </h3>
+                </div>
+                {slotsData.booked.length > 0 ? (
+                  <div className="space-y-2 max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-4 bg-slate-50">
+                    {slotsData.booked.map((slot, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-white rounded-lg border border-red-200 hover:border-red-300 hover:shadow-sm transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-1.5 rounded bg-red-100">
+                            <Clock className="h-4 w-4 text-red-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-900">
+                              {slot.recruiterName}
+                            </p>
+                            <p className="text-sm text-slate-600">
+                              {formatFullDateTimeWithAMPM(slot.startTime)} - {formatFullDateTimeWithAMPM(slot.endTime)}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge 
+                          className={`${
+                            slot.status === "completed" 
+                              ? "bg-blue-100 text-blue-700 border-blue-200"
+                              : slot.status === "scheduled"
+                              ? "bg-yellow-100 text-yellow-700 border-yellow-200"
+                              : "bg-red-100 text-red-700 border-red-200"
+                          }`}
+                        >
+                          {slot.status.charAt(0).toUpperCase() + slot.status.slice(1)}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 border border-slate-200 rounded-lg bg-slate-50">
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                    <p className="text-slate-500">No booked slots found</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-4 border-t border-slate-200">
+            <Button
+              variant="outline"
+              onClick={() => setSlotsModalOpen(false)}
+              className="border-slate-200 hover:bg-slate-50"
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

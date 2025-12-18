@@ -36,6 +36,7 @@ import {
   Edit,
   Eye,
   Filter,
+  Loader2,
   Plus,
   Search,
   Users,
@@ -64,6 +65,7 @@ export default function JobsPageContent() {
   const [error, setError] = useState(null);
   const [recruiters, setRecruiters] = useState([]);
   const [loadingRecruiters, setLoadingRecruiters] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Applied filters (used for API calls)
   const [filters, setFilters] = useState({
@@ -248,6 +250,7 @@ export default function JobsPageContent() {
 
   const handleCreateJob = async () => {
     try {
+      setIsSubmitting(true);
       const skillsArray = jobForm.skills
         ? jobForm.skills
             .split(",")
@@ -277,11 +280,14 @@ export default function JobsPageContent() {
     } catch (err) {
       console.error("Error creating job posting:", err);
       toast.error(err.message || "Failed to create job posting");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleUpdateJob = async () => {
     try {
+      setIsSubmitting(true);
       const skillsArray = jobForm.skills
         ? jobForm.skills
             .split(",")
@@ -311,6 +317,8 @@ export default function JobsPageContent() {
       console.error("Error updating job posting:", err);
       const errorMessage = err.message || "Failed to update job posting";
       toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1126,6 +1134,7 @@ export default function JobsPageContent() {
               if (!open) {
                 setEditingJob(null);
                 resetForm();
+                setIsSubmitting(false);
               }
             }}
           >
@@ -1476,16 +1485,26 @@ export default function JobsPageContent() {
                     setShowCreateDialog(false);
                     setEditingJob(null);
                     resetForm();
+                    setIsSubmitting(false);
                   }}
                   className="border-slate-200 hover:bg-slate-50"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   className="bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 transition-all duration-300"
                   onClick={editingJob ? handleUpdateJob : handleCreateJob}
+                  disabled={isSubmitting}
                 >
-                  {editingJob ? "Update Job" : "Create Job"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {editingJob ? "Updating..." : "Creating..."}
+                    </>
+                  ) : (
+                    editingJob ? "Update Job" : "Create Job"
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>

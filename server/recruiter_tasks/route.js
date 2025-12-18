@@ -6,6 +6,7 @@ import {
   getRecruiterTaskStats,
   updateTaskStatus,
   cancelInterview,
+  getBookedSlots,
 } from "./controller.js";
 
 const router = express.Router();
@@ -22,6 +23,10 @@ router.get("/stats", getRecruiterTaskStats);
 
 // Get interviews (all tasks) for a specific candidate
 router.get("/candidate/:candidateId/interviews", getCandidateInterviews);
+
+// Get booked slots for a recruiter (for filtering availability)
+// Query params: jobId (optional)
+router.get("/recruiter/:recruiterId/booked-slots", getBookedSlots);
 
 // Update task status
 router.patch("/:taskId/status", updateTaskStatus);

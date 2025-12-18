@@ -4,6 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { recruiterAvailabilityAPI } from "@/lib/api";
 import {
   convert24To12Hour,
@@ -11,10 +24,10 @@ import {
 } from "@/lib/timeFormatter";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Clock, Plus, Trash2, X } from "lucide-react";
+import { CalendarIcon, Clock, Plus, Trash2, X, AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export default function RecruiterAvailability({ jobId, user }) {
+export default function RecruiterAvailability({ jobId, user, onSaveSuccess }) {
   const [selectedDate, setSelectedDate] = useState(null);
   const [availability, setAvailability] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +36,7 @@ export default function RecruiterAvailability({ jobId, user }) {
   const [timeSlots, setTimeSlots] = useState({}); // { dateString: [{ start_time, end_time, is_available }] }
   const [newSlot, setNewSlot] = useState({ start_time: "", end_time: "" });
   const [editingSlot, setEditingSlot] = useState(null);
+  const [clearAllDialogOpen, setClearAllDialogOpen] = useState(false);
 
   // Check if user is a recruiter assigned to this job
   const isRecruiter = user?.role === "recruiter";
@@ -192,6 +206,11 @@ export default function RecruiterAvailability({ jobId, user }) {
       await fetchAvailability();
       setSelectedDate(null);
       setError(null);
+      
+      // Close the dialog if callback is provided
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      }
     } catch (err) {
       console.error("Error saving availability:", err);
       setError(err.message || "Failed to save availability");
@@ -201,12 +220,6 @@ export default function RecruiterAvailability({ jobId, user }) {
   };
 
   const handleDeleteAvailability = async () => {
-    if (
-      !confirm("Are you sure you want to delete all availability for this job?")
-    ) {
-      return;
-    }
-
     try {
       setSaving(true);
       setError(null);
@@ -214,6 +227,7 @@ export default function RecruiterAvailability({ jobId, user }) {
       setAvailability(null);
       setTimeSlots({});
       setSelectedDate(null);
+      setClearAllDialogOpen(false);
     } catch (err) {
       console.error("Error deleting availability:", err);
       setError(err.message || "Failed to delete availability");
@@ -255,7 +269,7 @@ export default function RecruiterAvailability({ jobId, user }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleDeleteAvailability}
+            onClick={() => setClearAllDialogOpen(true)}
             disabled={saving}
             className="group border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all duration-300"
           >
@@ -266,6 +280,52 @@ export default function RecruiterAvailability({ jobId, user }) {
           </Button>
         </div>
       )}
+
+      {/* Clear All Confirmation Dialog */}
+      <Dialog open={clearAllDialogOpen} onOpenChange={setClearAllDialogOpen}>
+        <DialogContent className="max-w-md bg-white/95 backdrop-blur-md border-white/60 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-slate-900">
+              <div className="p-2 rounded-lg bg-red-50">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              Clear All Availability
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              Are you sure you want to delete all availability for this job? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-slate-700">
+              This will permanently remove all time slots you've set for this job posting. You'll need to add them again if you want to set availability later.
+            </p>
+          </div>
+          <DialogFooter className="pt-4 border-t border-slate-200">
+            <Button
+              variant="outline"
+              onClick={() => setClearAllDialogOpen(false)}
+              disabled={saving}
+              className="border-slate-200 hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteAvailability}
+              disabled={saving}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {saving ? (
+                <>
+                  <Clock className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Yes, Clear All"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {error && (
         <div className="p-4 rounded-xl bg-red-50 border border-red-200">

@@ -21,7 +21,6 @@ const jobPostingSchema = new mongoose.Schema(
     },
     role: {
       type: [String],
-      enum: ["SDET", "QA", "DevOps", "Frontend", "Backend", "Full-stack"],
       default: [],
     },
     ctc: {

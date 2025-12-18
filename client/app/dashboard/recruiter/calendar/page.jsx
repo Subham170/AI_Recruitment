@@ -100,19 +100,20 @@ export default function RecruiterCalendarPage() {
         variant: "default",
         icon: Clock,
         label: "Scheduled",
-        className: "bg-blue-500",
+        badgeClassName: "bg-slate-900 text-white",
       },
       completed: {
         variant: "default",
         icon: CheckCircle2,
         label: "Completed",
-        className: "bg-green-500",
+        badgeClassName: "bg-green-500 text-white",
       },
-      cancelled: { variant: "destructive", icon: XCircle, label: "Cancelled" },
+      cancelled: { variant: "destructive", icon: XCircle, label: "Cancelled", badgeClassName: "bg-red-500 text-white" },
       rescheduled: {
         variant: "secondary",
         icon: AlertCircle,
         label: "Rescheduled",
+        badgeClassName: "bg-yellow-500 text-white",
       },
     };
 
@@ -120,8 +121,8 @@ export default function RecruiterCalendarPage() {
     const Icon = config.icon;
 
     return (
-      <Badge variant={config.variant} className={config.className}>
-        <Icon className="w-3 h-3 mr-1" />
+      <Badge variant={config.variant} className={config.badgeClassName}>
+        <Icon className="w-3 h-3 mr-1 text-white" />
         {config.label}
       </Badge>
     );

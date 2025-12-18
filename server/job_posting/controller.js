@@ -34,25 +34,7 @@ export const createJobPosting = async (req, res) => {
       });
     }
 
-    // Validate role if provided
-    if (role && Array.isArray(role)) {
-      const validRoles = [
-        "SDET",
-        "QA",
-        "DevOps",
-        "Frontend",
-        "Backend",
-        "Full-stack",
-      ];
-      const invalidRoles = role.filter((r) => !validRoles.includes(r));
-      if (invalidRoles.length > 0) {
-        return res.status(400).json({
-          message: `Invalid role(s): ${invalidRoles.join(
-            ", "
-          )}. Must be one of: ${validRoles.join(", ")}`,
-        });
-      }
-    }
+    // Role validation removed - any string value is now allowed
 
     // Get current user ID from auth middleware
     const currentUserId = req.user?.id;
@@ -460,25 +442,7 @@ export const updateJobPosting = async (req, res) => {
       }
     }
 
-    // Validate role if provided
-    if (role && Array.isArray(role)) {
-      const validRoles = [
-        "SDET",
-        "QA",
-        "DevOps",
-        "Frontend",
-        "Backend",
-        "Full-stack",
-      ];
-      const invalidRoles = role.filter((r) => !validRoles.includes(r));
-      if (invalidRoles.length > 0) {
-        return res.status(400).json({
-          message: `Invalid role(s): ${invalidRoles.join(
-            ", "
-          )}. Must be one of: ${validRoles.join(", ")}`,
-        });
-      }
-    }
+    // Role validation removed - any string value is now allowed
 
     // Validate status if provided
     if (status !== undefined && status !== null && status !== "") {

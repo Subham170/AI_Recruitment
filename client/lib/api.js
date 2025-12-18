@@ -443,6 +443,21 @@ export const recruiterTasksAPI = {
     });
   },
 
+  getBookedSlots: async (recruiterId, jobId = null) => {
+    const params = new URLSearchParams();
+    if (jobId) {
+      params.append("jobId", jobId);
+    }
+    return apiRequest(
+      `/recruiter-tasks/recruiter/${recruiterId}/booked-slots${
+        params.toString() ? `?${params.toString()}` : ""
+      }`,
+      {
+        method: "GET",
+      }
+    );
+  },
+
   updateTaskStatus: async (taskId, status, notes) => {
     return apiRequest(`/recruiter-tasks/${taskId}/status`, {
       method: "PATCH",
