@@ -1092,9 +1092,9 @@ export default function JobsPageContent() {
                           showEdit={false}
                         />
                       ) : (
-                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
-                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
-                          <p className="text-slate-700 dark:text-slate-300 font-medium">
+                        <div className="bg-slate-50/90 backdrop-blur-sm border border-dashed border-slate-300 rounded-xl p-8 text-center">
+                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+                          <p className="text-slate-600 font-medium">
                             You are not assigned as a secondary recruiter to any
                             job postings.
                           </p>
@@ -1116,9 +1116,9 @@ export default function JobsPageContent() {
                           showEdit={false}
                         />
                       ) : (
-                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
-                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
-                          <p className="text-slate-700 dark:text-slate-300 font-medium">
+                        <div className="bg-slate-50/90 backdrop-blur-sm border border-dashed border-slate-300 rounded-xl p-8 text-center">
+                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+                          <p className="text-slate-600 font-medium">
                             No other job postings available.
                           </p>
                         </div>
@@ -1135,9 +1135,9 @@ export default function JobsPageContent() {
                         showEdit={false}
                       />
                     ) : (
-                      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-slate-200/50 dark:border-slate-800/50 rounded-lg p-8 text-center">
-                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
-                        <p className="text-slate-700 dark:text-slate-300 font-medium">
+                      <div className="bg-slate-50/90 backdrop-blur-sm border border-dashed border-slate-300 rounded-xl p-8 text-center">
+                        <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+                        <p className="text-slate-600 font-medium">
                           No job postings available.
                         </p>
                       </div>
