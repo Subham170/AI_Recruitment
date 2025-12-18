@@ -5,12 +5,12 @@ import {
   createUser,
   deleteUser,
   getCurrentUser,
+  getRecruiters,
   getUserById,
   getUsers,
   // Authentication
   login,
   updateUser,
-  getRecruiters
 } from "./controller.js";
 
 const router = express.Router();
@@ -42,7 +42,9 @@ const createUserRoute = async (req, res, next) => {
     // If admin exists, require authentication
     if (adminExists) {
       return authenticate(req, res, () => {
-        authorize("admin")(req, res, () => createUser(req, res));
+        // Allow both admin and manager; controller enforces that
+        // managers can only create recruiters.
+        authorize("admin", "manager")(req, res, () => createUser(req, res));
       });
     }
 

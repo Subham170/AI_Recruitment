@@ -2,8 +2,10 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "./model.js";
 
-// Create a new user (Admin only - can create managers and recruiters)
-// Exception: If no admin exists, allow creating the first admin without authentication
+// Create a new user
+// - Admin can create admins, managers, and recruiters
+// - Manager can only create recruiters
+// - Exception: If no admin exists, allow creating the first admin without authentication
 export const createUser = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -38,8 +40,31 @@ export const createUser = async (req, res) => {
       }
     }
 
-    // If not first admin, require authentication (handled by route middleware)
-    // For first admin, we allow creation without auth
+    // Permission checks for non-initial admins
+    const currentUser = req.user || null;
+
+    // If this is NOT the first admin, enforce role-based access:
+    // - admin: can create any valid role
+    // - manager: can only create recruiters
+    if (!isFirstAdmin) {
+      if (!currentUser) {
+        return res
+          .status(403)
+          .json({ message: "Access denied. Insufficient permissions." });
+      }
+
+      if (currentUser.role === "manager") {
+        if (role !== "recruiter") {
+          return res.status(403).json({
+            message: "Managers can only create recruiter users",
+          });
+        }
+      } else if (currentUser.role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Access denied. Insufficient permissions." });
+      }
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -84,7 +109,7 @@ export const getUsers = async (req, res) => {
     const { role: filterRole, search, page = 1, pageSize = 7 } = req.query;
 
     let query = {};
-    
+
     // Role filter
     if (filterRole) {
       query.role = filterRole;
@@ -305,12 +330,14 @@ export const login = async (req, res) => {
 //get all recruiters
 export const getRecruiters = async (req, res) => {
   try {
-    const recruiters = await User.find({ role: "recruiter" }).select("-password");
+    const recruiters = await User.find({ role: "recruiter" }).select(
+      "-password"
+    );
     res.status(200).json({
       message: "Recruiters fetched successfully",
       recruiters,
     });
-    } catch (error) {
+  } catch (error) {
     res.status(500).json({ message: error.message });
-    }
   }
+};
