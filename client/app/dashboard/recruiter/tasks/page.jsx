@@ -25,7 +25,7 @@ import { recruiterTasksAPI } from "@/lib/api";
 import { Calendar, Clock, Mail, User, Briefcase, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { formatDateTimeShort, formatDateShort, formatFullDateTimeWithAMPM } from "@/lib/timeFormatter";
+import { formatDateTimeShort, formatDateShort, formatFullDateTimeWithAMPM, formatTimeWithAMPM } from "@/lib/timeFormatter";
 import { toast } from "sonner";
 
 export default function RecruiterTasksPage() {
@@ -286,7 +286,9 @@ export default function RecruiterTasksPage() {
                             <div className="flex items-center gap-3 mb-2">
                               {getStatusBadge(task.status)}
                               <span className="text-sm text-slate-500">
-                                {formatDateTimeShort(task.interview_time)}
+                                {task.interview_end_time
+                                  ? `${formatDateShort(task.interview_time)} at ${formatTimeWithAMPM(task.interview_time)} - ${formatTimeWithAMPM(task.interview_end_time)}`
+                                  : formatDateTimeShort(task.interview_time)}
                               </span>
                             </div>
 

@@ -177,7 +177,9 @@ export default function RecruiterCalendarPage() {
 
   // Format event text for calendar display
   const formatEventText = (task) => {
-    const time = formatTimeWithAMPM(task.interview_time);
+    const time = task.interview_end_time
+      ? `${formatTimeWithAMPM(task.interview_time)} - ${formatTimeWithAMPM(task.interview_end_time)}`
+      : formatTimeWithAMPM(task.interview_time);
     const candidateName = task.candidate_id?.name || "Interview";
     // Truncate to show time + first few chars (e.g., "10:00 AM In...")
     const shortName =
@@ -369,9 +371,9 @@ export default function RecruiterCalendarPage() {
                                       <div
                                         key={task._id || idx}
                                         className="text-xs bg-indigo-500 text-white rounded px-2 py-0.5 truncate shadow-sm"
-                                        title={`${formatTimeWithAMPM(
-                                          task.interview_time
-                                        )} - ${
+                                        title={`${task.interview_end_time
+                                          ? `${formatTimeWithAMPM(task.interview_time)} - ${formatTimeWithAMPM(task.interview_end_time)}`
+                                          : formatTimeWithAMPM(task.interview_time)} - ${
                                           task.candidate_id?.name ||
                                           "Unknown Candidate"
                                         }`}
@@ -440,7 +442,9 @@ export default function RecruiterCalendarPage() {
                               <div className="flex items-center gap-2 text-sm">
                                 <Clock className="w-4 h-4 text-slate-500" />
                                 <span className="text-slate-700">
-                                  {formatTimeWithAMPM(task.interview_time)}
+                                  {task.interview_end_time
+                                    ? `${formatTimeWithAMPM(task.interview_time)} - ${formatTimeWithAMPM(task.interview_end_time)}`
+                                    : formatTimeWithAMPM(task.interview_time)}
                                 </span>
                               </div>
 

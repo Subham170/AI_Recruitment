@@ -46,7 +46,7 @@ const transporter = nodemailer.createTransport({
  * @param {string} recruiterName - Recruiter name (optional)
  * @param {string} recruiterEmail - Recruiter email (optional)
  * @param {string} recruiterId - Recruiter ID to use recruiter-specific Cal.com credentials (optional)
- * @returns {Promise<string>} - Google Meet link
+ * @returns {Promise<{meetLink: string, startTime: Date, endTime: Date}>} - Object containing Google Meet link, start time, and end time
  */
 export async function generateGoogleMeetLink(
   scheduledTime,
@@ -61,29 +61,29 @@ export async function generateGoogleMeetLink(
     let eventTypeId = EVENT_TYPE_ID;
 
     // If recruiterId is provided, use recruiter-specific credentials
-    if (recruiterId) {
-      const credentials = await CalcomCredentials.findOne({ 
-        recruiterId,
-        isActive: true 
-      });
+    // if (recruiterId) {
+    //   const credentials = await CalcomCredentials.findOne({ 
+    //     recruiterId,
+    //     isActive: true 
+    //   });
 
-      if (!credentials) {
-        throw new Error(
-          "Cal.com credentials not found for this recruiter. Please configure your Cal.com API secret key and event type."
-        );
-      }
+    //   if (!credentials) {
+    //     throw new Error(
+    //       "Cal.com credentials not found for this recruiter. Please configure your Cal.com API secret key and event type."
+    //     );
+    //   }
 
-      if (!credentials.apiSecretKey) {
-        throw new Error("Cal.com API secret key not configured for this recruiter");
-      }
+    //   if (!credentials.apiSecretKey) {
+    //     throw new Error("Cal.com API secret key not configured for this recruiter");
+    //   }
 
-      if (!credentials.eventTypeId) {
-        throw new Error("Cal.com event type ID not configured for this recruiter");
-      }
+    //   if (!credentials.eventTypeId) {
+    //     throw new Error("Cal.com event type ID not configured for this recruiter");
+    //   }
 
-      apiSecretKey = credentials.apiSecretKey;
-      eventTypeId = credentials.eventTypeId;
-    }
+    //   apiSecretKey = credentials.apiSecretKey;
+    //   eventTypeId = credentials.eventTypeId;
+    // }
 
     // Validate credentials
     if (!apiSecretKey) {
@@ -293,6 +293,7 @@ export async function generateGoogleMeetLink(
 
     // Check if the creation response already contains the meeting link
     const creationData = createResp.data.data;
+    console.log("creationData--->", createResp.data);
     let meetLinkFromCreation =
       creationData.meetingUrl ||
       creationData.location?.url ||
@@ -304,13 +305,27 @@ export async function generateGoogleMeetLink(
       creationData.metadata?.videoCallUrl ||
       null;
 
-    // If we got the link from creation, return it immediately
+    // If we got the link from creation, return it immediately with start and end times
     if (meetLinkFromCreation) {
       try {
         new URL(meetLinkFromCreation); // Validate it's a URL
         console.log("✓ Google Meet link generated from creation response!");
         console.log("📎 Meeting Link:", meetLinkFromCreation);
-        return meetLinkFromCreation;
+        
+        // Extract start and end times from creation response
+        const startTime = creationData.start ? new Date(creationData.start) : null;
+        const endTime = creationData.end ? new Date(creationData.end) : null;
+        
+        if (startTime && endTime) {
+          console.log("📅 Start Time:", startTime.toISOString());
+          console.log("📅 End Time:", endTime.toISOString());
+        }
+        
+        return {
+          meetLink: meetLinkFromCreation,
+          startTime: startTime || scheduledDate,
+          endTime: endTime || new Date(scheduledDate.getTime() + 30 * 60 * 1000), // Default 30 min if not provided
+        };
       } catch (urlError) {
         console.warn(
           "⚠️ Link from creation response is not a valid URL, fetching booking details..."
@@ -358,6 +373,8 @@ export async function generateGoogleMeetLink(
     }
 
     const bookingData = getBookingResp.data.data;
+
+    console.log("bookingData--->", bookingData);
 
     // Log only the relevant booking info, not the entire structure
     console.log("Booking retrieved. Checking for meeting link...");
@@ -409,7 +426,21 @@ export async function generateGoogleMeetLink(
 
     console.log("✓ Google Meet link generated successfully!");
     console.log("📎 Meeting Link:", meetLink);
-    return meetLink;
+    
+    // Extract start and end times from booking data
+    const startTime = bookingData.start ? new Date(bookingData.start) : scheduledDate;
+    const endTime = bookingData.end ? new Date(bookingData.end) : new Date(scheduledDate.getTime() + 30 * 60 * 1000); // Default 30 min if not provided
+    
+    if (startTime && endTime) {
+      console.log("📅 Start Time:", startTime.toISOString());
+      console.log("📅 End Time:", endTime.toISOString());
+    }
+    
+    return {
+      meetLink: meetLink,
+      startTime: startTime,
+      endTime: endTime,
+    };
   } catch (error) {
     console.error("❌ Error generating Google Meet link:", error.message);
     console.error("Error stack:", error.stack);
@@ -453,17 +484,26 @@ const genSampleGoogleMeetLink = async () => {
   console.log("🚀 Starting genSampleGoogleMeetLink at", new Date().toISOString());
 
   try {
-    const meetLink = await generateGoogleMeetLink(
-      new Date("2025-12-20T10:00:00Z"),
+    const result = await generateGoogleMeetLink(
+      new Date("2025-12-27T10:00:00Z"),
       "Subham Dey1",
       "22je0094@gmail.com",
       "Subham Dey2",
-      "amankasaudhandk07@gmail.com"
+      "amankasaudhanak07@gmail.com",
+      "6924d3e788d5dea358af8a08"
     );
     const duration = Date.now() - startTime;
     console.log(`✅ genSampleGoogleMeetLink completed in ${duration}ms`);
-    console.log("meetLink--->", meetLink);
-    return meetLink;
+    // Handle both old format (string) and new format (object)
+    if (typeof result === 'string') {
+      console.log("meetLink--->", result);
+      return result;
+    } else {
+      console.log("meetLink--->", result.meetLink);
+      console.log("startTime--->", result.startTime);
+      console.log("endTime--->", result.endTime);
+      return result;
+    }
   }
   catch (error) {
     const duration = Date.now() - startTime;
@@ -529,17 +569,27 @@ export async function sendEmail(
     // Only generate if not already generated
     let meetLink = existingMeetLink;
     let meetLinkError = null;
+    let meetingStartTime = null;
+    let meetingEndTime = null;
     
     if (!meetLinkAlreadyGenerated || !meetLink) {
       try {
         console.log("🔄 Generating new meet link...");
-        meetLink = await generateGoogleMeetLink(
+        const meetLinkResult = await generateGoogleMeetLink(
           userScheduledAt,
           "Candidate",
           candidateEmail,
           recruiterName,
           recruiterEmail
         );
+        // Handle both old format (string) and new format (object)
+        if (typeof meetLinkResult === 'string') {
+          meetLink = meetLinkResult;
+        } else {
+          meetLink = meetLinkResult.meetLink;
+          meetingStartTime = meetLinkResult.startTime;
+          meetingEndTime = meetLinkResult.endTime;
+        }
         console.log("✓ Meet link generated successfully:", meetLink);
       } catch (error) {
         console.error("Failed to generate Google Meet link:", error.message);
@@ -720,6 +770,8 @@ export async function sendEmail(
       messageId: info.messageId,
       recipients: recipients,
       meetLink: meetLink, // Return the meet link so it can be saved
+      startTime: meetingStartTime, // Return start time if available
+      endTime: meetingEndTime, // Return end time if available
     };
   } catch (error) {
     console.error("Error sending email:", error);
