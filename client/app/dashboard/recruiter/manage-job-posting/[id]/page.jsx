@@ -72,7 +72,7 @@ import {
   X,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 
 export default function RecruiterJobDetailPage() {
@@ -85,7 +85,70 @@ export default function RecruiterJobDetailPage() {
   const [jobPosting, setJobPosting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState("details");
+  
+  // Initialize activeTab from localStorage synchronously to prevent reset
+  const getInitialTab = () => {
+    if (typeof window !== "undefined" && jobId) {
+      const stored = localStorage.getItem(`job-posting-tab-${jobId}`);
+      const validTabs = ["details", "ai-match", "applicants", "screenings", "interviews", "offers", "rejected"];
+      if (stored && validTabs.includes(stored)) {
+        return stored;
+      }
+    }
+    return "details";
+  };
+  
+  const [activeTab, setActiveTab] = useState(() => getInitialTab());
+  const isInitialMount = useRef(true);
+  const hasLoadedFromStorage = useRef(false);
+  
+  // Load saved tab from localStorage when component mounts or jobId changes
+  // This runs first to ensure we have the correct tab before any saves happen
+  useEffect(() => {
+    if (typeof window !== "undefined" && jobId) {
+      const stored = localStorage.getItem(`job-posting-tab-${jobId}`);
+      const validTabs = ["details", "ai-match", "applicants", "screenings", "interviews", "offers", "rejected"];
+      
+      // Mark as loaded immediately to prevent save useEffect from running prematurely
+      hasLoadedFromStorage.current = true;
+      
+      if (stored && validTabs.includes(stored)) {
+        // Only update if different from current to avoid unnecessary re-renders
+        if (stored !== activeTab) {
+          setActiveTab(stored);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId]); // Only depend on jobId - this ensures it runs when navigating back
+  
+  // Save activeTab to localStorage whenever it changes (but skip on initial mount)
+  useEffect(() => {
+    // Skip saving on initial mount to prevent overwriting with default "details"
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    
+    // Only save after we've loaded from storage to prevent race conditions
+    if (typeof window !== "undefined" && jobId && activeTab && hasLoadedFromStorage.current) {
+      const stored = localStorage.getItem(`job-posting-tab-${jobId}`);
+      
+      // Prevent overwriting a stored non-default value with "details" on remount
+      // This protects against race conditions where "details" might be saved before the stored value loads
+      if (stored && stored !== "details" && activeTab === "details") {
+        // Don't overwrite a non-default stored value with "details"
+        // Restore the stored value instead
+        setActiveTab(stored);
+        return;
+      }
+      
+      // Only save if different to avoid unnecessary writes
+      if (stored !== activeTab) {
+        localStorage.setItem(`job-posting-tab-${jobId}`, activeTab);
+      }
+    }
+  }, [activeTab, jobId]);
   const [aiMatches, setAiMatches] = useState([]);
   const [applicants, setApplicants] = useState([]);
   const [screenings, setScreenings] = useState([]);
@@ -147,6 +210,8 @@ export default function RecruiterJobDetailPage() {
   const [offerRejectDialogOpen, setOfferRejectDialogOpen] = useState(false);
   const [selectedInterviewForAction, setSelectedInterviewForAction] =
     useState(null);
+  const [interviewDetailsDialogOpen, setInterviewDetailsDialogOpen] = useState(false);
+  const [selectedInterviewDetails, setSelectedInterviewDetails] = useState(null);
   const [actionType, setActionType] = useState(""); // "offer" or "reject"
   const [feedback, setFeedback] = useState("");
   const [submittingAction, setSubmittingAction] = useState(false);
@@ -2675,7 +2740,6 @@ export default function RecruiterJobDetailPage() {
                         <TableRow>
                           <TableHead>Candidate</TableHead>
                           <TableHead>Role</TableHead>
-                          <TableHead>Score</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>Experience</TableHead>
@@ -2699,13 +2763,37 @@ export default function RecruiterJobDetailPage() {
                             candidate._id?.toString() ||
                             interviewData.candidateId?.toString();
 
-                          // Determine interview status based on userScheduledAt
-                          const interviewStatus = interviewData.userScheduledAt
-                            ? new Date(interviewData.userScheduledAt) <=
-                              new Date()
-                              ? "completed"
-                              : "pending"
-                            : "pending";
+                          // Determine interview status based on interview times
+                          const getInterviewStatus = () => {
+                            const now = new Date();
+                            const interviewTime = interviewData.interviewTime
+                              ? new Date(interviewData.interviewTime)
+                              : null;
+                            const interviewEndTime = interviewData.interviewEndTime
+                              ? new Date(interviewData.interviewEndTime)
+                              : null;
+                            const emailSent = interviewData.emailSent;
+
+                            // If email is sent and interview time exists
+                            if (emailSent && interviewTime) {
+                              // If current time is before interview start time -> Pending
+                              if (now < interviewTime) {
+                                return "pending";
+                              }
+                              // If interview end time exists and current time is between start and end -> Running
+                              else if (interviewEndTime && now >= interviewTime && now <= interviewEndTime) {
+                                return "running";
+                              }
+                              // If current time is after end time (or no end time and after start time) -> Completed
+                              else if (interviewEndTime ? now > interviewEndTime : now > interviewTime) {
+                                return "completed";
+                              }
+                            }
+                            // If email not sent or no interview time
+                            return "not_scheduled";
+                          };
+
+                          const interviewStatus = getInterviewStatus();
 
                           const handleRowClick = (e) => {
                             if (
@@ -2729,9 +2817,18 @@ export default function RecruiterJobDetailPage() {
                             setOfferRejectDialogOpen(true);
                           };
 
+                          const handleViewInterviewDetails = (e) => {
+                            e.stopPropagation();
+                            setSelectedInterviewDetails(interviewData);
+                            setInterviewDetailsDialogOpen(true);
+                          };
+
                           // Check if action button should be disabled
+                          // Disable if interview is pending, running, not scheduled, or outcome already set
                           const isActionDisabled =
                             interviewStatus === "pending" ||
+                            interviewStatus === "running" ||
+                            interviewStatus === "not_scheduled" ||
                             interviewData.interviewOutcome === "offer" ||
                             interviewData.interviewOutcome === "reject";
 
@@ -2761,21 +2858,6 @@ export default function RecruiterJobDetailPage() {
                               </TableCell>
                               <TableCell>
                                 {candidate.role?.join(", ") || "N/A"}
-                              </TableCell>
-                              <TableCell>
-                                {screeningScore !== null ? (
-                                  <div
-                                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                                      screeningScore / 100
-                                    )}`}
-                                  >
-                                    {screeningScore}%
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-slate-600">
-                                    N/A
-                                  </span>
-                                )}
                               </TableCell>
                               <TableCell>
                                 {candidate.email ? (
@@ -2817,17 +2899,15 @@ export default function RecruiterJobDetailPage() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                {interviewStatus === "completed" ? (
-                                  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    Completed
-                                  </div>
-                                ) : (
-                                  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-yellow-500 text-white">
-                                    <Clock className="h-3 w-3" />
-                                    Pending
-                                  </div>
-                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleViewInterviewDetails}
+                                  className="bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-0 transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/50"
+                                  title="View interview details"
+                                >
+                                  <Calendar className="h-4 w-4" /> Details
+                                </Button>
                               </TableCell>
                               <TableCell className="text-center">
                                 <Button
@@ -2838,12 +2918,14 @@ export default function RecruiterJobDetailPage() {
                                   className="bg-linear-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
                                   title={
                                     interviewStatus === "pending"
-                                      ? "Interview is still pending. Please wait for the interview to complete."
-                                      : interviewData.interviewOutcome ===
-                                        "offer"
+                                      ? "Interview is still pending. Please wait for the interview to start."
+                                      : interviewStatus === "running"
+                                      ? "Interview is currently running. Please wait for it to complete."
+                                      : interviewStatus === "not_scheduled"
+                                      ? "Interview is not scheduled yet."
+                                      : interviewData.interviewOutcome === "offer"
                                       ? "Offer already sent"
-                                      : interviewData.interviewOutcome ===
-                                        "reject"
+                                      : interviewData.interviewOutcome === "reject"
                                       ? "Candidate already rejected"
                                       : "Select offer or reject"
                                   }
@@ -4967,6 +5049,323 @@ export default function RecruiterJobDetailPage() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Interview Details Dialog */}
+      <Dialog
+        open={interviewDetailsDialogOpen}
+        onOpenChange={setInterviewDetailsDialogOpen}
+      >
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white/95 border-white/70 backdrop-blur-2xl shadow-[0_18px_60px_rgba(15,23,42,0.35)]">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
+              <div className="p-2 rounded-lg bg-indigo-50 border border-indigo-200">
+                <Calendar className="h-6 w-6 text-indigo-600" />
+              </div>
+              Interview Details
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              Complete information about the scheduled interview
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedInterviewDetails ? (
+            <div className="space-y-6 mt-6">
+              {/* Candidate Information */}
+              <div className="p-5 rounded-xl border border-slate-200 bg-slate-50">
+                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
+                  Candidate Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                      Name
+                    </p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {selectedInterviewDetails.candidateId?.name || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                      Email
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-slate-500" />
+                      <p className="text-sm text-slate-900">
+                        {selectedInterviewDetails.candidateId?.email || "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                      Phone
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-slate-500" />
+                      <p className="text-sm text-slate-900">
+                        {selectedInterviewDetails.candidateId?.phone_no || "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                      Role
+                    </p>
+                    <p className="text-sm text-slate-900">
+                      {selectedInterviewDetails.candidateId?.role?.join(", ") || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                      Experience
+                    </p>
+                    <p className="text-sm text-slate-900">
+                      {selectedInterviewDetails.candidateId?.experience !== undefined
+                        ? `${selectedInterviewDetails.candidateId.experience} years`
+                        : "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                      Screening Score
+                    </p>
+                    {selectedInterviewDetails.screeningScore !== null &&
+                    selectedInterviewDetails.screeningScore !== undefined ? (
+                      <div
+                        className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                          Math.round(selectedInterviewDetails.screeningScore) / 100
+                        )}`}
+                      >
+                        {Math.round(selectedInterviewDetails.screeningScore)}%
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-600">N/A</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Interview Schedule */}
+              <div className="p-5 rounded-xl border border-slate-200 bg-slate-50">
+                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
+                  Interview Schedule
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                      Interview Start Time
+                    </p>
+                    <p className="text-sm text-slate-900">
+                      {selectedInterviewDetails.interviewTime
+                        ? formatFullDateTimeWithAMPM(
+                            new Date(selectedInterviewDetails.interviewTime)
+                          )
+                        : "Not scheduled"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                      Interview End Time
+                    </p>
+                    <p className="text-sm text-slate-900">
+                      {selectedInterviewDetails.interviewEndTime
+                        ? formatFullDateTimeWithAMPM(
+                            new Date(selectedInterviewDetails.interviewEndTime)
+                          )
+                        : selectedInterviewDetails.interviewTime
+                        ? "Not set"
+                        : "Not scheduled"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                      Email Sent At
+                    </p>
+                    <p className="text-sm text-slate-900">
+                      {selectedInterviewDetails.emailSentAt
+                        ? formatFullDateTimeWithAMPM(
+                            new Date(selectedInterviewDetails.emailSentAt)
+                          )
+                        : "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                      Interview Status
+                    </p>
+                    {(() => {
+                      const now = new Date();
+                      const interviewTime = selectedInterviewDetails.interviewTime
+                        ? new Date(selectedInterviewDetails.interviewTime)
+                        : null;
+                      const interviewEndTime = selectedInterviewDetails.interviewEndTime
+                        ? new Date(selectedInterviewDetails.interviewEndTime)
+                        : null;
+                      const emailSent = selectedInterviewDetails.emailSent;
+
+                      // If email is sent and interview time exists
+                      if (emailSent && interviewTime) {
+                        // If current time is before interview start time -> Pending
+                        if (now < interviewTime) {
+                          return (
+                            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-yellow-500 text-white">
+                              <Clock className="h-3 w-3" />
+                              Pending
+                            </div>
+                          );
+                        }
+                        // If interview end time exists and current time is between start and end -> Running
+                        else if (interviewEndTime && now >= interviewTime && now <= interviewEndTime) {
+                          return (
+                            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-blue-500 text-white">
+                              <Clock className="h-3 w-3" />
+                              Running
+                            </div>
+                          );
+                        }
+                        // If current time is after end time (or no end time and after start time) -> Completed
+                        else if (interviewEndTime ? now > interviewEndTime : now > interviewTime) {
+                          return (
+                            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Completed
+                            </div>
+                          );
+                        }
+                      }
+                      // If email not sent or no interview time
+                      return (
+                        <span className="text-sm text-slate-600">Not scheduled</span>
+                      );
+                    })()}
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                      Call Status
+                    </p>
+                    <div
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
+                        selectedInterviewDetails.status === "completed"
+                          ? "bg-green-500 text-white"
+                          : selectedInterviewDetails.status === "stopped" ||
+                            selectedInterviewDetails.status === "cancelled"
+                          ? "bg-red-500 text-white"
+                          : selectedInterviewDetails.status === "in_progress"
+                          ? "bg-yellow-500 text-white"
+                          : "bg-blue-500 text-white"
+                      }`}
+                    >
+                      {selectedInterviewDetails.status || "Unknown"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Meeting Details */}
+              {selectedInterviewDetails.meetLink && (
+                <div className="p-5 rounded-xl border border-slate-200 bg-slate-50">
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
+                    Meeting Link
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-slate-500" />
+                    <a
+                      href={selectedInterviewDetails.meetLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-indigo-600 hover:text-indigo-800 underline break-all"
+                    >
+                      {selectedInterviewDetails.meetLink}
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* Recruiter Information */}
+              {selectedInterviewDetails.assignRecruiter && (
+                <div className="p-5 rounded-xl border border-slate-200 bg-slate-50">
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
+                    Assigned Recruiter
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                        Name
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {selectedInterviewDetails.assignRecruiter?.name || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                        Email
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-slate-500" />
+                        <p className="text-sm text-slate-900">
+                          {selectedInterviewDetails.assignRecruiter?.email || "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Interview Outcome */}
+              {selectedInterviewDetails.interviewOutcome && (
+                <div className="p-5 rounded-xl border border-slate-200 bg-slate-50">
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
+                    Interview Outcome
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                        Outcome
+                      </p>
+                      <div
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+                          selectedInterviewDetails.interviewOutcome === "offer"
+                            ? "bg-green-500 text-white"
+                            : "bg-red-500 text-white"
+                        }`}
+                      >
+                        {selectedInterviewDetails.interviewOutcome === "offer"
+                          ? "Offer Sent"
+                          : "Rejected"}
+                      </div>
+                    </div>
+                    {selectedInterviewDetails.interviewFeedback && (
+                      <div>
+                        <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                          Feedback
+                        </p>
+                        <p className="text-sm text-slate-900 bg-white px-3 py-2 rounded-lg border border-slate-200">
+                          {selectedInterviewDetails.interviewFeedback}
+                        </p>
+                      </div>
+                    )}
+                    {selectedInterviewDetails.interviewOutcomeAt && (
+                      <div>
+                        <p className="text-xs text-slate-600 mb-1.5 font-medium">
+                          Outcome Date
+                        </p>
+                        <p className="text-sm text-slate-900">
+                          {formatFullDateTimeWithAMPM(
+                            new Date(selectedInterviewDetails.interviewOutcomeAt)
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

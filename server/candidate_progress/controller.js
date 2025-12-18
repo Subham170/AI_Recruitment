@@ -89,6 +89,81 @@ const validateStageHierarchy = (currentEntry, stage, status) => {
   return { valid: true };
 };
 
+/**
+ * Update candidate progress based on BolnaCall status
+ * This function is called automatically when BolnaCall is updated
+ * @param {string} candidateId - Candidate ID
+ * @param {string} jobPostingId - Job Posting ID
+ * @param {string} stage - Stage to update (e.g., "screening")
+ * @param {string} status - Status to set ("completed" or "pending")
+ * @param {string} notes - Optional notes
+ */
+export const updateProgressFromBolnaCall = async (
+  candidateId,
+  jobPostingId,
+  stage,
+  status,
+  notes = ""
+) => {
+  try {
+    if (!candidateId || !jobPostingId || !stage || !status) {
+      console.warn(
+        "updateProgressFromBolnaCall: Missing required parameters",
+        { candidateId, jobPostingId, stage, status }
+      );
+      return;
+    }
+
+    if (!ALL_STAGES.includes(stage)) {
+      console.warn(
+        `updateProgressFromBolnaCall: Invalid stage ${stage}`
+      );
+      return;
+    }
+
+    if (!["pending", "completed"].includes(status)) {
+      console.warn(
+        `updateProgressFromBolnaCall: Invalid status ${status}`
+      );
+      return;
+    }
+
+    const doc = await ensureJobProgress(jobPostingId);
+    const entry = ensureCandidateEntry(doc, candidateId, null); // No user ID for automatic updates
+
+    // Update the stage
+    entry[stage].status = status;
+    if (notes) {
+      entry[stage].notes = notes;
+    }
+
+    if (status === "completed" && !entry[stage].completedAt) {
+      entry[stage].completedAt = new Date();
+    }
+
+    if (stage === "rejected" && status === "completed") {
+      entry.rejected.rejectedAt = new Date();
+    }
+
+    if (status === "pending" && entry[stage].completedAt) {
+      entry[stage].completedAt = null;
+      if (stage === "rejected") {
+        entry.rejected.rejectedAt = null;
+      }
+    }
+
+    doc.markModified("candidates");
+    await doc.save();
+
+    console.log(
+      `✅ Candidate progress updated: ${candidateId} - ${jobPostingId} - ${stage} -> ${status}`
+    );
+  } catch (error) {
+    console.error("Error updating candidate progress from BolnaCall:", error);
+    // Don't throw - this is a side effect and shouldn't break the main flow
+  }
+};
+
 // Get or create progress for a candidate within a job
 export const getOrCreateProgress = async (req, res) => {
   try {

@@ -11,6 +11,7 @@ import Candidate from "../candidates/model.js";
 import User from "../user/model.js";
 import RecruiterTask from "../recruiter_tasks/model.js";
 import { generateGoogleMeetLink } from "../services/emailService.js";
+import { updateProgressFromBolnaCall } from "../candidate_progress/controller.js";
 
 dotenv.config();
 
@@ -258,6 +259,15 @@ export async function screeningTranscript(executionId) {
     bolnaCall.screeningStatus = "completed";
     bolnaCall.screeningAnalyzedAt = new Date();
     await bolnaCall.save();
+
+    // Update candidate progress - mark screening as completed
+    await updateProgressFromBolnaCall(
+      bolnaCall.candidateId,
+      bolnaCall.jobId,
+      "screening",
+      "completed",
+      `Screening completed with score: ${score}%`
+    );
 
     console.log(
       `Screening completed for executionId ${executionId}: Score = ${score}%`
@@ -1095,27 +1105,46 @@ export const getJobInterviews = async (req, res) => {
       .sort({ emailSentAt: -1 })
       .lean();
 
-    const transformedInterviews = interviews.map((interview) => ({
-      _id: interview._id,
-      candidateId: interview.candidateId,
-      jobId: interview.jobId,
-      executionId: interview.executionId,
-      screeningScore: interview.screeningScore,
-      status: interview.status,
-      callScheduledAt: interview.callScheduledAt,
-      // Interview details
-      emailSent: interview.emailSent,
-      emailSentAt: interview.emailSentAt,
-      assignRecruiter: interview.assignRecruiter,
-      meetLink: interview.meetLink,
-      userScheduledAt: interview.userScheduledAt,
-      // Interview outcome
-      interviewOutcome: interview.interviewOutcome,
-      interviewFeedback: interview.interviewFeedback,
-      interviewOutcomeAt: interview.interviewOutcomeAt,
-      createdAt: interview.createdAt,
-      updatedAt: interview.updatedAt,
-    }));
+    // Fetch RecruiterTask data for each interview to get interview times
+    const interviewIds = interviews.map((i) => i._id);
+    const recruiterTasks = await RecruiterTask.find({
+      bolna_call_id: { $in: interviewIds },
+    })
+      .lean();
+
+    // Create a map for quick lookup
+    const taskMap = new Map();
+    recruiterTasks.forEach((task) => {
+      taskMap.set(task.bolna_call_id.toString(), task);
+    });
+
+    const transformedInterviews = interviews.map((interview) => {
+      const recruiterTask = taskMap.get(interview._id.toString());
+      return {
+        _id: interview._id,
+        candidateId: interview.candidateId,
+        jobId: interview.jobId,
+        executionId: interview.executionId,
+        screeningScore: interview.screeningScore,
+        status: interview.status,
+        callScheduledAt: interview.callScheduledAt,
+        // Interview details
+        emailSent: interview.emailSent,
+        emailSentAt: interview.emailSentAt,
+        assignRecruiter: interview.assignRecruiter,
+        meetLink: interview.meetLink,
+        userScheduledAt: interview.userScheduledAt,
+        // Interview times from RecruiterTask
+        interviewTime: recruiterTask?.interview_time || null,
+        interviewEndTime: recruiterTask?.interview_end_time || null,
+        // Interview outcome
+        interviewOutcome: interview.interviewOutcome,
+        interviewFeedback: interview.interviewFeedback,
+        interviewOutcomeAt: interview.interviewOutcomeAt,
+        createdAt: interview.createdAt,
+        updatedAt: interview.updatedAt,
+      };
+    });
 
     res.status(200).json({
       success: true,

@@ -485,18 +485,7 @@ export const candidateProgressAPI = {
     );
   },
 
-  updateStage: async (candidateId, jobPostingId, stage, status, notes) => {
-    return apiRequest(
-      `/candidate-progress/candidate/${candidateId}/job/${jobPostingId}/stage/${stage}`,
-      {
-        method: "PUT",
-        body: {
-          status,
-          notes,
-        },
-      }
-    );
-  },
+  // updateStage removed - progress is now automatically updated from BolnaCall
 
   getProgressByJob: async (jobPostingId) => {
     return apiRequest(`/candidate-progress/job/${jobPostingId}`, {
