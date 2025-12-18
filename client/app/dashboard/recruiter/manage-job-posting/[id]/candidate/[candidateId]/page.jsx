@@ -5,18 +5,9 @@ import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { candidateAPI, candidateProgressAPI, jobPostingAPI } from "@/lib/api";
 import {
-  AlertTriangle,
   ArrowLeft,
   Briefcase,
   CheckCircle2,
@@ -53,11 +44,8 @@ export default function CandidateProgressPage() {
   const [matchedJobs, setMatchedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [activeStage, setActiveStage] = useState(null);
-  const [notes, setNotes] = useState("");
-  const [revertDialogOpen, setRevertDialogOpen] = useState(false);
-  const [stageToRevert, setStageToRevert] = useState(null);
+  // Removed updating, activeStage, notes, revertDialogOpen, stageToRevert states
+  // Progress is now read-only and automatically updated from BolnaCall
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -114,96 +102,8 @@ export default function CandidateProgressPage() {
     }
   };
 
-  const handleStageClick = (stage) => {
-    if (activeStage === stage) {
-      setActiveStage(null);
-      setNotes("");
-    } else {
-      setActiveStage(stage);
-      setNotes(progress[stage]?.notes || "");
-    }
-  };
-
-  const handleUpdateStage = async (stage, status) => {
-    try {
-      setUpdating(true);
-      await candidateProgressAPI.updateStage(
-        candidateId,
-        jobId,
-        stage,
-        status,
-        notes
-      );
-      toast.success(
-        `${
-          STAGES.find((s) => s.key === stage)?.label
-        } stage updated successfully`
-      );
-      await fetchData();
-      setActiveStage(null);
-      setNotes("");
-    } catch (error) {
-      console.error("Error updating stage:", error);
-      toast.error(error.message || "Failed to update stage");
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleProgressStageClick = async (stage) => {
-    if (updating) return;
-
-    const isCompleted = isStageCompleted(stage);
-    const isEnabled = isStageEnabled(stage);
-
-    // If the stage is not enabled and not completed, block progression
-    if (!isEnabled && !isCompleted) {
-      toast.error(
-        `Please complete previous stages before marking ${
-          STAGES.find((s) => s.key === stage)?.label
-        } as completed.`
-      );
-      return;
-    }
-
-    // Clicking a completed stage reverts it (and subsequent) to pending
-    if (isCompleted) {
-      await handleUpdateStage(stage, "pending");
-      return;
-    }
-
-    // Mark as completed directly
-    await handleUpdateStage(stage, "completed");
-  };
-
-  const handleRevertConfirm = async () => {
-    if (!stageToRevert || updating) return;
-
-    try {
-      setUpdating(true);
-      await candidateProgressAPI.updateStage(
-        candidateId,
-        jobId,
-        stageToRevert,
-        "pending",
-        "" // Empty notes when reverting
-      );
-      toast.success(
-        `${
-          STAGES.find((s) => s.key === stageToRevert)?.label
-        } stage reverted successfully`
-      );
-      // Fetch fresh data to update UI (without showing loading spinner)
-      await fetchData(false);
-      setRevertDialogOpen(false);
-      setStageToRevert(null);
-    } catch (error) {
-      console.error("Error reverting stage:", error);
-      toast.error(error.message || "Failed to revert stage");
-    } finally {
-      setUpdating(false);
-    }
-  };
+  // Removed handleStageClick, handleUpdateStage, handleProgressStageClick, and handleRevertConfirm functions
+  // Progress is now read-only and automatically updated from BolnaCall updates
 
   const getStageStatus = (stage) => {
     return progress?.[stage]?.status || "pending";
@@ -331,29 +231,23 @@ export default function CandidateProgressPage() {
 
                           return (
                             <div key={stage.key} className="flex items-center">
-                              <button
-                                onClick={() =>
-                                  handleProgressStageClick(stage.key)
-                                }
-                                disabled={
-                                  updating || (!isEnabled && !isCompleted)
-                                }
+                              <div
                                 className={`
                                   px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
-                                  transition-all duration-200
                                   ${
                                     isCurrent
-                                      ? "bg-indigo-600 text-white shadow-md hover:bg-indigo-700"
+                                      ? "bg-indigo-600 text-white shadow-md"
                                       : isCompleted
-                                      ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 cursor-pointer"
+                                      ? "bg-indigo-100 text-indigo-700"
                                       : isEnabled
-                                      ? "bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer"
-                                      : "bg-slate-100 text-slate-400 cursor-not-allowed opacity-60"
+                                      ? "bg-slate-100 text-slate-500"
+                                      : "bg-slate-100 text-slate-400 opacity-60"
                                   }
                                 `}
+                                title="Progress is automatically updated from call status"
                               >
                                 {stage.label.toUpperCase()}
-                              </button>
+                              </div>
                               {index <
                                 STAGES.filter((s) => s.key !== "rejected")
                                   .length -
@@ -374,23 +268,20 @@ export default function CandidateProgressPage() {
                       const isCompleted = isStageCompleted(stage.key);
 
                       return (
-                        <button
+                        <div
                           key={stage.key}
-                          onClick={() => handleProgressStageClick(stage.key)}
-                          disabled={updating}
                           className={`
                             px-6 py-3 rounded-full text-sm font-medium whitespace-nowrap
-                            transition-all duration-200
                             ${
                               isCompleted
-                                ? "bg-red-500 text-white shadow-md hover:bg-red-600"
-                                : "bg-red-50 text-red-600 hover:bg-red-100 border-2 border-red-200"
+                                ? "bg-red-500 text-white shadow-md"
+                                : "bg-red-50 text-red-600 border-2 border-red-200"
                             }
-                            cursor-pointer
                           `}
+                          title="Progress is automatically updated from call status"
                         >
                           {stage.label.toUpperCase()}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -563,52 +454,7 @@ export default function CandidateProgressPage() {
         </div>
       </div>
 
-      {/* Revert Confirmation Dialog */}
-      <Dialog open={revertDialogOpen} onOpenChange={setRevertDialogOpen}>
-        <DialogContent className="max-w-md bg-white/95 backdrop-blur-md border-white/60 shadow-2xl">
-          <DialogHeader className="pb-4 border-b border-slate-200">
-            <DialogTitle className="flex items-center gap-3 text-slate-900">
-              <div className="p-2 rounded-lg bg-amber-50">
-                <AlertTriangle className="h-5 w-5 text-amber-600" />
-              </div>
-              Revert Stage
-            </DialogTitle>
-            <DialogDescription className="text-slate-600 mt-2">
-              Are you sure you want to revert{" "}
-              <span className="font-semibold text-slate-900">
-                {STAGES.find((s) => s.key === stageToRevert)?.label}
-              </span>{" "}
-              back to pending? This will mark the stage as incomplete.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="pt-4 border-t border-slate-200">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setRevertDialogOpen(false);
-                setStageToRevert(null);
-              }}
-              className="border-slate-200 hover:bg-slate-50"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRevertConfirm}
-              disabled={updating}
-              className="bg-amber-600 hover:bg-amber-700 text-white"
-            >
-              {updating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Reverting...
-                </>
-              ) : (
-                "Revert Stage"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Revert Dialog removed - progress is now read-only */}
     </div>
   );
 }

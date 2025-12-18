@@ -20,13 +20,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { recruiterTasksAPI } from "@/lib/api";
-import { Calendar, Clock, Mail, User, Briefcase, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { recruiterTasksAPI, recruiterAvailabilityAPI, bolnaAPI, userAPI } from "@/lib/api";
+import { Calendar, Clock, Mail, User, Briefcase, CheckCircle2, XCircle, AlertCircle, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { formatDateTimeShort, formatDateShort, formatFullDateTimeWithAMPM } from "@/lib/timeFormatter";
+import { formatDateTimeShort, formatDateShort, formatFullDateTimeWithAMPM, formatTimeWithAMPM } from "@/lib/timeFormatter";
 import { toast } from "sonner";
+import RecruiterAvailability from "@/components/RecruiterAvailability";
 
 export default function RecruiterTasksPage() {
   const { user, loading } = useAuth();
@@ -50,6 +59,20 @@ export default function RecruiterTasksPage() {
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [filter, setFilter] = useState("all"); // all, today, week, month
   const [error, setError] = useState(null);
+  
+  // Cancellation and reschedule dialogs
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [selectedTaskForCancel, setSelectedTaskForCancel] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+  
+  // Reschedule state
+  const [selectedRecruiter, setSelectedRecruiter] = useState("");
+  const [recruiterAvailability, setRecruiterAvailability] = useState(null);
+  const [selectedSlot, setSelectedSlot] = useState("");
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [jobRecruiters, setJobRecruiters] = useState([]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -92,6 +115,138 @@ export default function RecruiterTasksPage() {
       }
     } catch (err) {
       console.error("Error fetching task stats:", err);
+    }
+  };
+
+  const handleCancelInterview = async () => {
+    if (!selectedTaskForCancel) return;
+
+    try {
+      setCancelling(true);
+      await recruiterTasksAPI.cancelInterview(selectedTaskForCancel._id);
+      
+      toast.success("Interview Cancelled", {
+        description: "The interview has been cancelled and the Cal.com booking has been removed.",
+      });
+
+      // Close cancel dialog and open reschedule dialog
+      setCancelDialogOpen(false);
+      setRescheduleDialogOpen(true);
+      
+      // Set up reschedule data
+      const task = selectedTaskForCancel;
+      setSelectedTaskForCancel(task);
+      
+      // Fetch recruiters for the job
+      if (task.job_id?._id) {
+        try {
+          const recruitersData = await userAPI.getRecruiters();
+          const recruitersList = (recruitersData.recruiters || []).map((r) => ({
+            value: r._id,
+            label: r.name || r.email,
+          }));
+          setJobRecruiters(recruitersList);
+          
+          // Pre-select the current recruiter if available
+          if (task.recruiter_id?._id) {
+            const recruiterId = task.recruiter_id._id.toString();
+            setSelectedRecruiter(recruiterId);
+            const jobId = task.job_id._id.toString();
+            await handleRecruiterChange(recruiterId, jobId);
+          }
+        } catch (err) {
+          console.error("Error fetching recruiters:", err);
+          toast.error("Failed to load recruiters");
+        }
+      }
+      
+      await fetchTasks();
+      await fetchTaskStats();
+    } catch (err) {
+      console.error("Error cancelling interview:", err);
+      toast.error("Failed to Cancel Interview", {
+        description: err.message || "An error occurred while cancelling the interview.",
+      });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleRecruiterChange = async (recruiterId, jobId) => {
+    if (!recruiterId || !jobId) return;
+
+    setSelectedRecruiter(recruiterId);
+    setRecruiterAvailability(null);
+    setSelectedSlot("");
+
+    try {
+      setLoadingAvailability(true);
+      const allResponse = await recruiterAvailabilityAPI.getAllAvailabilityByJob(jobId);
+      const allAvail = allResponse?.availabilities || [];
+      const recruiterAvail = allAvail.find((avail) => {
+        const availRecruiterId =
+          avail.recruiter_id?._id?.toString() || avail.recruiter_id?.toString();
+        return availRecruiterId === recruiterId;
+      });
+
+      if (recruiterAvail && recruiterAvail.availability_slots) {
+        const availableSlots = recruiterAvail.availability_slots.filter(
+          (slot) => slot.is_available !== false
+        );
+        setRecruiterAvailability(availableSlots);
+      } else {
+        setRecruiterAvailability([]);
+        toast.warning(
+          "No availability found for this recruiter. Please ask them to set their availability."
+        );
+      }
+    } catch (err) {
+      console.error("Error fetching availability:", err);
+      toast.error(err.message || "Failed to load recruiter availability");
+      setRecruiterAvailability([]);
+    } finally {
+      setLoadingAvailability(false);
+    }
+  };
+
+  const handleRescheduleInterview = async () => {
+    if (!selectedTaskForCancel || !selectedRecruiter || !selectedSlot) {
+      toast.error("Please select a recruiter and time slot");
+      return;
+    }
+
+    try {
+      setSendingEmail(true);
+      const task = selectedTaskForCancel;
+      const candidateId = task.candidate_id?._id?.toString() || task.candidate_id?.toString();
+      const jobId = task.job_id?._id?.toString() || task.job_id?.toString();
+
+      await bolnaAPI.sendEmail({
+        candidateId,
+        recruiterId: selectedRecruiter,
+        slot: selectedSlot,
+        jobId,
+      });
+
+      toast.success("Interview Rescheduled", {
+        description: "The interview has been rescheduled and an email has been sent to the candidate.",
+      });
+
+      setRescheduleDialogOpen(false);
+      setSelectedTaskForCancel(null);
+      setSelectedRecruiter("");
+      setRecruiterAvailability(null);
+      setSelectedSlot("");
+
+      await fetchTasks();
+      await fetchTaskStats();
+    } catch (err) {
+      console.error("Error rescheduling interview:", err);
+      toast.error("Failed to Reschedule Interview", {
+        description: err.message || "An error occurred while rescheduling the interview.",
+      });
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -286,7 +441,9 @@ export default function RecruiterTasksPage() {
                             <div className="flex items-center gap-3 mb-2">
                               {getStatusBadge(task.status)}
                               <span className="text-sm text-slate-500">
-                                {formatDateTimeShort(task.interview_time)}
+                                {task.interview_end_time
+                                  ? `${formatDateShort(task.interview_time)} at ${formatTimeWithAMPM(task.interview_time)} - ${formatTimeWithAMPM(task.interview_end_time)}`
+                                  : formatDateTimeShort(task.interview_time)}
                               </span>
                             </div>
 
@@ -345,9 +502,10 @@ export default function RecruiterTasksPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() =>
-                                    handleStatusUpdate(task._id, "cancelled")
-                                  }
+                                  onClick={() => {
+                                    setSelectedTaskForCancel(task);
+                                    setCancelDialogOpen(true);
+                                  }}
                                   className="text-red-600 hover:text-red-700"
                                 >
                                   Cancel
@@ -365,6 +523,215 @@ export default function RecruiterTasksPage() {
           </div>
         </main>
       </div>
+
+      {/* Cancel Interview Confirmation Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent className="max-w-md bg-white/95 backdrop-blur-md border-white/60 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-slate-900">
+              <div className="p-2 rounded-lg bg-red-50">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              </div>
+              Cancel Interview
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              Are you sure you want to cancel this interview? This will cancel the Cal.com booking and notify the candidate.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTaskForCancel && (
+            <div className="py-4 space-y-2">
+              <div className="text-sm text-slate-700">
+                <strong>Candidate:</strong> {selectedTaskForCancel.candidate_id?.name || "Unknown"}
+              </div>
+              <div className="text-sm text-slate-700">
+                <strong>Job:</strong> {selectedTaskForCancel.job_id?.title || "Unknown"} @ {selectedTaskForCancel.job_id?.company || "N/A"}
+              </div>
+              <div className="text-sm text-slate-700">
+                <strong>Scheduled Time:</strong> {formatFullDateTimeWithAMPM(selectedTaskForCancel.interview_time)}
+                {selectedTaskForCancel.interview_end_time && ` - ${formatTimeWithAMPM(selectedTaskForCancel.interview_end_time)}`}
+              </div>
+            </div>
+          )}
+          <DialogFooter className="pt-4 border-t border-slate-200">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCancelDialogOpen(false);
+                setSelectedTaskForCancel(null);
+              }}
+              className="border-slate-200 hover:bg-slate-50"
+              disabled={cancelling}
+            >
+              No, Keep It
+            </Button>
+            <Button
+              onClick={handleCancelInterview}
+              disabled={cancelling}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {cancelling ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                "Yes, Cancel It"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Interview Dialog */}
+      <Dialog open={rescheduleDialogOpen} onOpenChange={(open) => {
+        setRescheduleDialogOpen(open);
+        if (!open) {
+          setSelectedTaskForCancel(null);
+          setSelectedRecruiter("");
+          setRecruiterAvailability(null);
+          setSelectedSlot("");
+        }
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-md border-white/60 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-slate-900">
+              <div className="p-2 rounded-lg bg-blue-50">
+                <Calendar className="h-5 w-5 text-blue-600" />
+              </div>
+              Reschedule Interview
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              {selectedTaskForCancel
+                ? `Reschedule interview for ${selectedTaskForCancel.candidate_id?.name || "the candidate"}. Select a recruiter and available time slot.`
+                : "Select a recruiter and available time slot to reschedule the interview."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTaskForCancel && (
+            <div className="mt-6 space-y-6">
+              {/* Recruiter Selection */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Select Recruiter
+                </label>
+                <select
+                  value={selectedRecruiter}
+                  onChange={(e) => {
+                    const recruiterId = e.target.value;
+                    const jobId = selectedTaskForCancel.job_id?._id?.toString() || selectedTaskForCancel.job_id?.toString();
+                    handleRecruiterChange(recruiterId, jobId);
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select a recruiter</option>
+                  {jobRecruiters.map((recruiter) => (
+                    <option key={recruiter.value} value={recruiter.value}>
+                      {recruiter.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Availability Slots */}
+              {loadingAvailability ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                </div>
+              ) : selectedRecruiter && recruiterAvailability ? (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Select Time Slot
+                  </label>
+                  {recruiterAvailability.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500">
+                      No available slots found for this recruiter.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto">
+                      {recruiterAvailability.map((slot, index) => {
+                        // Construct proper date-time from slot.date and slot.start_time
+                        const slotDate = new Date(slot.date);
+                        const slotDateTime = new Date(slotDate);
+                        const [hours, minutes] = slot.start_time
+                          .split(":")
+                          .map(Number);
+                        slotDateTime.setHours(hours, minutes, 0, 0);
+                        const slotValue = slotDateTime.toISOString();
+                        const isSelected = selectedSlot === slotValue;
+
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => setSelectedSlot(slotValue)}
+                            className={`p-3 rounded-lg border-2 transition-all ${
+                              isSelected
+                                ? "border-blue-500 bg-blue-50 text-blue-700"
+                                : "border-slate-200 hover:border-blue-300 hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="text-sm font-medium">
+                              {formatFullDateTimeWithAMPM(slotDateTime)}
+                            </div>
+                            {slot.end_time && (
+                              <div className="text-xs text-slate-500 mt-1">
+                                Ends: {formatTimeWithAMPM(
+                                  (() => {
+                                    const endDateTime = new Date(slotDate);
+                                    const [endHours, endMinutes] = slot.end_time
+                                      .split(":")
+                                      .map(Number);
+                                    endDateTime.setHours(endHours, endMinutes, 0, 0);
+                                    return endDateTime;
+                                  })()
+                                )}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : selectedRecruiter ? (
+                <div className="text-center py-8 text-slate-500">
+                  Please wait while we load availability...
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          <DialogFooter className="pt-4 border-t border-slate-200">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRescheduleDialogOpen(false);
+                setSelectedTaskForCancel(null);
+                setSelectedRecruiter("");
+                setRecruiterAvailability(null);
+                setSelectedSlot("");
+              }}
+              className="border-slate-200 hover:bg-slate-50"
+              disabled={sendingEmail}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRescheduleInterview}
+              disabled={!selectedRecruiter || !selectedSlot || sendingEmail}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {sendingEmail ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Rescheduling...
+                </>
+              ) : (
+                "Reschedule Interview"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

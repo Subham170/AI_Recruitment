@@ -402,3 +402,89 @@ export const updateTaskStatus = async (req, res) => {
     });
   }
 };
+
+/**
+ * Cancel interview task and Cal.com booking
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+export const cancelInterview = async (req, res) => {
+  try {
+    const currentUserId = req.user?.id;
+    const { taskId } = req.params;
+
+    if (!currentUserId) {
+      return res.status(401).json({
+        message: "Authentication required",
+      });
+    }
+
+    // Find the task
+    const task = await RecruiterTask.findOne({
+      _id: taskId,
+      recruiter_id: currentUserId,
+    })
+      .populate("bolna_call_id")
+      .populate("candidate_id", "name email")
+      .populate("job_id", "title company");
+
+    if (!task) {
+      return res.status(404).json({
+        message: "Task not found",
+      });
+    }
+
+    // Check if task is already cancelled
+    if (task.status === "cancelled") {
+      return res.status(400).json({
+        message: "Task is already cancelled",
+      });
+    }
+
+    // Import cancelCalBooking function
+    const { cancelCalBooking } = await import("../services/emailService.js");
+    const BolnaCall = (await import("../bolna/model.js")).default;
+
+    // Cancel Cal.com booking if booking UID exists
+    let calCancellationResult = null;
+    if (task.bolna_call_id?.calBookingUid) {
+      try {
+        calCancellationResult = await cancelCalBooking(
+          task.bolna_call_id.calBookingUid,
+          currentUserId
+        );
+        console.log("✓ Cal.com booking cancelled:", task.bolna_call_id.calBookingUid);
+      } catch (calError) {
+        console.error("⚠️ Error cancelling Cal.com booking:", calError.message);
+        // Continue with database update even if Cal.com cancellation fails
+      }
+    }
+
+    // Update RecruiterTask status
+    task.status = "cancelled";
+    task.notes = task.notes || "Cancelled by recruiter";
+    await task.save();
+
+    // Update BolnaCall if it exists
+    if (task.bolna_call_id) {
+      const bolnaCall = await BolnaCall.findById(task.bolna_call_id._id);
+      if (bolnaCall) {
+        // Don't update emailSent to false, just mark as cancelled in status if needed
+        // bolnaCall.emailSent = false;
+        await bolnaCall.save();
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Interview cancelled successfully",
+      task: task,
+      calCancellation: calCancellationResult,
+    });
+  } catch (error) {
+    console.error("Error cancelling interview:", error);
+    res.status(500).json({
+      message: error.message || "Failed to cancel interview",
+    });
+  }
+};

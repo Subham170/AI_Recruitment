@@ -4,7 +4,6 @@ import {
   getOrCreateProgress,
   getProgressByCandidate,
   getProgressByJob,
-  updateStage,
 } from "./controller.js";
 
 const router = express.Router();
@@ -16,12 +15,8 @@ router.get(
   getOrCreateProgress
 );
 
-// Update a specific stage
-router.put(
-  "/candidate/:candidateId/job/:jobPostingId/stage/:stage",
-  authenticate,
-  updateStage
-);
+// Update stage route removed - progress is now automatically updated from BolnaCall updates
+// Progress can only be viewed, not manually changed
 
 // Get all progress records for a job posting
 router.get("/job/:jobPostingId", authenticate, getProgressByJob);

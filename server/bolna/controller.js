@@ -9,7 +9,9 @@ import {
 import BolnaCall from "./model.js";
 import Candidate from "../candidates/model.js";
 import User from "../user/model.js";
+import RecruiterTask from "../recruiter_tasks/model.js";
 import { generateGoogleMeetLink } from "../services/emailService.js";
+import { updateProgressFromBolnaCall } from "../candidate_progress/controller.js";
 
 dotenv.config();
 
@@ -111,7 +113,7 @@ export const scheduleBolnaCall = async (req, res) => {
     console.log("scheduled_at", scheduled_at);
     const scheduledAt = new Date(scheduled_at);
     const callScheduledAt = new Date(
-      new Date(scheduledAt).getTime() + CALL_SCHEDULED_DELAY * 60 * 1000
+      new Date(scheduledAt).getTime()
     );
 
     console.log("callScheduledAt", callScheduledAt);
@@ -257,6 +259,15 @@ export async function screeningTranscript(executionId) {
     bolnaCall.screeningStatus = "completed";
     bolnaCall.screeningAnalyzedAt = new Date();
     await bolnaCall.save();
+
+    // Update candidate progress - mark screening as completed
+    await updateProgressFromBolnaCall(
+      bolnaCall.candidateId,
+      bolnaCall.jobId,
+      "screening",
+      "completed",
+      `Screening completed with score: ${score}%`
+    );
 
     console.log(
       `Screening completed for executionId ${executionId}: Score = ${score}%`
@@ -1094,27 +1105,46 @@ export const getJobInterviews = async (req, res) => {
       .sort({ emailSentAt: -1 })
       .lean();
 
-    const transformedInterviews = interviews.map((interview) => ({
-      _id: interview._id,
-      candidateId: interview.candidateId,
-      jobId: interview.jobId,
-      executionId: interview.executionId,
-      screeningScore: interview.screeningScore,
-      status: interview.status,
-      callScheduledAt: interview.callScheduledAt,
-      // Interview details
-      emailSent: interview.emailSent,
-      emailSentAt: interview.emailSentAt,
-      assignRecruiter: interview.assignRecruiter,
-      meetLink: interview.meetLink,
-      userScheduledAt: interview.userScheduledAt,
-      // Interview outcome
-      interviewOutcome: interview.interviewOutcome,
-      interviewFeedback: interview.interviewFeedback,
-      interviewOutcomeAt: interview.interviewOutcomeAt,
-      createdAt: interview.createdAt,
-      updatedAt: interview.updatedAt,
-    }));
+    // Fetch RecruiterTask data for each interview to get interview times
+    const interviewIds = interviews.map((i) => i._id);
+    const recruiterTasks = await RecruiterTask.find({
+      bolna_call_id: { $in: interviewIds },
+    })
+      .lean();
+
+    // Create a map for quick lookup
+    const taskMap = new Map();
+    recruiterTasks.forEach((task) => {
+      taskMap.set(task.bolna_call_id.toString(), task);
+    });
+
+    const transformedInterviews = interviews.map((interview) => {
+      const recruiterTask = taskMap.get(interview._id.toString());
+      return {
+        _id: interview._id,
+        candidateId: interview.candidateId,
+        jobId: interview.jobId,
+        executionId: interview.executionId,
+        screeningScore: interview.screeningScore,
+        status: interview.status,
+        callScheduledAt: interview.callScheduledAt,
+        // Interview details
+        emailSent: interview.emailSent,
+        emailSentAt: interview.emailSentAt,
+        assignRecruiter: interview.assignRecruiter,
+        meetLink: interview.meetLink,
+        userScheduledAt: interview.userScheduledAt,
+        // Interview times from RecruiterTask
+        interviewTime: recruiterTask?.interview_time || null,
+        interviewEndTime: recruiterTask?.interview_end_time || null,
+        // Interview outcome
+        interviewOutcome: interview.interviewOutcome,
+        interviewFeedback: interview.interviewFeedback,
+        interviewOutcomeAt: interview.interviewOutcomeAt,
+        createdAt: interview.createdAt,
+        updatedAt: interview.updatedAt,
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -1338,14 +1368,18 @@ export const sendEmailManually = async (req, res) => {
     }
 
     // Generate Google Meet link and send email via Cal.com using recruiter's credentials
-    const meetLink = await generateGoogleMeetLink(
+    const meetLinkResult = await generateGoogleMeetLink(
       scheduledTime,
       candidate.name || candidate.email?.split("@")[0] || "Candidate",
       candidate.email,
-      recruiter.name,
-      recruiter.email,
       recruiterId // Pass recruiterId to use recruiter-specific Cal.com credentials
     );
+
+    // Handle both old format (string) and new format (object)
+    const meetLink = typeof meetLinkResult === 'string' ? meetLinkResult : meetLinkResult.meetLink;
+    const meetingStartTime = typeof meetLinkResult === 'string' ? scheduledTime : (meetLinkResult.startTime || scheduledTime);
+    const meetingEndTime = typeof meetLinkResult === 'string' ? new Date(scheduledTime.getTime() + 30 * 60 * 1000) : (meetLinkResult.endTime || new Date(scheduledTime.getTime() + 30 * 60 * 1000));
+    const bookingUid = typeof meetLinkResult === 'object' ? meetLinkResult.bookingUid : null;
 
     // Update BolnaCall record with meet link and email sent status
     bolnaCall.emailSent = true;
@@ -1355,7 +1389,57 @@ export const sendEmailManually = async (req, res) => {
     bolnaCall.meetLinkGenerated = true;
     bolnaCall.meetLinkGeneratedAt = new Date();
     bolnaCall.assignRecruiter = recruiterId;
+    if (bookingUid) {
+      bolnaCall.calBookingUid = bookingUid;
+    }
     await bolnaCall.save();
+
+    // Create or update RecruiterTask record with all the meeting details
+    try {
+      // Check if a RecruiterTask already exists for this bolna_call_id
+      let recruiterTask = await RecruiterTask.findOne({
+        bolna_call_id: bolnaCall._id,
+      });
+
+      if (recruiterTask) {
+        // Update existing task
+        recruiterTask.recruiter_id = recruiterId;
+        recruiterTask.candidate_id = candidateId;
+        recruiterTask.job_id = bolnaCall.jobId;
+        recruiterTask.interview_time = meetingStartTime;
+        recruiterTask.interview_end_time = meetingEndTime;
+        recruiterTask.call_scheduled_at = scheduledTime;
+        recruiterTask.status = "scheduled";
+        recruiterTask.email_sent = true;
+        recruiterTask.email_sent_at = new Date();
+        await recruiterTask.save();
+        console.log("✓ Updated existing RecruiterTask:", recruiterTask._id);
+        console.log("📅 Interview Start Time:", meetingStartTime.toISOString());
+        console.log("📅 Interview End Time:", meetingEndTime.toISOString());
+      } else {
+        // Create new task
+        recruiterTask = new RecruiterTask({
+          recruiter_id: recruiterId,
+          candidate_id: candidateId,
+          job_id: bolnaCall.jobId,
+          bolna_call_id: bolnaCall._id,
+          interview_time: meetingStartTime,
+          interview_end_time: meetingEndTime,
+          call_scheduled_at: scheduledTime,
+          status: "scheduled",
+          email_sent: true,
+          email_sent_at: new Date(),
+        });
+        await recruiterTask.save();
+        console.log("✓ Created new RecruiterTask:", recruiterTask._id);
+        console.log("📅 Interview Start Time:", meetingStartTime.toISOString());
+        console.log("📅 Interview End Time:", meetingEndTime.toISOString());
+      }
+    } catch (taskError) {
+      // Log error but don't fail the entire request
+      console.error("⚠️ Error saving RecruiterTask:", taskError.message);
+      // Continue with the response even if task saving fails
+    }
 
     res.status(200).json({
       message: "Email sent successfully via Cal.com",
@@ -1368,6 +1452,10 @@ export const sendEmailManually = async (req, res) => {
         scheduledTime: scheduledTime,
         emailSent: bolnaCall.emailSent,
         emailSentAt: bolnaCall.emailSentAt,
+      },
+      task: {
+        interviewTime: meetingStartTime,
+        endTime: meetingEndTime,
       },
     });
   } catch (error) {

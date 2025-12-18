@@ -30,6 +30,11 @@ const recruiterTaskSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    interview_end_time: {
+      type: Date,
+      required: false,
+      default: null,
+    },
     call_scheduled_at: {
       type: Date,
       required: true,
