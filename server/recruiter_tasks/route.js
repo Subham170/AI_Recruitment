@@ -5,6 +5,7 @@ import {
   getRecruiterTasks,
   getRecruiterTaskStats,
   updateTaskStatus,
+  cancelInterview,
 } from "./controller.js";
 
 const router = express.Router();
@@ -24,5 +25,8 @@ router.get("/candidate/:candidateId/interviews", getCandidateInterviews);
 
 // Update task status
 router.patch("/:taskId/status", updateTaskStatus);
+
+// Cancel interview (cancels Cal.com booking and updates task)
+router.post("/:taskId/cancel", cancelInterview);
 
 export default router;

@@ -1381,6 +1381,7 @@ export const sendEmailManually = async (req, res) => {
     const meetLink = typeof meetLinkResult === 'string' ? meetLinkResult : meetLinkResult.meetLink;
     const meetingStartTime = typeof meetLinkResult === 'string' ? scheduledTime : (meetLinkResult.startTime || scheduledTime);
     const meetingEndTime = typeof meetLinkResult === 'string' ? new Date(scheduledTime.getTime() + 30 * 60 * 1000) : (meetLinkResult.endTime || new Date(scheduledTime.getTime() + 30 * 60 * 1000));
+    const bookingUid = typeof meetLinkResult === 'object' ? meetLinkResult.bookingUid : null;
 
     // Update BolnaCall record with meet link and email sent status
     bolnaCall.emailSent = true;
@@ -1390,6 +1391,9 @@ export const sendEmailManually = async (req, res) => {
     bolnaCall.meetLinkGenerated = true;
     bolnaCall.meetLinkGeneratedAt = new Date();
     bolnaCall.assignRecruiter = recruiterId;
+    if (bookingUid) {
+      bolnaCall.calBookingUid = bookingUid;
+    }
     await bolnaCall.save();
 
     // Create or update RecruiterTask record with all the meeting details

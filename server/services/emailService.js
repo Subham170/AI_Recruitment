@@ -61,29 +61,29 @@ export async function generateGoogleMeetLink(
     let eventTypeId = EVENT_TYPE_ID;
 
     // If recruiterId is provided, use recruiter-specific credentials
-    // if (recruiterId) {
-    //   const credentials = await CalcomCredentials.findOne({ 
-    //     recruiterId,
-    //     isActive: true 
-    //   });
+    if (recruiterId) {
+      const credentials = await CalcomCredentials.findOne({ 
+        recruiterId,
+        isActive: true 
+      });
 
-    //   if (!credentials) {
-    //     throw new Error(
-    //       "Cal.com credentials not found for this recruiter. Please configure your Cal.com API secret key and event type."
-    //     );
-    //   }
+      if (!credentials) {
+        throw new Error(
+          "Cal.com credentials not found for this recruiter. Please configure your Cal.com API secret key and event type."
+        );
+      }
 
-    //   if (!credentials.apiSecretKey) {
-    //     throw new Error("Cal.com API secret key not configured for this recruiter");
-    //   }
+      if (!credentials.apiSecretKey) {
+        throw new Error("Cal.com API secret key not configured for this recruiter");
+      }
 
-    //   if (!credentials.eventTypeId) {
-    //     throw new Error("Cal.com event type ID not configured for this recruiter");
-    //   }
+      if (!credentials.eventTypeId) {
+        throw new Error("Cal.com event type ID not configured for this recruiter");
+      }
 
-    //   apiSecretKey = credentials.apiSecretKey;
-    //   eventTypeId = credentials.eventTypeId;
-    // }
+      apiSecretKey = credentials.apiSecretKey;
+      eventTypeId = credentials.eventTypeId;
+    }
 
     // Validate credentials
     if (!apiSecretKey) {
@@ -325,6 +325,7 @@ export async function generateGoogleMeetLink(
           meetLink: meetLinkFromCreation,
           startTime: startTime || scheduledDate,
           endTime: endTime || new Date(scheduledDate.getTime() + 30 * 60 * 1000), // Default 30 min if not provided
+          bookingUid: bookingUid, // Return booking UID for cancellation
         };
       } catch (urlError) {
         console.warn(
@@ -440,6 +441,7 @@ export async function generateGoogleMeetLink(
       meetLink: meetLink,
       startTime: startTime,
       endTime: endTime,
+      bookingUid: bookingUid, // Return booking UID for cancellation
     };
   } catch (error) {
     console.error("❌ Error generating Google Meet link:", error.message);
@@ -465,6 +467,79 @@ export async function generateGoogleMeetLink(
     }
 
     // Re-throw the error so the caller can handle it appropriately
+    throw error;
+  }
+}
+
+/**
+ * Cancel a Cal.com booking by booking UID
+ * @param {string} bookingUid - The Cal.com booking UID
+ * @param {string} recruiterId - Recruiter ID to use recruiter-specific credentials (optional)
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+export async function cancelCalBooking(bookingUid, recruiterId = null) {
+  try {
+    let apiSecretKey = CAL_SECRET_KEY;
+
+    // If recruiterId is provided, use recruiter-specific credentials
+    if (recruiterId) {
+      const credentials = await CalcomCredentials.findOne({ 
+        recruiterId,
+        isActive: true 
+      });
+
+      if (credentials && credentials.apiSecretKey) {
+        apiSecretKey = credentials.apiSecretKey;
+      }
+    }
+
+    if (!apiSecretKey) {
+      throw new Error("Cal.com API secret key is not configured");
+    }
+
+    if (!bookingUid) {
+      throw new Error("Booking UID is required to cancel the booking");
+    }
+
+    console.log(`🗑️ Cancelling Cal.com booking: ${bookingUid}`);
+
+    // Cal.com v2 API - DELETE booking endpoint
+    const response = await axios.delete(
+      `https://api.cal.com/v2/bookings/${bookingUid}`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiSecretKey}`,
+          "cal-api-version": CAL_API_VERSION,
+          "Content-Type": "application/json",
+        },
+        timeout: 30000, // 30 seconds timeout
+      }
+    );
+
+    console.log("✓ Booking cancelled successfully:", bookingUid);
+    
+    return {
+      success: true,
+      message: "Booking cancelled successfully",
+      data: response.data,
+    };
+  } catch (error) {
+    console.error("❌ Error cancelling Cal.com booking:", error.message);
+    
+    if (error.response?.data) {
+      const errorData = error.response.data;
+      console.error("API Error:", errorData.error?.message || errorData.message || "Unknown error");
+      console.error("API Status:", error.response.status);
+      
+      // If booking not found, it might already be cancelled
+      if (error.response.status === 404) {
+        return {
+          success: true,
+          message: "Booking not found (may already be cancelled)",
+        };
+      }
+    }
+
     throw error;
   }
 }

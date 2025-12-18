@@ -75,6 +75,11 @@ const bolnaCallSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    calBookingUid: {
+      type: String,
+      default: null,
+      index: true,
+    },
     jobDescription: {
       type: String,
       default: null,

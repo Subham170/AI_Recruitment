@@ -452,6 +452,12 @@ export const recruiterTasksAPI = {
       },
     });
   },
+
+  cancelInterview: async (taskId) => {
+    return apiRequest(`/recruiter-tasks/${taskId}/cancel`, {
+      method: "POST",
+    });
+  },
 };
 
 // Chat API functions
