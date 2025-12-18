@@ -381,7 +381,7 @@ export default function UserManagementPage() {
 
               <Button
                 onClick={openAddForm}
-                className="gap-2 w-full sm:w-auto bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
+                className="gap-2 w-full sm:w-auto bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
               >
                 <UserPlus className="h-4 w-4" />
                 Add People
@@ -415,7 +415,7 @@ export default function UserManagementPage() {
               </div>
             ) : users.length === 0 ? (
               <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-800/50 rounded-xl p-12 flex flex-col items-center justify-center">
-                <div className="p-4 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/20 mb-4">
+                <div className="p-4 rounded-full bg-linear-to-br from-cyan-400/20 to-blue-500/20 mb-4">
                   <Users className="h-12 w-12 text-cyan-600 dark:text-cyan-400" />
                 </div>
                 <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">
@@ -560,9 +560,9 @@ export default function UserManagementPage() {
                               }
                               size="sm"
                               onClick={() => setCurrentPage(page)}
-                              className={`min-w-[2.5rem] ${
+                              className={`min-w-10 ${
                                 currentPage === page
-                                  ? "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                                  ? "bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
                                   : "border-slate-200 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700"
                               }`}
                             >
@@ -594,15 +594,15 @@ export default function UserManagementPage() {
       </div>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200/50 dark:border-slate-800/50 shadow-2xl">
-          <DialogHeader className="pb-4 border-b border-slate-200 dark:border-slate-700">
-            <DialogTitle className="flex items-center gap-3 text-2xl bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
-                <UserPlus className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white/90 backdrop-blur-2xl border border-white/70 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-white/60">
+            <DialogTitle className="flex items-center gap-3 text-2xl font-bold text-slate-900">
+              <div className="p-2 rounded-lg bg-cyan-50">
+                <UserPlus className="h-6 w-6 text-cyan-600" />
               </div>
               {editingUser ? "Edit User" : "Add New User"}
             </DialogTitle>
-            <DialogDescription className="text-slate-600 dark:text-slate-400 mt-2">
+            <DialogDescription className="text-slate-600 mt-2">
               {editingUser
                 ? "Update user information below"
                 : "Fill in the details to create a new user account"}
@@ -630,10 +630,7 @@ export default function UserManagementPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6 mt-6">
             <div className="space-y-2">
-              <Label
-                htmlFor="name"
-                className="text-slate-900 dark:text-slate-100 font-medium"
-              >
+              <Label htmlFor="name" className="text-slate-900 font-medium">
                 Full Name <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -644,15 +641,12 @@ export default function UserManagementPage() {
                 onChange={handleChange}
                 placeholder="Enter full name"
                 required
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                className="bg-white/80 border border-white/70 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200/70 focus:shadow-lg focus:shadow-cyan-400/20 transition-all duration-200 backdrop-blur"
               />
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="email"
-                className="text-slate-900 dark:text-slate-100 font-medium"
-              >
+              <Label htmlFor="email" className="text-slate-900 font-medium">
                 Email Address <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -663,15 +657,12 @@ export default function UserManagementPage() {
                 onChange={handleChange}
                 placeholder="Enter email address"
                 required
-                className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                className="bg-white/80 border border-white/70 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200/70 focus:shadow-lg focus:shadow-cyan-400/20 transition-all duration-200 backdrop-blur"
               />
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="role"
-                className="text-slate-900 dark:text-slate-100 font-medium"
-              >
+              <Label htmlFor="role" className="text-slate-900 font-medium">
                 Role <span className="text-red-500">*</span>
               </Label>
               <Select
@@ -681,7 +672,7 @@ export default function UserManagementPage() {
               >
                 <SelectTrigger
                   id="role"
-                  className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400"
+                  className="bg-white/80 border border-white/70 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200/70 transition-all duration-200 backdrop-blur"
                 >
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
@@ -689,16 +680,13 @@ export default function UserManagementPage() {
                   <SelectItem value="recruiter">Recruiter</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500">
                 Managers can only create and manage recruiters
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="password"
-                className="text-slate-900 dark:text-slate-100 font-medium"
-              >
+              <Label htmlFor="password" className="text-slate-900 font-medium">
                 Password{" "}
                 {!editingUser && <span className="text-red-500">*</span>}
               </Label>
@@ -715,12 +703,12 @@ export default function UserManagementPage() {
                       : "Enter password (min. 6 characters)"
                   }
                   minLength={formData.password ? 6 : undefined}
-                  className="pr-10 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                  className="pr-10 bg-white/80 border border-white/70 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200/70 focus:shadow-lg focus:shadow-cyan-400/20 transition-all duration-200 backdrop-blur"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-cyan-600 dark:hover:text-cyan-400 focus:outline-none transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-600 focus:outline-none transition-colors"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -731,7 +719,7 @@ export default function UserManagementPage() {
                 </button>
               </div>
               {editingUser && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-slate-500">
                   Leave blank to keep the current password
                 </p>
               )}
@@ -741,7 +729,7 @@ export default function UserManagementPage() {
               <div className="space-y-2">
                 <Label
                   htmlFor="confirmPassword"
-                  className="text-slate-900 dark:text-slate-100 font-medium"
+                  className="text-slate-900 font-medium"
                 >
                   Confirm Password <span className="text-red-500">*</span>
                 </Label>
@@ -753,12 +741,12 @@ export default function UserManagementPage() {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     placeholder="Confirm password"
-                    className="pr-10 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20"
+                    className="pr-10 bg-white/80 border border-white/70 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200/70 focus:shadow-lg focus:shadow-cyan-400/20 transition-all duration-200 backdrop-blur"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-cyan-600 dark:hover:text-cyan-400 focus:outline-none transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-600 focus:outline-none transition-colors"
                     aria-label={
                       showConfirmPassword ? "Hide password" : "Show password"
                     }
@@ -773,7 +761,7 @@ export default function UserManagementPage() {
               </div>
             )}
 
-            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-700">
+            <DialogFooter className="pt-4 border-t border-white/60">
               <Button
                 type="button"
                 variant="outline"
@@ -781,14 +769,14 @@ export default function UserManagementPage() {
                   setFormOpen(false);
                   resetForm();
                 }}
-                className="border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="border-slate-200 hover:bg-slate-50"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                className="bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
               >
                 {isSubmitting
                   ? editingUser
