@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -317,7 +318,8 @@ export default function UserManagementPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+      <GlassBackground />
       <aside className="hidden lg:block relative z-10">
         <Sidebar />
       </aside>
@@ -325,7 +327,7 @@ export default function UserManagementPage() {
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent
           side="left"
-          className="w-60 p-0 bg-slate-950 text-slate-100 border-r border-slate-900"
+          className="w-60 p-0 bg-white/10 text-slate-900 border-r border-white/30 backdrop-blur-2xl"
         >
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <Sidebar />
@@ -356,17 +358,15 @@ export default function UserManagementPage() {
           )}
 
           <div className="space-y-6 max-w-7xl mx-auto">
-            {/* Header Section */}
-            {/* <div className="mb-6">
-              <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+            {/* Page title */}
+            <div className="mb-2">
+              <h1 className="text-3xl font-bold text-slate-900 mb-1 drop-shadow-[0_1px_1px_rgba(15,23,42,0.18)]">
                 User Management
-              </h2>
-              <p className="text-slate-600 dark:text-slate-400">
-                Manage recruiters in the system
-              </p>
-            </div> */}
+              </h1>
+              <p className="text-slate-600">Manage recruiters in the system</p>
+            </div>
 
-            {/* Search and Filter Section */}
+            {/* Search + Add button */}
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-6">
               <div className="flex-1 relative w-full">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -378,7 +378,6 @@ export default function UserManagementPage() {
                   className="pl-10 bg-white border-slate-200 focus:border-cyan-500 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-cyan-500/30 focus:shadow-lg focus:shadow-cyan-500/20 transition-all duration-200"
                 />
               </div>
-
               <Button
                 onClick={openAddForm}
                 className="gap-2 w-full sm:w-auto bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"

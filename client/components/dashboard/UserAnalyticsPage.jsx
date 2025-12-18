@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -96,10 +97,11 @@ export default function UserAnalyticsPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex h-screen overflow-hidden bg-white relative">
+      <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+        <GlassBackground />
         <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
         <div className="flex flex-1 flex-col overflow-hidden relative z-10">
-          <main className="flex-1 overflow-y-auto p-6 bg-white">
+          <main className="flex-1 overflow-y-auto p-6 lg:p-8">
             <div className="flex items-center justify-center min-h-[400px]">
               <Loading size="lg" />
             </div>
@@ -120,7 +122,8 @@ export default function UserAnalyticsPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white relative">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+      <GlassBackground />
       <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
       <div className="flex flex-1 flex-col overflow-hidden relative z-10">
@@ -136,7 +139,7 @@ export default function UserAnalyticsPage() {
           onSidebarToggle={setSidebarOpen}
         />
 
-        <main className="flex-1 overflow-y-auto p-6 bg-white">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Back Button */}
             <div className="mb-6">
@@ -160,31 +163,31 @@ export default function UserAnalyticsPage() {
               <div className="space-y-6">
                 {/* Overview Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/85 border border-white/70 p-4 rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <p className="text-xs text-slate-600 mb-1">Total Jobs</p>
                     <p className="text-2xl font-bold text-blue-600">
                       {analyticsData.analytics.overview.totalJobs}
                     </p>
                   </div>
-                  <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/85 border border-white/70 p-4 rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <p className="text-xs text-slate-600 mb-1">Applications</p>
                     <p className="text-2xl font-bold text-green-600">
                       {analyticsData.analytics.overview.totalApplications}
                     </p>
                   </div>
-                  <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/85 border border-white/70 p-4 rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <p className="text-xs text-slate-600 mb-1">Candidates</p>
                     <p className="text-2xl font-bold text-purple-600">
                       {analyticsData.analytics.overview.totalCandidates}
                     </p>
                   </div>
-                  <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/85 border border-white/70 p-4 rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <p className="text-xs text-slate-600 mb-1">Interviews</p>
                     <p className="text-2xl font-bold text-orange-600">
                       {analyticsData.analytics.overview.totalInterviews}
                     </p>
                   </div>
-                  <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/85 border border-white/70 p-4 rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <p className="text-xs text-slate-600 mb-1">
                       Avg Match Score
                     </p>
@@ -196,7 +199,7 @@ export default function UserAnalyticsPage() {
 
                 {/* Timeline Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/90 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <h3 className="text-lg font-semibold mb-4 text-slate-900">
                       Jobs Timeline
                     </h3>
@@ -247,7 +250,7 @@ export default function UserAnalyticsPage() {
                     </ResponsiveContainer>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/90 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <h3 className="text-lg font-semibold mb-4 text-slate-900">
                       Applications Timeline
                     </h3>
@@ -281,7 +284,7 @@ export default function UserAnalyticsPage() {
 
                 {/* Distribution Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/90 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <h3 className="text-lg font-semibold mb-4 text-slate-900">
                       Role Distribution
                     </h3>
@@ -322,7 +325,7 @@ export default function UserAnalyticsPage() {
                     </ResponsiveContainer>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/90 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <h3 className="text-lg font-semibold mb-4 text-slate-900">
                       Top Skills Distribution
                     </h3>
@@ -359,7 +362,7 @@ export default function UserAnalyticsPage() {
                     </ResponsiveContainer>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/90 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <h3 className="text-lg font-semibold mb-4 text-slate-900">
                       Experience Distribution
                     </h3>
@@ -390,7 +393,7 @@ export default function UserAnalyticsPage() {
                 </div>
 
                 {/* Top Jobs Table */}
-                <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
+                <div className="bg-white/95 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.2)] backdrop-blur-xl">
                   <h3 className="text-lg font-semibold mb-4 text-slate-900">
                     Top Performing Jobs
                   </h3>

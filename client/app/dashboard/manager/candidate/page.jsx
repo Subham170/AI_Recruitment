@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -16,18 +17,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Loading from "@/components/ui/loading";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { candidateAPI } from "@/lib/api";
 import {
-  Briefcase,
   FileText,
   Plus,
   Search,
@@ -49,7 +42,6 @@ export default function CandidatesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -265,15 +257,7 @@ export default function CandidatesPage() {
 
   // Candidates are now filtered on the server side via API
   // Role filter is still client-side as it's a separate filter
-  const filteredCandidates = candidates.filter((candidate) => {
-    const matchesRole =
-      !roleFilter ||
-      candidate.role?.includes(roleFilter) ||
-      (roleFilter === "none" &&
-        (!candidate.role || candidate.role.length === 0));
-
-    return matchesRole;
-  });
+  const filteredCandidates = candidates;
 
   const validRoles = [
     "SDET",
@@ -297,7 +281,8 @@ export default function CandidatesPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white text-slate-900">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7] text-slate-900">
+      <GlassBackground />
       <aside className="hidden lg:block relative z-10">
         <Sidebar />
       </aside>
@@ -305,17 +290,17 @@ export default function CandidatesPage() {
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent
           side="left"
-          className="w-60 p-0 bg-slate-950 text-slate-100 border-r border-slate-900"
+          className="w-60 p-0 bg-white/10 text-slate-900 border-r border-white/30 backdrop-blur-2xl"
         >
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <Sidebar />
         </SheetContent>
       </Sheet>
 
-      <div className="flex flex-1 flex-col overflow-hidden bg-white">
+      <div className="flex flex-1 flex-col overflow-hidden relative z-10">
         <Navbar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-white text-slate-900">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error}</AlertDescription>
@@ -332,78 +317,52 @@ export default function CandidatesPage() {
 
           <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="mb-6">
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">Candidates List</h1>
-              <p className="text-slate-600">View and manage all candidates in your database</p>
+            <div className="mb-2">
+              <h1 className="text-3xl font-bold text-slate-900 mb-1">
+                Candidates List
+              </h1>
+              <p className="text-slate-600">
+                View and manage all candidates in your database
+              </p>
             </div>
 
-            <div className="flex items-center justify-between">
+            {/* Search + Add button */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="flex-1 relative w-full">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  type="text"
+                  placeholder="Search by name, email, or skills..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-white border border-slate-200 focus:border-cyan-500 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-cyan-500/20 focus:shadow-lg focus:shadow-cyan-500/10 transition-all duration-200"
+                />
+              </div>
               <Button
                 onClick={openAddForm}
-                className="gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                className="gap-2 w-full sm:w-auto bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
               >
                 <Plus className="h-4 w-4" />
                 Add Candidate
               </Button>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div className="flex-1 relative w-full">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search by name, email, or skills..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-white border-slate-200 focus:border-cyan-500 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-cyan-500/20 focus:shadow-lg focus:shadow-cyan-500/10 transition-all duration-200"
-                  />
-                </div>
-
-                <div className="w-full sm:w-48">
-                  <Select
-                    value={roleFilter || "all"}
-                    onValueChange={(value) =>
-                      setRoleFilter(value === "all" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger className="bg-white border-slate-200 text-slate-900">
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="h-4 w-4 text-slate-400" />
-                        <SelectValue placeholder="All Roles" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border-slate-200">
-                      <SelectItem value="all">All Roles</SelectItem>
-                      {validRoles.map((role) => (
-                        <SelectItem key={role} value={role}>
-                          {role}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="none">No Role</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
             {!loadingCandidates && !initialLoading && (
-              <div className="mb-4 text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+              <div className="mb-4 text-sm text-slate-600 flex items-center gap-2">
                 <span>
                   Showing {filteredCandidates.length} of {candidates.length}{" "}
                   candidates
                 </span>
-                {(searchQuery || roleFilter) && (
+                {searchQuery && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-1 text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300"
+                    className="h-auto p-1 text-xs text-cyan-600 hover:text-cyan-700"
                     onClick={() => {
                       setSearchQuery("");
-                      setRoleFilter("");
                     }}
                   >
-                    Clear filters
+                    Clear search
                   </Button>
                 )}
               </div>
@@ -423,7 +382,7 @@ export default function CandidatesPage() {
                   )}
                   {filteredCandidates.length === 0 ? (
                     <div className="p-12 flex flex-col items-center justify-center">
-                      <div className="p-4 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/20 mb-4">
+                      <div className="p-4 rounded-full bg-linear-to-br from-cyan-400/20 to-blue-500/20 mb-4">
                         <Users className="h-12 w-12 text-cyan-600 dark:text-cyan-400" />
                       </div>
                       <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">
@@ -497,7 +456,7 @@ export default function CandidatesPage() {
                                 </span>
                               </td>
                             </tr>
-                        ))}
+                          ))}
                         </tbody>
                       </table>
                     </div>
@@ -513,8 +472,8 @@ export default function CandidatesPage() {
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-slate-200/50 dark:border-slate-800/50 shadow-2xl">
           <DialogHeader className="pb-4 border-b border-slate-200 dark:border-slate-700">
-            <DialogTitle className="flex items-center gap-3 text-2xl bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400/20 to-blue-500/20">
+            <DialogTitle className="flex items-center gap-3 text-2xl bg-linear-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+              <div className="p-2 rounded-lg bg-linear-to-br from-cyan-400/20 to-blue-500/20">
                 <UserPlus className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
               </div>
               Add New Candidate
@@ -634,7 +593,7 @@ export default function CandidatesPage() {
                     onClick={() => handleRoleChange(role)}
                     className={
                       formData.role?.includes(role)
-                        ? "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                        ? "bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
                         : ""
                     }
                   >
@@ -771,7 +730,7 @@ export default function CandidatesPage() {
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                className="bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
               >
                 {isSubmitting ? "Creating..." : "Create Candidate"}
               </Button>

@@ -4,17 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { recruiterAvailabilityAPI } from "@/lib/api";
+import {
+  convert24To12Hour,
+  formatFullDateTimeWithAMPM,
+} from "@/lib/timeFormatter";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { convert24To12Hour, formatFullDateTimeWithAMPM } from "@/lib/timeFormatter";
 import { CalendarIcon, Clock, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
 
 export default function RecruiterAvailability({ jobId, user }) {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -204,9 +202,7 @@ export default function RecruiterAvailability({ jobId, user }) {
 
   const handleDeleteAvailability = async () => {
     if (
-      !confirm(
-        "Are you sure you want to delete all availability for this job?"
-      )
+      !confirm("Are you sure you want to delete all availability for this job?")
     ) {
       return;
     }
@@ -287,7 +283,9 @@ export default function RecruiterAvailability({ jobId, user }) {
             mode="single"
             selected={selectedDate}
             onSelect={handleDateSelect}
-            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+            disabled={(date) =>
+              date < new Date(new Date().setHours(0, 0, 0, 0))
+            }
             modifiers={{
               hasSlots: getDatesWithSlots(),
             }}
@@ -298,177 +296,177 @@ export default function RecruiterAvailability({ jobId, user }) {
           />
         </div>
 
-          {/* Time Slots */}
-          <div className="space-y-4">
-            {selectedDate ? (
-              <>
-                <div className="p-5 rounded-xl border border-slate-200 bg-white">
-                  <Label className="mb-4 block text-slate-700 font-semibold">
-                    Time Slots for {format(selectedDate, "MMMM d, yyyy")}
-                  </Label>
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                    {timeSlots[format(selectedDate, "yyyy-MM-dd")]?.map(
-                      (slot, index) => (
-                        <div
-                          key={index}
+        {/* Time Slots */}
+        <div className="space-y-4">
+          {selectedDate ? (
+            <>
+              <div className="p-5 rounded-xl border border-slate-200 bg-white">
+                <Label className="mb-4 block text-slate-700 font-semibold">
+                  Time Slots for {format(selectedDate, "MMMM d, yyyy")}
+                </Label>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {timeSlots[format(selectedDate, "yyyy-MM-dd")]?.map(
+                    (slot, index) => (
+                      <div
+                        key={index}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg border transition-all duration-200",
+                          slot.is_available
+                            ? "bg-cyan-50 border-cyan-200 hover:shadow-md hover:shadow-cyan-500/10"
+                            : "bg-slate-100 border-slate-300 opacity-60"
+                        )}
+                      >
+                        <div className="p-1.5 rounded bg-cyan-100">
+                          <Clock className="h-4 w-4 text-cyan-600" />
+                        </div>
+                        <span className="flex-1 text-sm font-medium text-slate-900">
+                          {convert24To12Hour(slot.start_time)} -{" "}
+                          {convert24To12Hour(slot.end_time)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleToggleAvailability(
+                              format(selectedDate, "yyyy-MM-dd"),
+                              index
+                            )
+                          }
                           className={cn(
-                            "flex items-center gap-3 p-3 rounded-lg border transition-all duration-200",
+                            "text-xs font-medium",
                             slot.is_available
-                              ? "bg-cyan-50 border-cyan-200 hover:shadow-md hover:shadow-cyan-500/10"
-                              : "bg-slate-100 border-slate-300 opacity-60"
+                              ? "text-green-600 hover:bg-green-50"
+                              : "text-slate-500 hover:bg-slate-100"
                           )}
                         >
-                          <div className="p-1.5 rounded bg-cyan-100">
-                            <Clock className="h-4 w-4 text-cyan-600" />
-                          </div>
-                          <span className="flex-1 text-sm font-medium text-slate-900">
-                            {convert24To12Hour(slot.start_time)} - {convert24To12Hour(slot.end_time)}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              handleToggleAvailability(
-                                format(selectedDate, "yyyy-MM-dd"),
-                                index
-                              )
-                            }
-                            className={cn(
-                              "text-xs font-medium",
-                              slot.is_available
-                                ? "text-green-600 hover:bg-green-50"
-                                : "text-slate-500 hover:bg-slate-100"
-                            )}
-                          >
-                            {slot.is_available ? "Available" : "Unavailable"}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              handleRemoveTimeSlot(
-                                format(selectedDate, "yyyy-MM-dd"),
-                                index
-                              )
-                            }
-                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )
-                    ) || (
-                      <div className="text-center py-8">
-                        <Clock className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                        <p className="text-sm text-slate-500">
-                          No time slots added for this date
-                        </p>
+                          {slot.is_available ? "Available" : "Unavailable"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            handleRemoveTimeSlot(
+                              format(selectedDate, "yyyy-MM-dd"),
+                              index
+                            )
+                          }
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-3 p-5 rounded-xl border border-slate-200 bg-white">
-                  <Label className="text-slate-700 font-semibold">
-                    Add New Time Slot
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="time"
-                      placeholder="Start Time"
-                      value={newSlot.start_time}
-                      onChange={(e) =>
-                        setNewSlot({ ...newSlot, start_time: e.target.value })
-                      }
-                      className="flex-1 bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
-                    />
-                    <Input
-                      type="time"
-                      placeholder="End Time"
-                      value={newSlot.end_time}
-                      onChange={(e) =>
-                        setNewSlot({ ...newSlot, end_time: e.target.value })
-                      }
-                      className="flex-1 bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
-                    />
-                    <Button
-                      onClick={handleAddTimeSlot}
-                      size="sm"
-                      disabled={!newSlot.start_time || !newSlot.end_time}
-                      className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-full min-h-[200px] p-5 rounded-xl border border-slate-200 bg-white">
-                <div className="text-center">
-                  <CalendarIcon className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                  <p className="text-slate-600 font-medium">
-                    Select a date from the calendar to add time slots
-                  </p>
+                    )
+                  ) || (
+                    <div className="text-center py-8">
+                      <Clock className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                      <p className="text-sm text-slate-500">
+                        No time slots added for this date
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        <div className="flex gap-3 pt-4 border-t border-slate-200">
-          <Button
-            onClick={handleSaveAvailability}
-            disabled={saving || Object.keys(timeSlots).length === 0}
-            className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
-          >
-            {saving ? (
-              <>
-                <Clock className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Save Availability"
-            )}
-          </Button>
-          {selectedDate && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedDate(null);
-                setNewSlot({ start_time: "", end_time: "" });
-                setError(null);
-              }}
-              className="border-slate-200 hover:bg-slate-50"
-            >
-              Cancel
-            </Button>
-          )}
-        </div>
-
-        {availability && (
-          <div className="pt-4 border-t border-slate-200">
-            <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-200">
-              <div>
-                <p className="text-sm font-medium text-slate-700 mb-1">
-                  Last updated:{" "}
-                  <span className="text-slate-900">
-                    {formatFullDateTimeWithAMPM(availability.updatedAt)}
-                  </span>
-                </p>
-                <p className="text-xs text-slate-600">
-                  Total slots:{" "}
-                  <span className="font-semibold text-cyan-600">
-                    {Object.values(timeSlots).reduce(
-                      (sum, slots) => sum + slots.length,
-                      0
-                    )}
-                  </span>
+              <div className="space-y-3 p-5 rounded-xl border border-slate-200 bg-white">
+                <Label className="text-slate-700 font-semibold">
+                  Add New Time Slot
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="time"
+                    placeholder="Start Time"
+                    value={newSlot.start_time}
+                    onChange={(e) =>
+                      setNewSlot({ ...newSlot, start_time: e.target.value })
+                    }
+                    className="flex-1 bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+                  />
+                  <Input
+                    type="time"
+                    placeholder="End Time"
+                    value={newSlot.end_time}
+                    onChange={(e) =>
+                      setNewSlot({ ...newSlot, end_time: e.target.value })
+                    }
+                    className="flex-1 bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+                  />
+                  <Button
+                    onClick={handleAddTimeSlot}
+                    size="sm"
+                    disabled={!newSlot.start_time || !newSlot.end_time}
+                    className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full min-h-[200px] p-5 rounded-xl border border-slate-200 bg-white">
+              <div className="text-center">
+                <CalendarIcon className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                <p className="text-slate-600 font-medium">
+                  Select a date from the calendar to add time slots
                 </p>
               </div>
             </div>
-          </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex gap-3 pt-4 border-t border-slate-200">
+        <Button
+          onClick={handleSaveAvailability}
+          disabled={saving || Object.keys(timeSlots).length === 0}
+          className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+        >
+          {saving ? (
+            <>
+              <Clock className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            "Save Availability"
+          )}
+        </Button>
+        {selectedDate && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSelectedDate(null);
+              setNewSlot({ start_time: "", end_time: "" });
+              setError(null);
+            }}
+            className="border-slate-200 hover:bg-slate-50"
+          >
+            Cancel
+          </Button>
         )}
+      </div>
+
+      {availability && (
+        <div className="pt-4 border-t border-slate-200">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-200">
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-1">
+                Last updated:{" "}
+                <span className="text-slate-900">
+                  {formatFullDateTimeWithAMPM(availability.updatedAt)}
+                </span>
+              </p>
+              <p className="text-xs text-slate-600">
+                Total slots:{" "}
+                <span className="font-semibold text-cyan-600">
+                  {Object.values(timeSlots).reduce(
+                    (sum, slots) => sum + slots.length,
+                    0
+                  )}
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

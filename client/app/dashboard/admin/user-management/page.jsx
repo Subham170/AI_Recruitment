@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -35,7 +36,6 @@ import {
   Edit,
   Eye,
   EyeOff,
-  Filter,
   Mail,
   Search,
   Shield,
@@ -59,7 +59,6 @@ export default function UserManagementPage() {
   const [editingUser, setEditingUser] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({
     totalCount: 0,
@@ -110,13 +109,6 @@ export default function UserManagementPage() {
 
   useEffect(() => {
     if (user && user.role === "admin") {
-      setCurrentPage(1);
-      fetchUsers();
-    }
-  }, [roleFilter]);
-
-  useEffect(() => {
-    if (user && user.role === "admin") {
       fetchUsers();
     }
   }, [currentPage]);
@@ -125,7 +117,6 @@ export default function UserManagementPage() {
     try {
       setLoadingUsers(true);
       const response = await userAPI.getUsers({
-        filterRole: roleFilter || null,
         search: searchQuery,
         page: currentPage,
         pageSize: 7,
@@ -326,7 +317,8 @@ export default function UserManagementPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white text-slate-900">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7] text-slate-900">
+      <GlassBackground />
       <aside className="hidden lg:block relative z-10">
         <Sidebar />
       </aside>
@@ -334,17 +326,22 @@ export default function UserManagementPage() {
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent
           side="left"
-          className="w-60 p-0 bg-slate-950 text-slate-100 border-r border-slate-900"
+          className="w-60 p-0 bg-white/10 text-slate-900 border-r border-white/30 backdrop-blur-2xl"
         >
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <Sidebar />
         </SheetContent>
       </Sheet>
 
-      <div className="flex flex-1 flex-col overflow-hidden bg-white">
-        <Navbar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
+      <div className="flex flex-1 flex-col overflow-hidden relative z-10">
+        <Navbar
+          title="User Management"
+          subtitle="Manage all users in the system"
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={setSidebarOpen}
+        />
 
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8 bg-white text-slate-900">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error}</AlertDescription>
@@ -360,102 +357,51 @@ export default function UserManagementPage() {
           )}
 
           <div className="space-y-6 max-w-7xl mx-auto">
-            {/* Header Section */}
-            {/* <div className="mb-6">
-              <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+            {/* Page title */}
+            <div className="mb-2">
+              <h1 className="text-3xl font-bold text-slate-900 mb-1 drop-shadow-[0_1px_1px_rgba(15,23,42,0.18)]">
                 User Management
-              </h2>
-              <p className="text-slate-600 dark:text-slate-400">
-                Manage all users in the system
-              </p>
-            </div> */}
+              </h1>
+              <p className="text-slate-600">Manage all users in the system</p>
+            </div>
 
-            {/* Search and Filter Section */}
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div className="flex-1 relative w-full">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search by name or email..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-white border-slate-200 focus:border-cyan-500 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-cyan-500/20 focus:shadow-lg focus:shadow-cyan-500/10 transition-all duration-200"
-                  />
-                </div>
-
-                <div className="w-full sm:w-48">
-                  <Select
-                    value={roleFilter || "all"}
-                    onValueChange={(value) =>
-                      setRoleFilter(value === "all" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger className="bg-white border-slate-200 text-slate-900">
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-slate-400" />
-                        <SelectValue
-                          placeholder="All Roles"
-                          className="text-slate-900"
-                        />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border-slate-200">
-                      <SelectItem
-                        value="all"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
-                      >
-                        All Roles
-                      </SelectItem>
-                      <SelectItem
-                        value="admin"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
-                      >
-                        Admin
-                      </SelectItem>
-                      <SelectItem
-                        value="manager"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
-                      >
-                        Manager
-                      </SelectItem>
-                      <SelectItem
-                        value="recruiter"
-                        className="text-slate-900 dark:text-white hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:text-cyan-600 dark:hover:text-cyan-400"
-                      >
-                        Recruiter
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button
-                  onClick={openAddForm}
-                  className="gap-2 w-full sm:w-auto bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Add People
-                </Button>
+            {/* Search + Add button */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="flex-1 relative w-full">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-white border border-slate-200 focus:border-cyan-500 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-cyan-500/20 focus:shadow-lg focus:shadow-cyan-500/10 transition-all duration-200"
+                />
               </div>
+              <Button
+                onClick={openAddForm}
+                className="gap-2 w-full sm:w-auto bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                <UserPlus className="h-4 w-4" />
+                Add People
+              </Button>
             </div>
 
             {!loadingUsers && (
-              <div className="mb-4 text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+              <div className="mb-4 text-sm text-slate-600 flex items-center gap-2">
                 <span>
                   Showing {users.length} of {pagination.totalCount} users
                 </span>
-                {(searchQuery || roleFilter) && (
+                {searchQuery && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-1 text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300"
+                    className="h-auto p-1 text-xs text-cyan-600 hover:text-cyan-700"
                     onClick={() => {
                       setSearchQuery("");
-                      setRoleFilter("");
                       setCurrentPage(1);
                     }}
                   >
-                    Clear filters
+                    Clear search
                   </Button>
                 )}
               </div>
@@ -466,9 +412,9 @@ export default function UserManagementPage() {
                 <Loading message="Loading users..." />
               </div>
             ) : users.length === 0 ? (
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-800/50 rounded-xl p-12 flex flex-col items-center justify-center">
-                <div className="p-4 rounded-full bg-gradient-to-br from-cyan-400/20 to-blue-500/20 mb-4">
-                  <Users className="h-12 w-12 text-cyan-600 dark:text-cyan-400" />
+              <div className="bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl p-12 flex flex-col items-center justify-center">
+                <div className="p-4 rounded-full bg-linear-to-br from-cyan-400/20 to-blue-500/20 mb-4">
+                  <Users className="h-12 w-12 text-cyan-600" />
                 </div>
                 <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">
                   No users found
@@ -612,9 +558,9 @@ export default function UserManagementPage() {
                               }
                               size="sm"
                               onClick={() => setCurrentPage(page)}
-                              className={`min-w-[2.5rem] ${
+                              className={`min-w-10 ${
                                 currentPage === page
-                                  ? "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                                  ? "bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
                                   : "border-slate-200 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700"
                               }`}
                             >
@@ -740,10 +686,7 @@ export default function UserManagementPage() {
             </div>
 
             <div className="space-y-2">
-              <Label
-                htmlFor="password"
-                className="text-slate-900 font-medium"
-              >
+              <Label htmlFor="password" className="text-slate-900 font-medium">
                 Password{" "}
                 {!editingUser && <span className="text-red-500">*</span>}
               </Label>

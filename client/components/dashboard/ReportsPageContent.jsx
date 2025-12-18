@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
@@ -236,10 +237,11 @@ export default function ReportsPageContent() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex h-screen overflow-hidden bg-white relative">
+      <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+        <GlassBackground />
         <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
         <div className="flex flex-1 flex-col overflow-hidden relative z-10">
-          <main className="flex-1 overflow-y-auto p-6 bg-white">
+          <main className="flex-1 overflow-y-auto p-6 lg:p-8">
             <div className="flex items-center justify-center min-h-[400px]">
               <Loading size="lg" />
             </div>
@@ -260,7 +262,8 @@ export default function ReportsPageContent() {
     : { total: 0, active: 0, jobsPosted: 0 };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white relative">
+    <div className="relative flex h-screen overflow-hidden bg-[#eef2f7]">
+      <GlassBackground />
       <Sidebar sidebarOpen={sidebarOpen} onSidebarToggle={setSidebarOpen} />
 
       <div className="flex flex-1 flex-col overflow-hidden relative z-10">
@@ -272,7 +275,7 @@ export default function ReportsPageContent() {
           onSidebarToggle={setSidebarOpen}
         />
 
-        <main className="flex-1 overflow-y-auto p-6 bg-white">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {error && (
               <div className="mb-6 border-2 border-red-300 bg-red-50 rounded-lg p-4">
@@ -281,7 +284,7 @@ export default function ReportsPageContent() {
             )}
 
             {/* Role Selection Tabs */}
-            <div className="mb-6 flex gap-2 border-b border-slate-200">
+            <div className="mb-6 flex gap-2 border-b border-white/60">
               {availableRoles.map((roleOption) => {
                 const Icon = roleOption.icon;
                 const isSelected = selectedRole === roleOption.value;
@@ -306,7 +309,7 @@ export default function ReportsPageContent() {
               <>
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/85 border border-white/70 rounded-2xl p-6 shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm text-slate-600">Total Users</p>
                       <div className="p-2 rounded-lg bg-slate-100">
@@ -317,7 +320,7 @@ export default function ReportsPageContent() {
                       {currentStats.total}
                     </div>
                   </div>
-                  <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/85 border border-white/70 rounded-2xl p-6 shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm text-slate-600">Active Users</p>
                       <div className="p-2 rounded-lg bg-green-50">
@@ -328,7 +331,7 @@ export default function ReportsPageContent() {
                       {currentStats.active}
                     </div>
                   </div>
-                  <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="bg-white/85 border border-white/70 rounded-2xl p-6 shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm text-slate-600">
                         Total Jobs Posted
@@ -356,7 +359,7 @@ export default function ReportsPageContent() {
                 </div>
 
                 {/* Users Table */}
-                <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                <div className="bg-white/90 border border-white/70 rounded-2xl overflow-hidden shadow-[0_18px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-slate-50 border-b-2 border-slate-200">
@@ -402,71 +405,82 @@ export default function ReportsPageContent() {
                             </td>
                           </tr>
                         ) : (
-                          currentUsers.map((userItem) => (
-                            <tr
-                              key={userItem._id || userItem.id}
-                              onClick={() => handleRowClick(userItem)}
-                              className="hover:bg-slate-50/80 transition-colors cursor-pointer bg-white"
-                            >
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-slate-900">
-                                  {userItem.name || "N/A"}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-slate-600">
-                                  {userItem.email || "N/A"}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span
-                                  className={`px-2 py-1 text-xs rounded-full ${
-                                    userItem.is_active !== false
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-red-100 text-red-800"
-                                  }`}
-                                >
-                                  {userItem.is_active !== false
-                                    ? "Active"
-                                    : "Inactive"}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-slate-900">
-                                  {userItem.jobsPosted || 0}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-slate-900">
-                                  {userItem.totalApplications || 0}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-slate-900">
-                                  {userItem.totalCandidates || 0}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-slate-900">
-                                  {userItem.totalInterviews || 0}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-slate-900">
-                                  {userItem.matchRate || 0}%
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-slate-600">
-                                  {userItem.createdAt
-                                    ? new Date(
-                                        userItem.createdAt
-                                      ).toLocaleDateString()
-                                    : "N/A"}
-                                </div>
-                              </td>
-                            </tr>
-                          ))
+                          currentUsers.map((userItem) => {
+                            const isClickable = selectedRole === "recruiter";
+                            return (
+                              <tr
+                                key={userItem._id || userItem.id}
+                                onClick={
+                                  isClickable
+                                    ? () => handleRowClick(userItem)
+                                    : undefined
+                                }
+                                className={`transition-colors bg-white ${
+                                  isClickable
+                                    ? "hover:bg-slate-50/80 cursor-pointer"
+                                    : ""
+                                }`}
+                              >
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-medium text-slate-900">
+                                    {userItem.name || "N/A"}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm text-slate-600">
+                                    {userItem.email || "N/A"}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span
+                                    className={`px-2 py-1 text-xs rounded-full ${
+                                      userItem.is_active !== false
+                                        ? "bg-green-100 text-green-800"
+                                        : "bg-red-100 text-red-800"
+                                    }`}
+                                  >
+                                    {userItem.is_active !== false
+                                      ? "Active"
+                                      : "Inactive"}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-medium text-slate-900">
+                                    {userItem.jobsPosted || 0}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-medium text-slate-900">
+                                    {userItem.totalApplications || 0}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-medium text-slate-900">
+                                    {userItem.totalCandidates || 0}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-medium text-slate-900">
+                                    {userItem.totalInterviews || 0}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm font-medium text-slate-900">
+                                    {userItem.matchRate || 0}%
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm text-slate-600">
+                                    {userItem.createdAt
+                                      ? new Date(
+                                          userItem.createdAt
+                                        ).toLocaleDateString()
+                                      : "N/A"}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
                         )}
                       </tbody>
                     </table>
