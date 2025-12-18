@@ -68,7 +68,7 @@ export default function JobsPageContent() {
   // Applied filters (used for API calls)
   const [filters, setFilters] = useState({
     job_type: "",
-    role: [],
+    role: "",
     min_exp: "",
     max_exp: "",
     min_ctc: "",
@@ -82,7 +82,7 @@ export default function JobsPageContent() {
   // Temporary filters (for sidebar inputs, not applied until Apply is clicked)
   const [tempFilters, setTempFilters] = useState({
     job_type: "",
-    role: [],
+    role: "",
     min_exp: "",
     max_exp: "",
     min_ctc: "",
@@ -205,10 +205,12 @@ export default function JobsPageContent() {
       setError(null);
 
       // Build filter object
+      const roleFilterArray = parseRoleFilter(filters.role);
+
       const filterParams = {
         ...(debouncedSearchQuery && { search: debouncedSearchQuery }),
         ...(filters.job_type && { job_type: filters.job_type }),
-        ...(filters.role.length > 0 && { role: filters.role }),
+        ...(roleFilterArray.length > 0 && { role: roleFilterArray }),
         ...(filters.min_exp && { min_exp: filters.min_exp }),
         ...(filters.max_exp && { max_exp: filters.max_exp }),
         ...(filters.min_ctc && { min_ctc: filters.min_ctc }),
@@ -407,7 +409,7 @@ export default function JobsPageContent() {
   const clearFilters = () => {
     const emptyFilters = {
       job_type: "",
-      role: [],
+      role: "",
       min_exp: "",
       max_exp: "",
       min_ctc: "",
@@ -421,12 +423,13 @@ export default function JobsPageContent() {
     setFilters(emptyFilters);
     setSearchQuery("");
     setDebouncedSearchQuery("");
+    setShowFilters(false);
   };
 
   const hasActiveFilters = () => {
     return (
       filters.job_type ||
-      filters.role.length > 0 ||
+      filters.role ||
       filters.min_exp ||
       filters.max_exp ||
       filters.min_ctc ||
@@ -437,6 +440,15 @@ export default function JobsPageContent() {
       filters.date_to ||
       searchQuery
     );
+  };
+
+  const parseRoleFilter = (roleText) => {
+    if (!roleText) return [];
+
+    return roleText
+      .split(/[\n,]/)
+      .map((role) => role.trim())
+      .filter(Boolean);
   };
 
   const normalizeCtcValue = (ctc) => {
@@ -702,7 +714,7 @@ export default function JobsPageContent() {
                         {
                           [
                             filters.job_type,
-                            filters.role.length,
+                            filters.role,
                             filters.min_exp || filters.max_exp,
                             filters.min_ctc || filters.max_ctc,
                             filters.company,
@@ -756,7 +768,7 @@ export default function JobsPageContent() {
                             )
                           }
                         >
-                          <SelectTrigger className="bg-white/70 border-white/70 text-slate-900 backdrop-blur">
+                          <SelectTrigger className="w-full bg-white/70 border-white/70 text-slate-900 backdrop-blur">
                             <SelectValue placeholder="All Types" />
                           </SelectTrigger>
                           <SelectContent className="bg-white border-white/70">
@@ -769,84 +781,25 @@ export default function JobsPageContent() {
                         </Select>
                       </div>
 
-                      {/* Role - Multi-select Dropdown */}
+                      {/* Role - Single text filter */}
                       <div>
                         <Label className="text-sm font-medium text-slate-700 mb-2 block">
                           Role
                         </Label>
-                        <Select
-                          value={undefined}
-                          onValueChange={(value) => {
-                            if (!tempFilters.role.includes(value)) {
-                              handleTempFilterChange("role", [
-                                ...tempFilters.role,
-                                value,
-                              ]);
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="w-full! bg-white/70 border-white/70 text-slate-900 backdrop-blur">
-                            <SelectValue
-                              placeholder={
-                                tempFilters.role.length > 0
-                                  ? `${tempFilters.role.length} role(s) selected`
-                                  : "Select roles"
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white border-white/70">
-                            {[
-                              "Frontend",
-                              "Backend",
-                              "Full-stack",
-                              "SDET",
-                              "QA",
-                              "DevOps",
-                            ]
-                              .filter(
-                                (role) => !tempFilters.role.includes(role)
-                              )
-                              .map((role) => (
-                                <SelectItem key={role} value={role}>
-                                  {role}
-                                </SelectItem>
-                              ))}
-                            {tempFilters.role.length === 6 && (
-                              <div className="px-2 py-1.5 text-sm text-slate-500">
-                                All roles selected
-                              </div>
-                            )}
-                            {tempFilters.role.length === 0 && (
-                              <div className="px-2 py-1.5 text-sm text-slate-500">
-                                No roles available
-                              </div>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        {tempFilters.role.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {tempFilters.role.map((role) => (
-                              <span
-                                key={role}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-linear-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium"
-                              >
-                                {role}
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleTempFilterChange(
-                                      "role",
-                                      tempFilters.role.filter((r) => r !== role)
-                                    )
-                                  }
-                                  className="ml-0.5 hover:bg-white/20 rounded-full p-0.5 transition-colors"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                        <Input
+                          type="text"
+                          placeholder="Filter by role (e.g. Frontend Developer)"
+                          value={tempFilters.role}
+                          onChange={(e) =>
+                            handleTempFilterChange("role", e.target.value)
+                          }
+                          className="bg-white/70 border-white/70 text-slate-900 placeholder:text-slate-500 backdrop-blur rounded-xl shadow-sm"
+                        />
+                        <p className="mt-1 text-xs text-slate-500">
+                          Jobs matching the{" "}
+                          <span className="font-semibold">role</span> you enter
+                          will be shown.
+                        </p>
                       </div>
 
                       {/* Experience Range */}
@@ -1087,9 +1040,9 @@ export default function JobsPageContent() {
                           showEdit={true}
                         />
                       ) : (
-                        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-2 border-white/60 dark:border-slate-800/50 rounded-lg p-8 text-center shadow-[0_18px_60px_rgba(15,23,42,0.2)]">
-                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400 dark:text-slate-500" />
-                          <p className="text-slate-700 dark:text-slate-300 font-medium">
+                        <div className="bg-slate-50/90 backdrop-blur-sm border border-dashed border-slate-300 rounded-xl p-8 text-center">
+                          <Briefcase className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+                          <p className="text-slate-600 font-medium">
                             No job postings created by you yet.
                           </p>
                         </div>
