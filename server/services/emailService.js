@@ -43,17 +43,13 @@ const transporter = nodemailer.createTransport({
  * @param {Date|string} scheduledTime - The scheduled time for the meeting
  * @param {string} candidateName - Candidate name for the booking
  * @param {string} candidateEmail - Candidate email for the booking
- * @param {string} recruiterName - Recruiter name (optional)
- * @param {string} recruiterEmail - Recruiter email (optional)
  * @param {string} recruiterId - Recruiter ID to use recruiter-specific Cal.com credentials (optional)
- * @returns {Promise<{meetLink: string, startTime: Date, endTime: Date}>} - Object containing Google Meet link, start time, and end time
+ * @returns {Promise<{meetLink: string, startTime: Date, endTime: Date, bookingUid: string}>} - Object containing Google Meet link, start time, end time, and booking UID
  */
 export async function generateGoogleMeetLink(
   scheduledTime,
   candidateName,
   candidateEmail,
-  recruiterName = null,
-  recruiterEmail = null,
   recruiterId = null
 ) {
   try {
@@ -127,9 +123,6 @@ export async function generateGoogleMeetLink(
     console.log("Fetching available slots for event type:", eventTypeId);
     console.log("Requested time:", formatDateTimeWithAMPM(scheduledDate, { includeWeekday: true }));
     console.log("Candidate:", candidateName, candidateEmail);
-    if (recruiterName && recruiterEmail) {
-      console.log("Recruiter:", recruiterName, recruiterEmail);
-    }
     if (recruiterId) {
       console.log("Using recruiter-specific Cal.com credentials");
     }
@@ -227,7 +220,7 @@ export async function generateGoogleMeetLink(
     // Step 2: Create booking with the selected slot
     // Cal.com v2 API - primary attendee is the candidate
     // The Cal.com account owner (event organizer) will automatically receive notifications
-    // Recruiter will be added as a guest to receive email invitation
+    // Since we're using recruiter-specific credentials, the recruiter automatically receives the email
     const requestBody = {
       eventTypeId: parseInt(eventTypeId, 10), // Cal.com API requires integer, not string
       start: selectedSlot,
@@ -238,16 +231,6 @@ export async function generateGoogleMeetLink(
         timeZone: "Asia/Kolkata",
         language: "en",
       },
-      // Add recruiter as a guest so they receive email invitation
-      // Cal.com API expects guests to be an array of email strings
-      ...(recruiterName && recruiterEmail && {
-        guests: [recruiterEmail],
-        // Also add recruiter info in metadata for tracking
-        metadata: {
-          recruiterName: recruiterName,
-          recruiterEmail: recruiterEmail,
-        },
-      }),
     };
 
     // Create booking via Cal.com API with retry logic
@@ -503,18 +486,145 @@ export async function cancelCalBooking(bookingUid, recruiterId = null) {
 
     console.log(`🗑️ Cancelling Cal.com booking: ${bookingUid}`);
 
-    // Cal.com v2 API - DELETE booking endpoint
-    const response = await axios.delete(
-      `https://api.cal.com/v2/bookings/${bookingUid}`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiSecretKey}`,
-          "cal-api-version": CAL_API_VERSION,
-          "Content-Type": "application/json",
-        },
-        timeout: 30000, // 30 seconds timeout
+    // Cal.com API - Try multiple endpoint formats and authentication methods
+    let response;
+    let bookingId = null;
+    
+    // First, try to get the booking details to get the numeric ID (if needed)
+    try {
+      console.log("🔄 Fetching booking details to get booking ID...");
+      const getBookingResp = await axios.get(
+        `https://api.cal.com/v2/bookings/${bookingUid}`,
+        {
+          headers: {
+            "x-cal-secret-key": apiSecretKey,
+            "Content-Type": "application/json",
+          },
+          timeout: 30000,
+        }
+      );
+      bookingId = getBookingResp.data?.data?.id || getBookingResp.data?.id;
+      console.log(`✓ Found booking ID: ${bookingId} for UID: ${bookingUid}`);
+    } catch (getError) {
+      console.log(`⚠️ Could not fetch booking details: ${getError.response?.status || getError.message}`);
+      // Continue anyway, we'll try with UID
+    }
+    
+    // Method 1: DELETE with x-cal-secret-key using UID
+    try {
+      console.log("🔄 Trying DELETE with x-cal-secret-key header (using UID)...");
+      response = await axios.delete(
+        `https://api.cal.com/v2/bookings/${bookingUid}`,
+        {
+          headers: {
+            "x-cal-secret-key": apiSecretKey,
+            "Content-Type": "application/json",
+          },
+          timeout: 30000,
+        }
+      );
+      console.log("✓ Success with x-cal-secret-key header (UID)");
+    } catch (error) {
+      console.log(`⚠️ Method 1 failed: ${error.response?.status} - ${error.response?.data?.message || error.message}`);
+      
+      // Method 2: DELETE with x-cal-secret-key using numeric ID (if available)
+      if (bookingId && error.response?.status === 404) {
+        try {
+          console.log("🔄 Trying DELETE with x-cal-secret-key header (using ID)...");
+          response = await axios.delete(
+            `https://api.cal.com/v2/bookings/${bookingId}`,
+            {
+              headers: {
+                "x-cal-secret-key": apiSecretKey,
+                "Content-Type": "application/json",
+              },
+              timeout: 30000,
+            }
+          );
+          console.log("✓ Success with x-cal-secret-key header (ID)");
+        } catch (idError) {
+          console.log(`⚠️ Method 2 failed: ${idError.response?.status} - ${idError.response?.data?.message || idError.message}`);
+          
+          // Method 3: POST with cancellation in body
+          try {
+            console.log("🔄 Trying POST with cancellation in body...");
+            response = await axios.post(
+              `https://api.cal.com/v2/bookings/${bookingUid}/cancel`,
+              {},
+              {
+                headers: {
+                  "x-cal-secret-key": apiSecretKey,
+                  "Content-Type": "application/json",
+                },
+                timeout: 30000,
+              }
+            );
+            console.log("✓ Success with POST cancel endpoint");
+          } catch (postError) {
+            console.log(`⚠️ Method 3 failed: ${postError.response?.status} - ${postError.response?.data?.message || postError.message}`);
+            
+            // Method 4: Try v1 API endpoint (if v2 doesn't support DELETE)
+            try {
+              console.log("🔄 Trying v1 API endpoint...");
+              response = await axios.delete(
+                `https://api.cal.com/v1/bookings/${bookingUid}`,
+                {
+                  headers: {
+                    "x-cal-secret-key": apiSecretKey,
+                    "Content-Type": "application/json",
+                  },
+                  timeout: 30000,
+                }
+              );
+              console.log("✓ Success with v1 API");
+            } catch (v1Error) {
+              console.log(`⚠️ Method 4 (v1) failed: ${v1Error.response?.status} - ${v1Error.response?.data?.message || v1Error.message}`);
+              
+              // Method 5: DELETE with Authorization Bearer header
+              try {
+                console.log("🔄 Trying DELETE with Authorization Bearer header...");
+                response = await axios.delete(
+                  `https://api.cal.com/v2/bookings/${bookingUid}`,
+                  {
+                    headers: {
+                      Authorization: `Bearer ${apiSecretKey}`,
+                      "cal-api-version": CAL_API_VERSION,
+                      "Content-Type": "application/json",
+                    },
+                    timeout: 30000,
+                  }
+                );
+                console.log("✓ Success with Authorization Bearer header");
+              } catch (bearerError) {
+                console.log(`⚠️ Method 5 failed: ${bearerError.response?.status} - ${bearerError.response?.data?.message || bearerError.message}`);
+                throw bearerError;
+              }
+            }
+          }
+        }
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        // Try Authorization Bearer if auth error
+        try {
+          console.log("🔄 Trying DELETE with Authorization Bearer header...");
+          response = await axios.delete(
+            `https://api.cal.com/v2/bookings/${bookingUid}`,
+            {
+              headers: {
+                Authorization: `Bearer ${apiSecretKey}`,
+                "cal-api-version": CAL_API_VERSION,
+                "Content-Type": "application/json",
+              },
+              timeout: 30000,
+            }
+          );
+          console.log("✓ Success with Authorization Bearer header");
+        } catch (bearerError) {
+          throw bearerError;
+        }
+      } else {
+        throw error;
       }
-    );
+    }
 
     console.log("✓ Booking cancelled successfully:", bookingUid);
     
@@ -526,23 +636,50 @@ export async function cancelCalBooking(bookingUid, recruiterId = null) {
   } catch (error) {
     console.error("❌ Error cancelling Cal.com booking:", error.message);
     
-    if (error.response?.data) {
+    if (error.response) {
       const errorData = error.response.data;
-      console.error("API Error:", errorData.error?.message || errorData.message || "Unknown error");
+      console.error("API Error Details:", JSON.stringify(errorData, null, 2));
       console.error("API Status:", error.response.status);
+      console.error("API Headers:", JSON.stringify(error.response.headers, null, 2));
       
       // If booking not found, it might already be cancelled
       if (error.response.status === 404) {
+        console.log("ℹ️ Booking returned 404 - may already be cancelled or endpoint not found");
         return {
           success: true,
           message: "Booking not found (may already be cancelled)",
+          details: errorData,
         };
       }
+      
+      // Log full error for debugging
+      console.error("Full error response:", {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: errorData,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers,
+        },
+      });
+    } else if (error.request) {
+      console.error("❌ No response received from Cal.com API");
+      console.error("Request details:", {
+        url: error.config?.url,
+        method: error.config?.method,
+      });
     }
 
     throw error;
   }
 }
+
+// call cancel calBooking fxn
+
+// const res = await cancelCalBooking("1x1uFVg7GU3hihV8JYXJFq");
+
+// console.log("res--->", res);
 
 // Guard to prevent multiple executions
 let isSampleFunctionRunning = false;
@@ -562,9 +699,7 @@ const genSampleGoogleMeetLink = async () => {
     const result = await generateGoogleMeetLink(
       new Date("2025-12-27T10:00:00Z"),
       "Subham Dey1",
-      "22je0094@gmail.com",
-      "Subham Dey2",
-      "amankasaudhanak07@gmail.com",
+      "22je0094@iitism.ac.in",
       "6924d3e788d5dea358af8a08"
     );
     const duration = Date.now() - startTime;
@@ -653,9 +788,7 @@ export async function sendEmail(
         const meetLinkResult = await generateGoogleMeetLink(
           userScheduledAt,
           "Candidate",
-          candidateEmail,
-          recruiterName,
-          recruiterEmail
+          candidateEmail
         );
         // Handle both old format (string) and new format (object)
         if (typeof meetLinkResult === 'string') {

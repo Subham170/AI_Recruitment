@@ -1372,8 +1372,6 @@ export const sendEmailManually = async (req, res) => {
       scheduledTime,
       candidate.name || candidate.email?.split("@")[0] || "Candidate",
       candidate.email,
-      recruiter.name,
-      recruiter.email,
       recruiterId // Pass recruiterId to use recruiter-specific Cal.com credentials
     );
 

@@ -503,11 +503,11 @@ export default function RecruiterCalendarPage() {
                               )}
 
                               {/* Divider */}
-                              <div className="border-t pt-2 mt-2">
+                              {/* <div className="border-t pt-2 mt-2">
                                 <div className="text-xs text-slate-500">
                                   Interview ID: {task._id.slice(-8)}
                                 </div>
-                              </div>
+                              </div> */}
                             </div>
                           ))
                         )}

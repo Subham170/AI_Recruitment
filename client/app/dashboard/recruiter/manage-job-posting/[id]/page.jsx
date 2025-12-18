@@ -2469,6 +2469,11 @@ export default function RecruiterJobDetailPage() {
                                         : callStatus &&
                                           callStatus.status === "scheduled"
                                         ? "Call already scheduled"
+                                        : callStatus &&
+                                          (callStatus.status === "no-answer" ||
+                                            callStatus.status === "call-disconnected" ||
+                                            callStatus.status === "busy")
+                                        ? "Retry call"
                                         : "Schedule a call for this candidate"
                                     }
                                   >
@@ -2677,6 +2682,26 @@ export default function RecruiterJobDetailPage() {
                                           callStatus.status === "scheduled")
                                       }
                                       className="bg-linear-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 transition-all duration-200 hover:scale-110 hover:shadow-lg hover:shadow-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title={
+                                        currentStatus === "closed"
+                                          ? "Cannot make calls for a closed job posting"
+                                          : !canCall
+                                          ? "You do not have permission to make calls. Only recruiters can make calls."
+                                          : !candidate.phone_no
+                                          ? "No phone number available"
+                                          : callStatus &&
+                                            callStatus.status === "completed"
+                                          ? "Call already completed"
+                                          : callStatus &&
+                                            callStatus.status === "scheduled"
+                                          ? "Call already scheduled"
+                                          : callStatus &&
+                                            (callStatus.status === "no-answer" ||
+                                              callStatus.status === "call-disconnected" ||
+                                              callStatus.status === "busy")
+                                          ? "Retry call"
+                                          : "Schedule a call for this candidate"
+                                      }
                                     >
                                       {callingCandidateId === candidateId ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
