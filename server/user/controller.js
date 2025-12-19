@@ -8,7 +8,7 @@ import User from "./model.js";
 // - Exception: If no admin exists, allow creating the first admin without authentication
 export const createUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, assignedManager } = req.body;
 
     // Validate input
     if (!name || !email || !password || !role) {
@@ -66,6 +66,40 @@ export const createUser = async (req, res) => {
       }
     }
 
+    // Handle assignment logic based on role and creator
+    let assignedAdmin = null;
+    let finalAssignedManager = null;
+
+    if (role === "manager" && currentUser && currentUser.role === "admin") {
+      // Admin creating a manager - assign admin to manager
+      assignedAdmin = currentUser.id;
+    } else if (role === "recruiter") {
+      if (currentUser && currentUser.role === "manager") {
+        // Manager creating a recruiter - assign manager to recruiter
+        finalAssignedManager = currentUser.id;
+      } else if (currentUser && currentUser.role === "admin") {
+        // Admin creating a recruiter - require assignedManager to be provided
+        if (!assignedManager) {
+          return res.status(400).json({
+            message: "Please select a manager when creating a recruiter",
+          });
+        }
+        // Validate that the assignedManager exists and is actually a manager
+        const manager = await User.findById(assignedManager);
+        if (!manager) {
+          return res.status(400).json({
+            message: "Selected manager does not exist",
+          });
+        }
+        if (manager.role !== "manager") {
+          return res.status(400).json({
+            message: "Selected user is not a manager",
+          });
+        }
+        finalAssignedManager = assignedManager;
+      }
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -78,13 +112,23 @@ export const createUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
-    const user = await User.create({
+    // Create user with assignments
+    const userData = {
       name,
       email,
       password: hashedPassword,
       role,
-    });
+    };
+
+    if (assignedAdmin) {
+      userData.assignedAdmin = assignedAdmin;
+    }
+
+    if (finalAssignedManager) {
+      userData.assignedManager = finalAssignedManager;
+    }
+
+    const user = await User.create(userData);
 
     // Return user without password
     const userResponse = {
@@ -92,6 +136,8 @@ export const createUser = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      assignedAdmin: user.assignedAdmin,
+      assignedManager: user.assignedManager,
     };
 
     res.status(201).json({
@@ -107,6 +153,7 @@ export const createUser = async (req, res) => {
 export const getUsers = async (req, res) => {
   try {
     const { role: filterRole, search, page = 1, pageSize = 7 } = req.query;
+    const currentUser = req.user;
 
     let query = {};
 
@@ -115,12 +162,49 @@ export const getUsers = async (req, res) => {
       query.role = filterRole;
     }
 
-    // Search filter (name or email)
+    // Filter based on user role and assignments
+    if (currentUser) {
+      if (currentUser.role === "admin") {
+        // Admin: Show only their assigned managers and those managers' recruiters
+        if (filterRole === "manager") {
+          // Show only managers assigned to this admin
+          query.assignedAdmin = currentUser.id;
+        } else if (filterRole === "recruiter") {
+          // Show only recruiters assigned to managers that belong to this admin
+          const assignedManagers = await User.find({
+            role: "manager",
+            assignedAdmin: currentUser.id,
+          }).select("_id");
+          const managerIds = assignedManagers.map((m) => m._id);
+          query.assignedManager = { $in: managerIds };
+        }
+        // If no filterRole, admin can see all (for backward compatibility in user management)
+        // But for reports, filterRole will be provided
+      } else if (currentUser.role === "manager") {
+        // Manager: Show only recruiters assigned to them
+        if (filterRole === "recruiter") {
+          query.assignedManager = currentUser.id;
+        }
+        // Managers can only see recruiters, so if filterRole is not recruiter, return empty
+        if (filterRole && filterRole !== "recruiter") {
+          query.role = "nonexistent"; // This will return no results
+        }
+      }
+    }
+
+    // Search filter (name or email) - combine with AND to existing filters
     if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-      ];
+      const searchConditions = {
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ],
+      };
+      // Combine search with existing query using $and
+      const existingQuery = { ...query };
+      query = {
+        $and: [existingQuery, searchConditions],
+      };
     }
 
     // Pagination
@@ -171,7 +255,7 @@ export const getUserById = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, role, password } = req.body;
+    const { name, email, role, password, assignedManager } = req.body;
     const currentUser = req.user;
 
     const user = await User.findById(id);
@@ -191,6 +275,9 @@ export const updateUser = async (req, res) => {
     // Update fields
     if (name) user.name = name;
     if (email) user.email = email;
+    
+    const roleChanged = role && role !== user.role;
+    
     if (role) {
       // Only admin can change roles
       if (currentUser.role !== "admin") {
@@ -200,9 +287,56 @@ export const updateUser = async (req, res) => {
       }
       user.role = role;
     }
+    
     if (password) {
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(password, salt);
+    }
+
+    // Handle assignment updates
+    if (roleChanged || assignedManager !== undefined) {
+      if (role === "manager" && currentUser.role === "admin") {
+        // When admin changes user to manager, assign admin to manager
+        user.assignedAdmin = currentUser.id;
+        user.assignedManager = null; // Clear manager assignment
+      } else if (role === "recruiter") {
+        if (assignedManager !== undefined) {
+          if (assignedManager === null || assignedManager === "") {
+            // Clear assignment
+            user.assignedManager = null;
+          } else {
+            // Validate that the assignedManager exists and is actually a manager
+            const manager = await User.findById(assignedManager);
+            if (!manager) {
+              return res.status(400).json({
+                message: "Selected manager does not exist",
+              });
+            }
+            if (manager.role !== "manager") {
+              return res.status(400).json({
+                message: "Selected user is not a manager",
+              });
+            }
+            // If admin is updating, ensure the manager belongs to this admin
+            if (currentUser.role === "admin") {
+              if (
+                !manager.assignedAdmin ||
+                manager.assignedAdmin.toString() !== currentUser.id
+              ) {
+                return res.status(403).json({
+                  message: "Selected manager is not assigned to you",
+                });
+              }
+            }
+            user.assignedManager = assignedManager;
+          }
+        }
+        user.assignedAdmin = null; // Clear admin assignment for recruiters
+      } else if (role === "admin" || (role && role !== "recruiter" && role !== "manager")) {
+        // Clear assignments for other roles
+        user.assignedAdmin = null;
+        user.assignedManager = null;
+      }
     }
 
     await user.save();
@@ -212,6 +346,8 @@ export const updateUser = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      assignedAdmin: user.assignedAdmin,
+      assignedManager: user.assignedManager,
     };
 
     res.status(200).json({
@@ -336,6 +472,19 @@ export const getRecruiters = async (req, res) => {
     res.status(200).json({
       message: "Recruiters fetched successfully",
       recruiters,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+//get all managers
+export const getManagers = async (req, res) => {
+  try {
+    const managers = await User.find({ role: "manager" }).select("-password");
+    res.status(200).json({
+      message: "Managers fetched successfully",
+      managers,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

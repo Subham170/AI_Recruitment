@@ -41,8 +41,38 @@ export const getDashboardStats = async (req, res) => {
       }).select("_id");
 
       jobIds = recruiterJobs.map((job) => job._id);
+    } else if (userRole === "manager") {
+      // For managers: only jobs from their assigned recruiters
+      const assignedRecruiters = await User.find({
+        role: "recruiter",
+        assignedManager: currentUserId,
+      }).select("_id");
+      const recruiterIds = assignedRecruiters.map((r) => r._id);
+
+      if (recruiterIds.length > 0) {
+        activeJobs = await JobPosting.countDocuments({
+          $or: [
+            { primary_recruiter_id: { $in: recruiterIds } },
+            { secondary_recruiter_id: { $in: recruiterIds } },
+          ],
+        });
+
+        const managerJobs = await JobPosting.find({
+          $or: [
+            { primary_recruiter_id: { $in: recruiterIds } },
+            { secondary_recruiter_id: { $in: recruiterIds } },
+          ],
+        }).select("_id");
+
+        jobIds = managerJobs.map((job) => job._id);
+      } else {
+        // No assigned recruiters, so no jobs
+        activeJobs = 0;
+        jobIds = [];
+      }
     } else {
-      // For admin and manager: all jobs
+      // For admin: all jobs (or could filter to their managers' recruiters' jobs)
+      // For now, keeping it as all jobs for admin
       activeJobs = await JobPosting.countDocuments({});
       const allJobs = await JobPosting.find({}).select("_id");
       jobIds = allJobs.map((job) => job._id);
@@ -86,7 +116,10 @@ export const getDashboardStats = async (req, res) => {
 
     // Additional stats for manager
     if (userRole === "manager") {
-      const totalRecruiters = await User.countDocuments({ role: "recruiter" });
+      const totalRecruiters = await User.countDocuments({
+        role: "recruiter",
+        assignedManager: currentUserId,
+      });
       additionalStats.totalRecruiters = totalRecruiters;
     }
 
@@ -136,18 +169,65 @@ export const getUserAnalytics = async (req, res) => {
       });
     }
 
-    // Security check: managers can only see recruiter analytics
-    if (currentUserRole === "manager" && targetUser.role !== "recruiter") {
-      return res.status(403).json({
-        message: "Access denied",
-      });
-    }
+    // Security checks based on user role and assignments
+    const currentUserId = req.user?.id;
 
     // Only managers and recruiters have analytics
     if (targetUser.role !== "manager" && targetUser.role !== "recruiter") {
       return res.status(400).json({
         message: "Analytics only available for managers and recruiters",
       });
+    }
+
+    // Security check: managers can only see recruiter analytics for their assigned recruiters
+    if (currentUserRole === "manager") {
+      if (targetUser.role !== "recruiter") {
+        return res.status(403).json({
+          message: "Access denied - Managers can only view recruiter analytics",
+        });
+      }
+      // Check if the recruiter is assigned to this manager
+      if (
+        !targetUser.assignedManager ||
+        targetUser.assignedManager.toString() !== currentUserId
+      ) {
+        return res.status(403).json({
+          message: "Access denied - This recruiter is not assigned to you",
+        });
+      }
+    }
+
+    // Security check: admins can only see analytics for their assigned managers and those managers' recruiters
+    if (currentUserRole === "admin") {
+      if (targetUser.role === "manager") {
+        // Check if the manager is assigned to this admin
+        if (
+          !targetUser.assignedAdmin ||
+          targetUser.assignedAdmin.toString() !== currentUserId
+        ) {
+          return res.status(403).json({
+            message: "Access denied - This manager is not assigned to you",
+          });
+        }
+      } else if (targetUser.role === "recruiter") {
+        // Check if the recruiter's manager is assigned to this admin
+        if (!targetUser.assignedManager) {
+          return res.status(403).json({
+            message: "Access denied - This recruiter has no assigned manager",
+          });
+        }
+        const recruiterManager = await User.findById(targetUser.assignedManager);
+        if (
+          !recruiterManager ||
+          !recruiterManager.assignedAdmin ||
+          recruiterManager.assignedAdmin.toString() !== currentUserId
+        ) {
+          return res.status(403).json({
+            message:
+              "Access denied - This recruiter's manager is not assigned to you",
+          });
+        }
+      }
     }
 
     const userIdObj = targetUser._id;

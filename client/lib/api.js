@@ -92,6 +92,12 @@ export const userAPI = {
       method: "GET",
     });
   },
+
+  getManagers: async () => {
+    return apiRequest("/users/managers", {
+      method: "GET",
+    });
+  },
 };
 
 // Job Posting API functions
