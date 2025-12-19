@@ -6,7 +6,8 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { getMenuItemsForRole } from "@/config/roleMenuConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { LogOut, Sparkles } from "lucide-react";
+import { LogOut } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -37,20 +38,15 @@ export default function Sidebar({
   const SidebarContent = () => (
     <div className="flex h-screen w-60 flex-col border-r border-white/30 bg-white/10 text-slate-900 backdrop-blur-2xl shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
       {/* Logo/Brand */}
-      <div className="flex h-16 items-center border-b border-white/20 px-4 bg-white/40 backdrop-blur-xl">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-indigo-600 shadow-md shadow-indigo-500/40">
-            <Sparkles className="h-4 w-4 text-white" />
-          </div>
-          <div className="flex flex-col">
-            <h2 className="text-sm font-semibold tracking-wide text-[#1e3a8a]">
-              AI Recruitment
-            </h2>
-            <span className="text-[11px] font-medium text-slate-500">
-              Recruiter workspace
-            </span>
-          </div>
-        </div>
+      <div className="flex h-16 items-center justify-center border-b border-white/20 px-4 bg-white/40 backdrop-blur-xl">
+        <Image
+          src="/LEAN_IT_LOGO.png"
+          alt="LEAN IT Logo"
+          width={200}
+          height={60}
+          className="h-12 w-full object-contain object-center"
+          priority
+        />
       </div>
 
       {/* Navigation Menu */}

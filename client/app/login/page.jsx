@@ -6,17 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowRight, Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const LeanLogo = () => (
-  <div className="flex items-center justify-center gap-3 text-2xl font-semibold tracking-wide text-slate-900 select-none">
-    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-500/40">
-      <Sparkles className="h-5 w-5 text-white" />
-    </div>
-    <span className="text-[#1e3a8a]">AI Recruitment</span>
+  <div className="flex items-center justify-center w-full">
+    <Image
+      src="/LEAN_IT_LOGO.png"
+      alt="LEAN IT Logo"
+      width={300}
+      height={90}
+      className="h-20 w-full max-w-md object-contain"
+      priority
+    />
   </div>
 );
 
