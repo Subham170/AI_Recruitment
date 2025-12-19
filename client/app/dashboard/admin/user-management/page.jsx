@@ -72,12 +72,15 @@ export default function UserManagementPage() {
     password: "",
     confirmPassword: "",
     role: "",
+    assignedManager: "",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [managers, setManagers] = useState([]);
+  const [loadingManagers, setLoadingManagers] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -149,6 +152,21 @@ export default function UserManagementPage() {
     setFormData((prev) => ({
       ...prev,
       role: value,
+      // Clear assignedManager if role changes away from recruiter
+      assignedManager: value === "recruiter" ? prev.assignedManager : "",
+    }));
+    // Fetch managers if role changes to recruiter and managers haven't been loaded
+    if (value === "recruiter" && managers.length === 0 && !loadingManagers) {
+      fetchManagers();
+    }
+    if (error) setError("");
+    if (success) setSuccess("");
+  };
+
+  const handleManagerChange = (value) => {
+    setFormData((prev) => ({
+      ...prev,
+      assignedManager: value,
     }));
     if (error) setError("");
     if (success) setSuccess("");
@@ -159,6 +177,13 @@ export default function UserManagementPage() {
       setError("Please fill in all required fields");
       return false;
     }
+
+    // If role is recruiter, assignedManager is required (both create and edit)
+    if (formData.role === "recruiter" && !formData.assignedManager) {
+      setError("Please select a manager for the recruiter");
+      return false;
+    }
+
     if (!isEdit && !formData.password) {
       setError("Password is required for new users");
       return false;
@@ -200,12 +225,24 @@ export default function UserManagementPage() {
         if (formData.password) {
           updateData.password = formData.password;
         }
+        // Include assignedManager if role is recruiter
+        if (formData.role === "recruiter" && formData.assignedManager) {
+          updateData.assignedManager = formData.assignedManager;
+        } else if (formData.role !== "recruiter") {
+          // Clear assignedManager if role is not recruiter
+          updateData.assignedManager = null;
+        }
         const response = await userAPI.updateUser(editingUser.id, updateData);
         setSuccess(
           `User updated successfully! ${response.user.name} has been updated.`
         );
       } else {
+        // Create user
         const { confirmPassword, ...userData } = formData;
+        // Only include assignedManager if role is recruiter
+        if (userData.role !== "recruiter") {
+          delete userData.assignedManager;
+        }
         const response = await userAPI.createUser(userData);
         setSuccess(
           `User created successfully! ${response.user.name} (${response.user.role}) has been added.`
@@ -231,10 +268,13 @@ export default function UserManagementPage() {
       password: "",
       confirmPassword: "",
       role: userToEdit.role || "",
+      assignedManager: userToEdit.assignedManager || "",
     });
     setError("");
     setSuccess("");
     setFormOpen(true);
+    // Fetch managers when editing
+    fetchManagers();
   };
 
   const handleDeleteClick = (userItem) => {
@@ -258,6 +298,18 @@ export default function UserManagementPage() {
     }
   };
 
+  const fetchManagers = async () => {
+    try {
+      setLoadingManagers(true);
+      const response = await userAPI.getManagers();
+      setManagers(response.managers || []);
+    } catch (err) {
+      console.error("Failed to fetch managers:", err);
+    } finally {
+      setLoadingManagers(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       name: "",
@@ -265,6 +317,7 @@ export default function UserManagementPage() {
       password: "",
       confirmPassword: "",
       role: "",
+      assignedManager: "",
     });
     setEditingUser(null);
     setError("");
@@ -274,6 +327,8 @@ export default function UserManagementPage() {
   const openAddForm = () => {
     resetForm();
     setFormOpen(true);
+    // Fetch managers when opening the form
+    fetchManagers();
   };
 
   const getRoleBadgeVariant = (role) => {
@@ -684,6 +739,48 @@ export default function UserManagementPage() {
                 Select the role for the user
               </p>
             </div>
+
+            {/* Manager Selection Field - Show when role is recruiter (create or edit) */}
+            {formData.role === "recruiter" && (
+              <div className="space-y-2">
+                <Label htmlFor="assignedManager" className="text-slate-900 font-medium">
+                  Assign Manager <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={formData.assignedManager}
+                  onValueChange={handleManagerChange}
+                  required
+                  disabled={loadingManagers}
+                >
+                  <SelectTrigger id="assignedManager">
+                    <SelectValue placeholder="Select a manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {loadingManagers ? (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        Loading managers...
+                      </div>
+                    ) : managers.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No managers available
+                      </div>
+                    ) : (
+                      managers.map((manager) => (
+                        <SelectItem
+                          key={manager.id || manager._id}
+                          value={manager.id || manager._id}
+                        >
+                          {manager.name} ({manager.email})
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">
+                  Select the manager under which this recruiter will work
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-slate-900 font-medium">

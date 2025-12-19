@@ -18,6 +18,16 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["admin", "recruiter", "manager"],
   },
+  assignedAdmin: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
+  assignedManager: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
 });
 
 const User = mongoose.model("User", userSchema);

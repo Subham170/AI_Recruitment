@@ -5,6 +5,7 @@ import {
   createUser,
   deleteUser,
   getCurrentUser,
+  getManagers,
   getRecruiters,
   getUserById,
   getUsers,
@@ -28,6 +29,9 @@ router.get("/", authenticate, authorize("admin", "manager"), getUsers);
 
 //get all recruiters
 router.get("/recruiters", authenticate, getRecruiters);
+
+//get all managers
+router.get("/managers", authenticate, getManagers);
 
 // Get user by ID (Admin and Manager only)
 router.get("/:id", authenticate, authorize("admin", "manager"), getUserById);
