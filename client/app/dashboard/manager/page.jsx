@@ -3,23 +3,14 @@
 import { GlassBackground } from "@/components/GlassShell";
 import Navbar from "@/components/Navbar";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import Loading from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
 import { dashboardAPI } from "@/lib/api";
 import {
+  ArrowRight,
   Briefcase,
-  Calendar,
-  ClipboardList,
   FileText,
-  Settings,
-  TrendingUp,
+  UserCheck,
   Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -66,6 +57,13 @@ export default function ManagerDashboardPage() {
     }
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
   if (loading) {
     return (
       <div className="relative min-h-screen flex items-center justify-center bg-[#eef2f7]">
@@ -94,193 +92,111 @@ export default function ManagerDashboardPage() {
           <div className="max-w-7xl mx-auto">
             <div className="mb-8">
               <div>
-                {/* <p className="text-sm text-slate-500">Dashboard</p> */}
-                <h2 className="text-3xl font-bold mb-2 text-slate-900">
-                  Welcome, {user.name}
+                <p className="text-sm font-medium text-indigo-600 mb-1">
+                  {getGreeting()}
+                </p>
+                <h2 className="text-4xl font-bold mb-2 bg-linear-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                  {user.name}
                 </h2>
-                <p className="text-slate-600">
+                <p className="text-slate-600 text-lg">
                   Manage your recruitment team and operations
                 </p>
               </div>
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.3)] transition-all duration-200">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-900">
-                    Recruiters
-                  </CardTitle>
-                  <div className="p-2 rounded-lg bg-slate-100">
-                    <Users className="h-4 w-4 text-slate-700" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-slate-900">
-                    {loadingStats ? (
-                      <span className="animate-pulse">-</span>
-                    ) : (
-                      stats.totalRecruiters || 0
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-600">Team members</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.3)] transition-all duration-200">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-900">
-                    Job Postings
-                  </CardTitle>
-                  <div className="p-2 rounded-lg bg-slate-100">
-                    <Briefcase className="h-4 w-4 text-slate-700" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-slate-900">
-                    {loadingStats ? (
-                      <span className="animate-pulse">-</span>
-                    ) : (
-                      stats.activeJobs
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-600">Active jobs</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.3)] transition-all duration-200">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-900">
-                    Applications
-                  </CardTitle>
-                  <div className="p-2 rounded-lg bg-slate-100">
-                    <ClipboardList className="h-4 w-4 text-slate-700" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-slate-900">
-                    {loadingStats ? (
-                      <span className="animate-pulse">-</span>
-                    ) : (
-                      stats.applications
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-600">Total received</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.3)] transition-all duration-200">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-900">
-                    Interviews
-                  </CardTitle>
-                  <div className="p-2 rounded-lg bg-slate-100">
-                    <Calendar className="h-4 w-4 text-slate-700" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-slate-900">
-                    {loadingStats ? (
-                      <span className="animate-pulse">-</span>
-                    ) : (
-                      stats.interviews
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-600">Scheduled</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Quick Actions */}
+            {/* Quick Links */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card
-                className="group cursor-pointer border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.35)] transition-all duration-200 hover:border-cyan-200"
+              {/* User Management Link */}
+              <button
                 onClick={() =>
                   router.push("/dashboard/manager/user-management")
                 }
+                className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-xl border border-white/70 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
               >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-900 group-hover:text-cyan-700 transition-colors">
-                    <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-cyan-50 transition-all">
-                      <Users className="h-5 w-5 text-slate-700 group-hover:text-cyan-700" />
+                <div className="absolute inset-0 bg-linear-to-br from-emerald-500/10 to-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 rounded-xl bg-linear-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/25">
+                      <Users className="w-6 h-6 text-white" />
                     </div>
+                    <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-emerald-600 transition-colors">
                     User Management
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Manage all users
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+                  </h3>
+                  <p className="text-slate-600 text-sm">
+                    Manage all users and team members
+                  </p>
+                </div>
+              </button>
 
-              <Card
-                className="group cursor-pointer border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.35)] transition-all duration-200 hover:border-cyan-200"
+              {/* Manage Job Posting Link */}
+              <button
                 onClick={() =>
                   router.push("/dashboard/manager/manage-job-posting")
                 }
+                className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-xl border border-white/70 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
               >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-900 group-hover:text-cyan-700 transition-colors">
-                    <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-cyan-50 transition-all">
-                      <Briefcase className="h-5 w-5 text-slate-700 group-hover:text-cyan-700" />
+                <div className="absolute inset-0 bg-linear-to-br from-indigo-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 rounded-xl bg-linear-to-br from-indigo-500 to-blue-600 shadow-lg shadow-indigo-500/25">
+                      <Briefcase className="w-6 h-6 text-white" />
                     </div>
+                    <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors">
                     Manage Job Posting
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Manage all job listings
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+                  </h3>
+                  <p className="text-slate-600 text-sm">
+                    Create, edit, and manage job listings
+                  </p>
+                </div>
+              </button>
 
-              <Card
-                className="group cursor-pointer border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.35)] transition-all duration-200 hover:border-cyan-200"
-                onClick={() => router.push("/dashboard/manager/top-applicants")}
+              {/* Candidate List Link */}
+              <button
+                onClick={() => router.push("/dashboard/manager/candidate")}
+                className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-xl border border-white/70 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
               >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-900 group-hover:text-cyan-700 transition-colors">
-                    <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-cyan-50 transition-all">
-                      <TrendingUp className="h-5 w-5 text-slate-700 group-hover:text-cyan-700" />
+                <div className="absolute inset-0 bg-linear-to-br from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 rounded-xl bg-linear-to-br from-purple-500 to-pink-600 shadow-lg shadow-purple-500/25">
+                      <UserCheck className="w-6 h-6 text-white" />
                     </div>
-                    Top Applicants
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    View top candidates
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+                    <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-purple-600 transition-colors">
+                    Candidate List
+                  </h3>
+                  <p className="text-slate-600 text-sm">
+                    View and manage all candidates
+                  </p>
+                </div>
+              </button>
 
-              <Card
-                className="group cursor-pointer border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.35)] transition-all duration-200 hover:border-cyan-200"
+              {/* Reports Link */}
+              <button
                 onClick={() => router.push("/dashboard/manager/reports")}
+                className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-xl border border-white/70 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
               >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-900 group-hover:text-cyan-700 transition-colors">
-                    <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-cyan-50 transition-all">
-                      <FileText className="h-5 w-5 text-slate-700 group-hover:text-cyan-700" />
+                <div className="absolute inset-0 bg-linear-to-br from-cyan-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 rounded-xl bg-linear-to-br from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/25">
+                      <FileText className="w-6 h-6 text-white" />
                     </div>
+                    <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-cyan-600 group-hover:translate-x-1 transition-all duration-300" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-cyan-600 transition-colors">
                     Reports
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Generate reports
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-
-              <Card
-                className="group cursor-pointer border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] hover:shadow-[0_22px_70px_rgba(15,23,42,0.35)] transition-all duration-200 hover:border-cyan-200"
-                onClick={() => router.push("/dashboard/manager/settings")}
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-900 group-hover:text-cyan-700 transition-colors">
-                    <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-cyan-50 transition-all">
-                      <Settings className="h-5 w-5 text-slate-700 group-hover:text-cyan-700" />
-                    </div>
-                    Settings
-                  </CardTitle>
-                  <CardDescription className="text-slate-600">
-                    Team settings
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+                  </h3>
+                  <p className="text-slate-600 text-sm">
+                    Generate and view reports
+                  </p>
+                </div>
+              </button>
             </div>
           </div>
         </main>
