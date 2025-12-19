@@ -12,7 +12,6 @@ import {
   Briefcase,
   CheckCircle2,
   Clock,
-  DollarSign,
   Loader2,
   Mail,
   Phone,
@@ -272,87 +271,7 @@ export default function CandidateProgressPage() {
                 </Button>
               </div>
 
-              {/* Job Posting Card */}
-              {jobPosting && (
-                <Card className="bg-white/80 backdrop-blur-xl border-white/60 shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <Briefcase className="h-5 w-5 text-indigo-600" />
-                          <h2 className="text-2xl font-bold text-slate-900">
-                            {jobPosting.title || "Untitled Job"}
-                          </h2>
-                        </div>
-                        <p className="text-lg text-slate-600 mb-4">
-                          {jobPosting.company || "Unknown Company"}
-                        </p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div>
-                            <p className="text-xs text-slate-500 uppercase mb-1">
-                              Department
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {jobPosting.role?.join(", ") || "N/A"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-slate-500 uppercase mb-1">
-                              CTC Range
-                            </p>
-                            <p className="text-sm font-medium text-slate-900 flex items-center gap-1">
-                              <DollarSign className="h-4 w-4" />
-                              {jobPosting.ctc
-                                ? `${jobPosting.ctc} LPA`
-                                : "N/A"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-slate-500 uppercase mb-1">
-                              Experience Required
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {jobPosting.exp_req
-                                ? `${jobPosting.exp_req} years`
-                                : "N/A"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-slate-500 uppercase mb-1">
-                              Job Type
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {jobPosting.job_type || "N/A"}
-                            </p>
-                          </div>
-                        </div>
-                        {jobPosting.skills && Array.isArray(jobPosting.skills) && jobPosting.skills.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-slate-200">
-                            <p className="text-xs text-slate-500 uppercase mb-2">
-                              Required Skills
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {jobPosting.skills
-                                .slice(0, 8)
-                                .map((skill, idx) => (
-                                  <Badge
-                                    key={idx}
-                                    variant="secondary"
-                                    className="bg-indigo-100 text-indigo-700"
-                                  >
-                                    {typeof skill === 'string' ? skill.trim() : skill}
-                                  </Badge>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Candidate Header Card */}
+              {/* Candidate Header Card with Job Info */}
               <Card className="bg-white/80 backdrop-blur-xl border-white/60 shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
@@ -367,7 +286,7 @@ export default function CandidateProgressPage() {
                       <h1 className="text-3xl font-bold text-slate-900 mb-2">
                         {candidateData?.name || "Unknown Candidate"}
                       </h1>
-                      <div className="flex items-center gap-4 text-slate-600">
+                      <div className="flex items-center gap-4 text-slate-600 mb-2">
                         {candidateData?.role?.[0] && (
                           <div className="flex items-center gap-2">
                             <Briefcase className="h-4 w-4" />
@@ -381,6 +300,14 @@ export default function CandidateProgressPage() {
                           </div>
                         )}
                       </div>
+                      {jobPosting && (
+                        <div className="flex items-center gap-2 text-slate-500 text-sm pt-2 border-t border-slate-200">
+                          <Briefcase className="h-4 w-4" />
+                          <span className="font-medium">{jobPosting.title || "Untitled Job"}</span>
+                          <span>•</span>
+                          <span>{jobPosting.company || "Unknown Company"}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
