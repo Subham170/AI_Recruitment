@@ -7,25 +7,23 @@ import { Button } from "@/components/ui/button";
 import Loading from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
 import { dashboardAPI } from "@/lib/api";
-import { ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  Award,
+  Briefcase,
+  FileText,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
   Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from "recharts";
 
 export default function UserAnalyticsPage() {
@@ -75,24 +73,24 @@ export default function UserAnalyticsPage() {
     }
   };
 
-  const formatTimelineData = (data) => {
+  const formatTimelineDataForPie = (data) => {
     if (!data) return [];
     const months = Object.keys(data).sort();
     return months.map((month) => ({
-      month: month.split("-")[1] + "/" + month.split("-")[0].slice(2),
+      name: month.split("-")[1] + "/" + month.split("-")[0].slice(2),
       value: data[month],
     }));
   };
 
   const COLORS = [
-    "#0088FE",
-    "#00C49F",
-    "#FFBB28",
-    "#FF8042",
-    "#8884d8",
-    "#82ca9d",
-    "#ffc658",
-    "#ff7c7c",
+    "#6366f1", // indigo
+    "#10b981", // emerald
+    "#f59e0b", // amber
+    "#ef4444", // red
+    "#8b5cf6", // violet
+    "#06b6d4", // cyan
+    "#ec4899", // pink
+    "#14b8a6", // teal
   ];
 
   if (authLoading || loading) {
@@ -162,283 +160,357 @@ export default function UserAnalyticsPage() {
             {analyticsData ? (
               <div className="space-y-6">
                 {/* Overview Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div className="bg-white/85 border border-white/70 p-4 rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
-                    <p className="text-xs text-slate-600 mb-1">Total Jobs</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {analyticsData.analytics.overview.totalJobs}
-                    </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                  <div className="group relative overflow-hidden bg-white/90 backdrop-blur-xl border border-white/80 p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-br from-blue-500/10 to-indigo-500/10 rounded-full blur-2xl"></div>
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="p-2 rounded-lg bg-blue-50">
+                          <Briefcase className="w-4 h-4 text-blue-600" />
+                        </div>
+                      </div>
+                      <p className="text-xs font-medium text-slate-600 mb-1 uppercase tracking-wide">
+                        Total Jobs
+                      </p>
+                      <p className="text-3xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                        {analyticsData.analytics.overview?.totalJobs || 0}
+                      </p>
+                    </div>
                   </div>
-                  <div className="bg-white/85 border border-white/70 p-4 rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
-                    <p className="text-xs text-slate-600 mb-1">Applications</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {analyticsData.analytics.overview.totalApplications}
-                    </p>
+                  <div className="group relative overflow-hidden bg-white/90 backdrop-blur-xl border border-white/80 p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-br from-emerald-500/10 to-teal-500/10 rounded-full blur-2xl"></div>
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="p-2 rounded-lg bg-emerald-50">
+                          <FileText className="w-4 h-4 text-emerald-600" />
+                        </div>
+                      </div>
+                      <p className="text-xs font-medium text-slate-600 mb-1 uppercase tracking-wide">
+                        Applications
+                      </p>
+                      <p className="text-3xl font-bold bg-linear-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                        {analyticsData.analytics.overview?.totalApplications ||
+                          0}
+                      </p>
+                    </div>
                   </div>
-                  <div className="bg-white/85 border border-white/70 p-4 rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
-                    <p className="text-xs text-slate-600 mb-1">Candidates</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {analyticsData.analytics.overview.totalCandidates}
-                    </p>
-                  </div>
-                  <div className="bg-white/85 border border-white/70 p-4 rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
-                    <p className="text-xs text-slate-600 mb-1">Interviews</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {analyticsData.analytics.overview.totalInterviews}
-                    </p>
-                  </div>
-                  <div className="bg-white/85 border border-white/70 p-4 rounded-2xl shadow-[0_18px_50px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
-                    <p className="text-xs text-slate-600 mb-1">
-                      Avg Match Score
-                    </p>
-                    <p className="text-2xl font-bold text-cyan-600">
-                      {analyticsData.analytics.overview.avgMatchScore}%
-                    </p>
+                  <div className="group relative overflow-hidden bg-white/90 backdrop-blur-xl border border-white/80 p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-linear-to-br from-cyan-500/10 to-blue-500/10 rounded-full blur-2xl"></div>
+                    <div className="relative">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="p-2 rounded-lg bg-cyan-50">
+                          <Award className="w-4 h-4 text-cyan-600" />
+                        </div>
+                      </div>
+                      <p className="text-xs font-medium text-slate-600 mb-1 uppercase tracking-wide">
+                        Avg Match
+                      </p>
+                      <p className="text-3xl font-bold bg-linear-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+                        {analyticsData.analytics.overview?.avgMatchScore
+                          ? Math.round(
+                              analyticsData.analytics.overview.avgMatchScore *
+                                100
+                            )
+                          : 0}
+                        %
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 {/* Timeline Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-white/90 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
-                    <h3 className="text-lg font-semibold mb-4 text-slate-900">
-                      Jobs Timeline
-                    </h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <AreaChart
-                        data={formatTimelineData(
-                          analyticsData.analytics.timeline.jobsByMonth
-                        )}
-                      >
-                        <defs>
-                          <linearGradient
-                            id="colorJobs"
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="group relative overflow-hidden bg-white/90 backdrop-blur-xl border border-white/80 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-indigo-500/5 to-blue-500/5 rounded-full blur-3xl"></div>
+                    <div className="relative">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="p-2 rounded-lg bg-indigo-50">
+                          <Briefcase className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900">
+                          Jobs by Month
+                        </h3>
+                      </div>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={formatTimelineDataForPie(
+                              analyticsData.analytics.timeline.jobsByMonth
+                            )}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) =>
+                              `${name}: ${(percent * 100).toFixed(0)}%`
+                            }
+                            outerRadius={100}
+                            fill="#8884d8"
+                            dataKey="value"
+                            animationBegin={0}
+                            animationDuration={800}
+                            animationEasing="ease-out"
                           >
-                            <stop
-                              offset="5%"
-                              stopColor="#8884d8"
-                              stopOpacity={0.8}
-                            />
-                            <stop
-                              offset="95%"
-                              stopColor="#8884d8"
-                              stopOpacity={0}
-                            />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="month" stroke="#64748b" />
-                        <YAxis stroke="#64748b" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgba(255, 255, 255, 0.95)",
-                            border: "1px solid #e2e8f0",
-                            borderRadius: "8px",
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="value"
-                          stroke="#8884d8"
-                          fillOpacity={1}
-                          fill="url(#colorJobs)"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                            {formatTimelineDataForPie(
+                              analyticsData.analytics.timeline.jobsByMonth
+                            ).map((entry, index) => (
+                              <Cell
+                                key={`cell-jobs-${index}`}
+                                fill={COLORS[index % COLORS.length]}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "rgba(255, 255, 255, 0.98)",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "12px",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                            }}
+                          />
+                          <Legend
+                            wrapperStyle={{ fontSize: "12px" }}
+                            iconType="circle"
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
 
-                  <div className="bg-white/90 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
-                    <h3 className="text-lg font-semibold mb-4 text-slate-900">
-                      Applications Timeline
-                    </h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <LineChart
-                        data={formatTimelineData(
-                          analyticsData.analytics.timeline.applicationsByMonth
-                        )}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="month" stroke="#64748b" />
-                        <YAxis stroke="#64748b" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgba(255, 255, 255, 0.95)",
-                            border: "1px solid #e2e8f0",
-                            borderRadius: "8px",
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="value"
-                          stroke="#82ca9d"
-                          strokeWidth={3}
-                          dot={{ r: 6 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <div className="group relative overflow-hidden bg-white/90 backdrop-blur-xl border border-white/80 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-emerald-500/5 to-teal-500/5 rounded-full blur-3xl"></div>
+                    <div className="relative">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="p-2 rounded-lg bg-emerald-50">
+                          <TrendingUp className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900">
+                          Experience Distribution
+                        </h3>
+                      </div>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={Object.entries(
+                              analyticsData.analytics.distributions.experience
+                            ).map(([name, value]) => ({ name, value }))}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) =>
+                              percent > 0.05
+                                ? `${name}: ${(percent * 100).toFixed(0)}%`
+                                : ""
+                            }
+                            outerRadius={100}
+                            fill="#8884d8"
+                            dataKey="value"
+                            animationBegin={100}
+                            animationDuration={800}
+                            animationEasing="ease-out"
+                          >
+                            {Object.entries(
+                              analyticsData.analytics.distributions.experience
+                            ).map((entry, index) => (
+                              <Cell
+                                key={`cell-exp-${index}`}
+                                fill={COLORS[index % COLORS.length]}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "rgba(255, 255, 255, 0.98)",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "12px",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                            }}
+                          />
+                          <Legend
+                            wrapperStyle={{ fontSize: "12px" }}
+                            iconType="circle"
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
 
                 {/* Distribution Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="bg-white/90 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
-                    <h3 className="text-lg font-semibold mb-4 text-slate-900">
-                      Role Distribution
-                    </h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={Object.entries(
-                            analyticsData.analytics.distributions.roles
-                          ).map(([name, value]) => ({ name, value }))}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) =>
-                            `${name}: ${(percent * 100).toFixed(0)}%`
-                          }
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {Object.entries(
-                            analyticsData.analytics.distributions.roles
-                          ).map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={COLORS[index % COLORS.length]}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgba(255, 255, 255, 0.95)",
-                            border: "1px solid #e2e8f0",
-                            borderRadius: "8px",
-                          }}
-                        />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="group relative overflow-hidden bg-white/90 backdrop-blur-xl border border-white/80 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-purple-500/5 to-pink-500/5 rounded-full blur-3xl"></div>
+                    <div className="relative">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="p-2 rounded-lg bg-purple-50">
+                          <Users className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900">
+                          Role Distribution
+                        </h3>
+                      </div>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={Object.entries(
+                              analyticsData.analytics.distributions.roles
+                            ).map(([name, value]) => ({ name, value }))}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) =>
+                              `${name}: ${(percent * 100).toFixed(0)}%`
+                            }
+                            outerRadius={90}
+                            fill="#8884d8"
+                            dataKey="value"
+                            animationBegin={200}
+                            animationDuration={800}
+                            animationEasing="ease-out"
+                          >
+                            {Object.entries(
+                              analyticsData.analytics.distributions.roles
+                            ).map((entry, index) => (
+                              <Cell
+                                key={`cell-roles-${index}`}
+                                fill={COLORS[index % COLORS.length]}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "rgba(255, 255, 255, 0.98)",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "12px",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                            }}
+                          />
+                          <Legend
+                            wrapperStyle={{ fontSize: "12px" }}
+                            iconType="circle"
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
 
-                  <div className="bg-white/90 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
-                    <h3 className="text-lg font-semibold mb-4 text-slate-900">
-                      Top Skills Distribution
-                    </h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart
-                        data={Object.entries(
-                          analyticsData.analytics.distributions.skills
-                        )
-                          .map(([name, value]) => ({ name, value }))
-                          .slice(0, 5)}
-                        layout="vertical"
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis type="number" stroke="#64748b" />
-                        <YAxis
-                          dataKey="name"
-                          type="category"
-                          width={80}
-                          stroke="#64748b"
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgba(255, 255, 255, 0.95)",
-                            border: "1px solid #e2e8f0",
-                            borderRadius: "8px",
-                          }}
-                        />
-                        <Bar
-                          dataKey="value"
-                          fill="#8884d8"
-                          radius={[0, 4, 4, 0]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  <div className="bg-white/90 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl hover:shadow-[0_22px_70px_rgba(15,23,42,0.22)] transition-all duration-200">
-                    <h3 className="text-lg font-semibold mb-4 text-slate-900">
-                      Experience Distribution
-                    </h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart
-                        data={Object.entries(
-                          analyticsData.analytics.distributions.experience
-                        ).map(([name, value]) => ({ name, value }))}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="name" stroke="#64748b" />
-                        <YAxis stroke="#64748b" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "rgba(255, 255, 255, 0.95)",
-                            border: "1px solid #e2e8f0",
-                            borderRadius: "8px",
-                          }}
-                        />
-                        <Bar
-                          dataKey="value"
-                          fill="#82ca9d"
-                          radius={[4, 4, 0, 0]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div className="group relative overflow-hidden bg-white/90 backdrop-blur-xl border border-white/80 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-blue-500/5 to-cyan-500/5 rounded-full blur-3xl"></div>
+                    <div className="relative">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="p-2 rounded-lg bg-blue-50">
+                          <Award className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900">
+                          Top Skills Distribution
+                        </h3>
+                      </div>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={Object.entries(
+                              analyticsData.analytics.distributions.skills
+                            )
+                              .map(([name, value]) => ({ name, value }))
+                              .slice(0, 5)}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) =>
+                              `${name}: ${(percent * 100).toFixed(0)}%`
+                            }
+                            outerRadius={90}
+                            fill="#8884d8"
+                            dataKey="value"
+                            animationBegin={300}
+                            animationDuration={800}
+                            animationEasing="ease-out"
+                          >
+                            {Object.entries(
+                              analyticsData.analytics.distributions.skills
+                            )
+                              .slice(0, 5)
+                              .map((entry, index) => (
+                                <Cell
+                                  key={`cell-skills-${index}`}
+                                  fill={COLORS[index % COLORS.length]}
+                                />
+                              ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "rgba(255, 255, 255, 0.98)",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "12px",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                            }}
+                          />
+                          <Legend
+                            wrapperStyle={{ fontSize: "12px" }}
+                            iconType="circle"
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
 
-                {/* Top Jobs Table */}
-                <div className="bg-white/95 border border-white/70 rounded-2xl p-6 shadow-[0_18px_60px_rgba(15,23,42,0.2)] backdrop-blur-xl">
-                  <h3 className="text-lg font-semibold mb-4 text-slate-900">
-                    Top Performing Jobs
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-slate-50 border-b-2 border-slate-200">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-900">
-                            Job Title
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-900">
-                            Company
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-900">
-                            Applications
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-semibold text-slate-900">
-                            Avg Match Score
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {analyticsData.analytics.topJobs
-                          .slice(0, 5)
-                          .map((job, idx) => (
+                {/* All Jobs Table */}
+                <div className="group relative overflow-hidden bg-white/90 backdrop-blur-xl border border-white/80 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-indigo-500/5 to-purple-500/5 rounded-full blur-3xl"></div>
+                  <div className="relative">
+                    <div className="flex items-center gap-2 mb-6">
+                      <div className="p-2 rounded-lg bg-indigo-50">
+                        <Briefcase className="w-5 h-5 text-indigo-600" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900">
+                        All Jobs
+                      </h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-linear-to-r from-slate-50 to-slate-100/50 border-b-2 border-slate-200">
+                            <th className="px-5 py-3 text-left text-xs font-bold text-slate-900 uppercase tracking-wider">
+                              Job Title
+                            </th>
+                            <th className="px-5 py-3 text-left text-xs font-bold text-slate-900 uppercase tracking-wider">
+                              Company
+                            </th>
+                            <th className="px-5 py-3 text-left text-xs font-bold text-slate-900 uppercase tracking-wider">
+                              Applications
+                            </th>
+                            <th className="px-5 py-3 text-left text-xs font-bold text-slate-900 uppercase tracking-wider">
+                              Avg Match Score
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {analyticsData.analytics.topJobs?.map((job, idx) => (
                             <tr
                               key={idx}
-                              className="hover:bg-slate-50/80 transition-colors bg-white"
+                              className="hover:bg-slate-50/80 transition-colors duration-200 bg-white/50"
                             >
-                              <td className="px-4 py-2 text-slate-900">
+                              <td className="px-5 py-4 text-sm font-semibold text-slate-900">
                                 {job.title}
                               </td>
-                              <td className="px-4 py-2 text-slate-600">
+                              <td className="px-5 py-4 text-sm text-slate-600">
                                 {job.company}
                               </td>
-                              <td className="px-4 py-2 text-slate-900">
-                                {job.applications}
+                              <td className="px-5 py-4 text-sm font-medium text-slate-900">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  {job.applications}
+                                </span>
                               </td>
-                              <td className="px-4 py-2 text-slate-900">
-                                {Math.round(job.avgMatchScore * 100)}%
+                              <td className="px-5 py-4 text-sm font-semibold">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                  {Math.round(job.avgMatchScore * 100)}%
+                                </span>
                               </td>
                             </tr>
                           ))}
-                      </tbody>
-                    </table>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
