@@ -4,6 +4,7 @@ import { GlassBackground } from "@/components/GlassShell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { BarChart3, CheckCircle2, Sparkles, Target, Users } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -32,14 +33,16 @@ export default function LandingPage() {
 
       {/* Header */}
       <header className="relative z-10 border-b border-white/40 bg-white/60 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-indigo-600 shadow-md shadow-indigo-500/40">
-              <Sparkles className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-semibold tracking-wide text-slate-900">
-              AI Recruitment
-            </span>
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/LEAN_IT_LOGO.png"
+              alt="LEAN IT Logo"
+              width={200}
+              height={60}
+              className="h-16 w-auto object-contain"
+              priority
+            />
           </div>
           <Button asChild className="shadow-sm shadow-slate-400/30">
             <Link href="/login">Login</Link>
@@ -194,12 +197,13 @@ export default function LandingPage() {
           <div className="grid gap-8 md:grid-cols-4">
             <div>
               <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 shadow-md shadow-indigo-500/40">
-                  <Sparkles className="h-4 w-4 text-white" />
-                </div>
-                <span className="font-semibold text-slate-900">
-                  AI Recruitment
-                </span>
+                <Image
+                  src="/LEAN_IT_LOGO.png"
+                  alt="LEAN IT Logo"
+                  width={160}
+                  height={48}
+                  className="h-12 w-auto object-contain"
+                />
               </div>
               <p className="text-sm text-slate-600">
                 AI-powered recruitment platform for modern teams
@@ -300,7 +304,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="mt-12 border-t border-white/40 pt-8 text-center text-sm text-slate-500">
-            © 2025 AI Recruitment. All rights reserved.
+            © 2025 LEAN IT. All rights reserved.
           </div>
         </div>
       </footer>
