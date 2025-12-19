@@ -47,7 +47,7 @@ export const roleMenuConfig = {
     },
     {
       id: "calcom-credentials",
-      label: "Cal.com Setup",
+      label: "Settings",
       icon: Key,
       path: "/dashboard/recruiter/calcom-credentials",
       description: "Configure Cal.com API credentials",
