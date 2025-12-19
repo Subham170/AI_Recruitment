@@ -228,7 +228,10 @@ export default function UserManagementPage() {
         // Handle assignedManager based on role
         if (formData.role === "recruiter") {
           // Only include assignedManager if it's a valid non-empty value
-          if (formData.assignedManager && formData.assignedManager.trim() !== "") {
+          if (
+            formData.assignedManager &&
+            formData.assignedManager.trim() !== ""
+          ) {
             updateData.assignedManager = formData.assignedManager;
           } else {
             // If recruiter but no manager selected, set to null to clear
@@ -737,11 +740,23 @@ export default function UserManagementPage() {
               >
                 <SelectTrigger
                   id="role"
-                  className="bg-white/80 border border-white/70 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200/70 transition-all duration-200 backdrop-blur"
+                  className="w-full bg-white/80 border border-white/70 text-slate-900 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200/70 transition-all duration-200 backdrop-blur"
                 >
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  className="max-h-[300px]"
+                  position="popper"
+                  sideOffset={4}
+                  align="start"
+                  side="bottom"
+                  collisionPadding={16}
+                  avoidCollisions={true}
+                  style={{
+                    width: "var(--radix-select-trigger-width)",
+                    maxWidth: "min(100%, var(--radix-select-trigger-width))",
+                  }}
+                >
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="recruiter">Recruiter</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
@@ -755,7 +770,10 @@ export default function UserManagementPage() {
             {/* Manager Selection Field - Show when role is recruiter (create or edit) */}
             {formData.role === "recruiter" && (
               <div className="space-y-2">
-                <Label htmlFor="assignedManager" className="text-slate-900 font-medium">
+                <Label
+                  htmlFor="assignedManager"
+                  className="text-slate-900 font-medium"
+                >
                   Assign Manager <span className="text-red-500">*</span>
                 </Label>
                 <Select
@@ -764,16 +782,28 @@ export default function UserManagementPage() {
                   required
                   disabled={loadingManagers}
                 >
-                  <SelectTrigger id="assignedManager">
+                  <SelectTrigger id="assignedManager" className="w-full">
                     <SelectValue placeholder="Select a manager" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent
+                    className="max-h-[300px]"
+                    position="popper"
+                    sideOffset={4}
+                    align="start"
+                    side="bottom"
+                    collisionPadding={16}
+                    avoidCollisions={true}
+                    style={{
+                      width: "var(--radix-select-trigger-width)",
+                      maxWidth: "min(100%, var(--radix-select-trigger-width))",
+                    }}
+                  >
                     {loadingManagers ? (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      <div className="px-3 py-2 text-sm text-slate-500">
                         Loading managers...
                       </div>
                     ) : managers.length === 0 ? (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      <div className="px-3 py-2 text-sm text-slate-500">
                         No managers available
                       </div>
                     ) : (
@@ -781,8 +811,16 @@ export default function UserManagementPage() {
                         <SelectItem
                           key={manager.id || manager._id}
                           value={manager.id || manager._id}
+                          className="cursor-pointer"
                         >
-                          {manager.name} ({manager.email})
+                          <div className="flex flex-col py-1">
+                            <span className="font-medium text-slate-900 text-sm leading-tight">
+                              {manager.name}
+                            </span>
+                            <span className="text-xs text-slate-500 leading-tight">
+                              {manager.email}
+                            </span>
+                          </div>
                         </SelectItem>
                       ))
                     )}
