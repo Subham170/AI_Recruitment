@@ -3,6 +3,7 @@ import {
   updateJobMatches,
 } from "../services/matchingService.js";
 import { CandidateMatches, JobMatches } from "./model.js";
+import { updateProgressFromBolnaCall } from "../candidate_progress/controller.js";
 
 /**
  * Get matching candidates for a job posting
@@ -117,6 +118,26 @@ export const markCandidateAsApplied = async (req, res) => {
     jobMatches.matches[matchIndex].status = "applied";
     jobMatches.lastUpdated = new Date();
     await jobMatches.save();
+
+    // Update candidate progress - mark "applied" as completed
+    try {
+      await updateProgressFromBolnaCall(
+        candidateId,
+        jobId,
+        "applied",
+        "completed",
+        "Candidate marked as applied"
+      );
+      console.log(
+        `✅ Candidate progress updated: ${candidateId} - ${jobId} - applied -> completed`
+      );
+    } catch (progressError) {
+      // Log error but don't fail the request
+      console.error(
+        "Error updating candidate progress when marking as applied:",
+        progressError
+      );
+    }
 
     res.status(200).json({
       message: "Candidate marked as applied successfully",

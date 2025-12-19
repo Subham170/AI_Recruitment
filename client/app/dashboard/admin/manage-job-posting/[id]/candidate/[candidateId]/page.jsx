@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { candidateAPI, candidateProgressAPI, jobPostingAPI } from "@/lib/api";
+import { bolnaAPI, candidateAPI, candidateProgressAPI, jobPostingAPI } from "@/lib/api";
 import {
   ArrowLeft,
   Briefcase,
   CheckCircle2,
   Clock,
+  DollarSign,
   Loader2,
   Mail,
   Phone,
@@ -44,6 +45,8 @@ export default function CandidateProgressPage() {
   const [matchedJobs, setMatchedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [bolnaCallData, setBolnaCallData] = useState(null);
+  const [loadingBolnaCall, setLoadingBolnaCall] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -60,6 +63,12 @@ export default function CandidateProgressPage() {
       fetchMatchedJobs();
     }
   }, [candidate]);
+
+  useEffect(() => {
+    if (jobId && candidateId) {
+      fetchBolnaCallData();
+    }
+  }, [jobId, candidateId]);
 
   const fetchData = async (showLoading = true) => {
     try {
@@ -103,7 +112,90 @@ export default function CandidateProgressPage() {
     }
   };
 
+  const fetchBolnaCallData = async () => {
+    try {
+      setLoadingBolnaCall(true);
+      // Get all calls for this job and candidate
+      const [screeningsRes, interviewsRes] = await Promise.all([
+        bolnaAPI.getJobScreenings(jobId).catch(() => ({ screenings: [] })),
+        bolnaAPI.getJobInterviews(jobId).catch(() => ({ interviews: [] })),
+      ]);
+
+      // Find the call for this specific candidate
+      const candidateIdStr = candidateId.toString();
+      const screening = (screeningsRes.screenings || []).find(
+        (s) =>
+          (s.candidateId?._id?.toString() || s.candidateId?.toString()) ===
+          candidateIdStr
+      );
+      const interview = (interviewsRes.interviews || []).find(
+        (i) =>
+          (i.candidateId?._id?.toString() || i.candidateId?.toString()) ===
+          candidateIdStr
+      );
+
+      setBolnaCallData({
+        screening,
+        interview,
+      });
+    } catch (error) {
+      console.error("Error fetching BolnaCall data:", error);
+      setBolnaCallData(null);
+    } finally {
+      setLoadingBolnaCall(false);
+    }
+  };
+
   const getStageStatus = (stage) => {
+    // Sync with BolnaCall data to match job posting page tabs
+    // This ensures the progress shown here matches which tab the candidate appears in on the job posting page
+    if (bolnaCallData) {
+      const { screening, interview } = bolnaCallData;
+
+      // Rejected stage - check interview outcome first
+      if (stage === "rejected") {
+        return interview?.interviewOutcome === "reject" ? "completed" : "pending";
+      }
+
+      // Offer stage - check interview outcome
+      if (stage === "offer") {
+        return interview?.interviewOutcome === "offer" ? "completed" : "pending";
+      }
+
+      // Interviews stage - candidate appears in interviews tab if emailSent is true
+      if (stage === "interviews") {
+        // If interview exists and emailSent is true, interviews stage is completed
+        // Also, if they have an offer or rejection, they must have completed interviews
+        if (
+          interview?.emailSent === true ||
+          interview?.interviewOutcome === "offer" ||
+          interview?.interviewOutcome === "reject"
+        ) {
+          return "completed";
+        }
+        return "pending";
+      }
+
+      // Screening stage - candidate appears in screenings tab if screeningStatus is completed
+      if (stage === "screening") {
+        // If screening is completed, or if they've moved to interviews/offer/rejected, screening must be completed
+        if (
+          screening?.screeningStatus === "completed" ||
+          interview?.emailSent === true ||
+          interview?.interviewOutcome === "offer" ||
+          interview?.interviewOutcome === "reject"
+        ) {
+          return "completed";
+        }
+        return "pending";
+      }
+
+      // Applied stage - always completed if we have any data
+      if (stage === "applied") {
+        return "completed";
+      }
+    }
+    // Fallback to progress data
     return progress?.[stage]?.status || "pending";
   };
 
@@ -179,6 +271,86 @@ export default function CandidateProgressPage() {
                   Back
                 </Button>
               </div>
+
+              {/* Job Posting Card */}
+              {jobPosting && (
+                <Card className="bg-white/80 backdrop-blur-xl border-white/60 shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Briefcase className="h-5 w-5 text-indigo-600" />
+                          <h2 className="text-2xl font-bold text-slate-900">
+                            {jobPosting.title || "Untitled Job"}
+                          </h2>
+                        </div>
+                        <p className="text-lg text-slate-600 mb-4">
+                          {jobPosting.company || "Unknown Company"}
+                        </p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <p className="text-xs text-slate-500 uppercase mb-1">
+                              Department
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {jobPosting.role?.join(", ") || "N/A"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 uppercase mb-1">
+                              CTC Range
+                            </p>
+                            <p className="text-sm font-medium text-slate-900 flex items-center gap-1">
+                              <DollarSign className="h-4 w-4" />
+                              {jobPosting.ctc
+                                ? `${jobPosting.ctc} LPA`
+                                : "N/A"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 uppercase mb-1">
+                              Experience Required
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {jobPosting.exp_req
+                                ? `${jobPosting.exp_req} years`
+                                : "N/A"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 uppercase mb-1">
+                              Job Type
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {jobPosting.job_type || "N/A"}
+                            </p>
+                          </div>
+                        </div>
+                        {jobPosting.skills && Array.isArray(jobPosting.skills) && jobPosting.skills.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-slate-200">
+                            <p className="text-xs text-slate-500 uppercase mb-2">
+                              Required Skills
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {jobPosting.skills
+                                .slice(0, 8)
+                                .map((skill, idx) => (
+                                  <Badge
+                                    key={idx}
+                                    variant="secondary"
+                                    className="bg-indigo-100 text-indigo-700"
+                                  >
+                                    {typeof skill === 'string' ? skill.trim() : skill}
+                                  </Badge>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Candidate Header Card */}
               <Card className="bg-white/80 backdrop-blur-xl border-white/60 shadow-[0_18px_60px_rgba(15,23,42,0.3)]">

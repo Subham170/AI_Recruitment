@@ -129,6 +129,26 @@ export const scheduleBolnaCall = async (req, res) => {
       screeningStatus: "pending",
     });
 
+    // Update candidate progress - mark "screening" as completed when call is scheduled
+    try {
+      await updateProgressFromBolnaCall(
+        candidateId,
+        jobId,
+        "screening",
+        "completed",
+        `Screening call scheduled for ${callScheduledAt.toISOString()}`
+      );
+      console.log(
+        `✅ Candidate progress updated: ${candidateId} - ${jobId} - screening -> completed (call scheduled)`
+      );
+    } catch (progressError) {
+      // Log error but don't fail the request
+      console.error(
+        "Error updating candidate progress when scheduling call:",
+        progressError
+      );
+    }
+
     res.status(200).json({
       message: "Call scheduled successfully",
       bolnaResponse: data,
@@ -1192,34 +1212,29 @@ export const updateInterviewOutcome = async (req, res) => {
     bolnaCall.interviewOutcomeAt = new Date();
     await bolnaCall.save();
 
-    // Update candidate progress
-    const CandidateProgress = (await import("../candidate_progress/model.js")).default;
-    const progressDoc = await CandidateProgress.findOne({
-      jobPostingId: bolnaCall.jobId,
-    });
+    // Update candidate progress using the standard function
+    try {
+      const stage = outcome === "offer" ? "offer" : "rejected";
+      const notes = feedback
+        ? `Interview outcome: ${outcome}. Feedback: ${feedback}`
+        : `Interview outcome: ${outcome}`;
 
-    if (progressDoc) {
-      const candidateEntry = progressDoc.candidates.find(
-        (c) => c.candidateId.toString() === bolnaCall.candidateId.toString()
+      await updateProgressFromBolnaCall(
+        bolnaCall.candidateId.toString(),
+        bolnaCall.jobId.toString(),
+        stage,
+        "completed",
+        notes
       );
-
-      if (candidateEntry) {
-        if (outcome === "offer") {
-          candidateEntry.offer.status = "completed";
-          candidateEntry.offer.completedAt = new Date();
-          if (feedback) {
-            candidateEntry.offer.notes = feedback;
-          }
-        } else if (outcome === "reject") {
-          candidateEntry.rejected.status = "completed";
-          candidateEntry.rejected.rejectedAt = new Date();
-          if (feedback) {
-            candidateEntry.rejected.notes = feedback;
-          }
-        }
-        progressDoc.markModified("candidates");
-        await progressDoc.save();
-      }
+      console.log(
+        `✅ Candidate progress updated: ${bolnaCall.candidateId} - ${bolnaCall.jobId} - ${stage} -> completed`
+      );
+    } catch (progressError) {
+      // Log error but don't fail the request
+      console.error(
+        "Error updating candidate progress when updating interview outcome:",
+        progressError
+      );
     }
 
     res.status(200).json({
@@ -1439,6 +1454,26 @@ export const sendEmailManually = async (req, res) => {
       // Log error but don't fail the entire request
       console.error("⚠️ Error saving RecruiterTask:", taskError.message);
       // Continue with the response even if task saving fails
+    }
+
+    // Update candidate progress - mark "interviews" as completed when interview is scheduled
+    try {
+      await updateProgressFromBolnaCall(
+        candidateId,
+        bolnaCall.jobId.toString(),
+        "interviews",
+        "completed",
+        `Interview scheduled for ${scheduledTime.toISOString()}`
+      );
+      console.log(
+        `✅ Candidate progress updated: ${candidateId} - ${bolnaCall.jobId} - interviews -> completed`
+      );
+    } catch (progressError) {
+      // Log error but don't fail the request
+      console.error(
+        "Error updating candidate progress when scheduling interview:",
+        progressError
+      );
     }
 
     res.status(200).json({
