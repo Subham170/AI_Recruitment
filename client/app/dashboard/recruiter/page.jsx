@@ -17,7 +17,6 @@ import {
   Clock,
   ExternalLink,
   Loader2,
-  TrendingUp,
   User,
   XCircle,
 } from "lucide-react";
@@ -215,58 +214,6 @@ export default function RecruiterDashboardPage() {
                 <p className="text-slate-600 text-lg">
                   Manage your recruitment pipeline and find the best candidates
                 </p>
-              </div>
-            </div>
-
-            {/* Quick Stats Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 border border-white/70 shadow-sm hover:shadow-md transition-all duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                      Today
-                    </p>
-                    <p className="text-2xl font-bold text-slate-900">
-                      {tasks.today.length}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1">interviews</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-indigo-50">
-                    <Clock className="w-5 h-5 text-indigo-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 border border-white/70 shadow-sm hover:shadow-md transition-all duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                      This Week
-                    </p>
-                    <p className="text-2xl font-bold text-slate-900">
-                      {tasks.thisWeek.length}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1">interviews</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-blue-50">
-                    <Calendar className="w-5 h-5 text-blue-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 border border-white/70 shadow-sm hover:shadow-md transition-all duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
-                      This Month
-                    </p>
-                    <p className="text-2xl font-bold text-slate-900">
-                      {tasks.thisMonth.length}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1">interviews</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-emerald-50">
-                    <TrendingUp className="w-5 h-5 text-emerald-600" />
-                  </div>
-                </div>
               </div>
             </div>
 
