@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { chatAPI } from "@/lib/api";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { X, Send, MessageCircle, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { chatAPI } from "@/lib/api";
+import { Loader2, MessageCircle, Send, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false); // Closed by default
@@ -69,9 +68,10 @@ export default function Chatbot() {
     if (messagesContainerRef.current) {
       // Only auto-scroll if user is near the bottom (within 150px)
       const container = messagesContainerRef.current;
-      const isNearBottom = 
-        container.scrollHeight - container.scrollTop - container.clientHeight < 150;
-      
+      const isNearBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight <
+        150;
+
       if (isNearBottom || messages.length <= 1) {
         setTimeout(() => {
           scrollToBottom();
@@ -82,13 +82,13 @@ export default function Chatbot() {
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
     } else if (messagesEndRef.current) {
       // Fallback to scrollIntoView
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
-
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -108,7 +108,7 @@ export default function Chatbot() {
 
     try {
       const response = await chatAPI.sendMessage(userMessage, sessionId);
-      
+
       // Add assistant response
       const assistantMessage = {
         type: "assistant",
@@ -119,7 +119,8 @@ export default function Chatbot() {
       console.error("Error sending message:", error);
       const errorMessage = {
         type: "assistant",
-        content: "Sorry, there was an error processing your message. Please try again.",
+        content:
+          "Sorry, there was an error processing your message. Please try again.",
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
@@ -134,6 +135,37 @@ export default function Chatbot() {
   const toggleChat = () => {
     setIsOpen(!isOpen);
   };
+
+  // Triangle logo component for AI messages
+  const AILogo = () => (
+    <div className="shrink-0 w-8 h-8 flex items-center justify-center">
+      <div className="relative w-6 h-6">
+        <svg
+          viewBox="0 0 24 24"
+          className="w-full h-full"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path d="M12 2L22 20H2L12 2Z" fill="url(#gradient)" />
+          <defs>
+            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#3b82f6" />
+              <stop offset="50%" stopColor="#3b82f6" />
+              <stop offset="50%" stopColor="#6b7280" />
+              <stop offset="100%" stopColor="#6b7280" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+    </div>
+  );
+
+  // User avatar component
+  const UserAvatar = () => (
+    <div className="shrink-0 w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white text-sm font-semibold shadow-md">
+      {user?.name?.charAt(0).toUpperCase() || "U"}
+    </div>
+  );
 
   if (!user) {
     return null; // Don't show chatbot if user is not logged in
@@ -162,7 +194,7 @@ export default function Chatbot() {
           className="fixed bottom-6 right-6 z-50 w-96 h-[600px] flex flex-col shadow-2xl rounded-lg overflow-hidden bg-white border border-gray-200"
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
+          <div className="bg-linear-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MessageCircle className="h-5 w-5" />
               <h3 className="font-semibold">AI Assistant</h3>
@@ -178,22 +210,30 @@ export default function Chatbot() {
           </div>
 
           {/* Messages Area */}
-          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 min-h-0">
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto p-4 min-h-0"
+          >
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
                 <MessageCircle className="h-12 w-12 mb-3 text-gray-300" />
-                <p className="text-sm">Start a conversation with the AI assistant</p>
-                <p className="text-xs mt-1 text-gray-400">Ask questions about candidates, jobs, or recruitment</p>
+                <p className="text-sm">
+                  Start a conversation with the AI assistant
+                </p>
+                <p className="text-xs mt-1 text-gray-400">
+                  Ask questions about candidates, jobs, or recruitment
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
                 {messages.map((message, index) => (
                   <div
                     key={index}
-                    className={`flex ${
+                    className={`flex items-start gap-2 ${
                       message.type === "user" ? "justify-end" : "justify-start"
                     }`}
                   >
+                    {message.type === "assistant" && <AILogo />}
                     <div
                       className={`max-w-[80%] rounded-lg px-4 py-2 ${
                         message.type === "user"
@@ -201,14 +241,16 @@ export default function Chatbot() {
                           : "bg-gray-100 text-gray-900"
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap break-words">
+                      <p className="text-sm whitespace-pre-wrap wrap-break-word">
                         {message.content}
                       </p>
                     </div>
+                    {message.type === "user" && <UserAvatar />}
                   </div>
                 ))}
                 {isLoading && (
-                  <div className="flex justify-start">
+                  <div className="flex items-start gap-2 justify-start">
+                    <AILogo />
                     <div className="bg-gray-100 rounded-lg px-4 py-2">
                       <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
                     </div>
@@ -220,7 +262,10 @@ export default function Chatbot() {
           </div>
 
           {/* Input Area */}
-          <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200">
+          <form
+            onSubmit={handleSendMessage}
+            className="p-4 border-t border-gray-200"
+          >
             <div className="flex gap-2">
               <Input
                 ref={inputRef}
