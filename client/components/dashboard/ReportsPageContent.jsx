@@ -6,7 +6,7 @@ import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/ui/loading";
 import { useAuth } from "@/contexts/AuthContext";
-import { jobPostingAPI, userAPI } from "@/lib/api";
+import { jobPostingAPI, userAPI, matchingAPI, recruiterTasksAPI } from "@/lib/api";
 import { Briefcase, Download, TrendingUp, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -51,8 +51,9 @@ export default function ReportsPageContent() {
       setError(null);
 
       // Determine which roles to fetch based on user's role
+      // Fetch recruiters first so we can aggregate their stats for managers
       const rolesToFetch =
-        user.role === "admin" ? ["manager", "recruiter"] : ["recruiter"];
+        user.role === "admin" ? ["recruiter", "manager"] : ["recruiter"];
 
       // Fetch users for each role
       const roleData = {};
@@ -108,26 +109,213 @@ export default function ReportsPageContent() {
           allJobs = jobsResponse.jobPostings;
         }
 
+        // Fetch job matches for all jobs to calculate applications and candidates
+        // Only fetch for jobs that belong to recruiters we're tracking
+        const allJobMatches = {};
+        
+        // Get all recruiter IDs we need to track
+        const recruiterIds = new Set();
+        if (roleData["recruiter"]) {
+          roleData["recruiter"].forEach((recruiter) => {
+            const recruiterId = recruiter._id?.toString() || recruiter.id?.toString();
+            if (recruiterId) recruiterIds.add(recruiterId);
+          });
+        }
+        
+        // Get job IDs for jobs belonging to these recruiters
+        const relevantJobIds = allJobs
+          .filter((job) => {
+            const jobRecruiterId =
+              job.primary_recruiter_id?._id?.toString() ||
+              job.primary_recruiter_id?.toString() ||
+              job.primary_recruiter_id;
+            return recruiterIds.has(jobRecruiterId);
+          })
+          .map((job) => job._id?.toString() || job.id?.toString())
+          .filter(Boolean);
+
+        // Fetch matches for relevant jobs in parallel (batch processing)
+        const batchSize = 10;
+        for (let i = 0; i < relevantJobIds.length; i += batchSize) {
+          const batch = relevantJobIds.slice(i, i + batchSize);
+          await Promise.all(
+            batch.map(async (jobId) => {
+              try {
+                // Fetch job matches
+                const matchesResponse = await matchingAPI.getJobMatches(jobId);
+                allJobMatches[jobId] = matchesResponse.matches || [];
+              } catch (err) {
+                console.error(`Error fetching matches for job ${jobId}:`, err);
+                allJobMatches[jobId] = [];
+              }
+            })
+          );
+        }
+
+        // Fetch interview counts from RecruiterTask collection
+        let interviewCountsByJob = {};
+        try {
+          if (relevantJobIds.length > 0) {
+            const interviewResponse = await recruiterTasksAPI.getInterviewCountsByJobs(relevantJobIds);
+            interviewCountsByJob = interviewResponse.interviewCounts || {};
+          }
+        } catch (interviewErr) {
+          console.error("Error fetching interview counts:", interviewErr);
+          interviewCountsByJob = {};
+        }
+
         // Calculate detailed stats per user
         for (const role of rolesToFetch) {
           const users = roleData[role];
           for (const u of users) {
             const userId = u._id?.toString() || u.id?.toString();
-            const userJobs = allJobs.filter((job) => {
-              const recruiterId =
-                job.primary_recruiter_id?._id?.toString() ||
-                job.primary_recruiter_id?.toString() ||
-                job.primary_recruiter_id;
-              return recruiterId === userId;
-            });
+            
+            if (role === "manager") {
+              // For managers, aggregate stats from all assigned recruiters
+              // First, get all recruiters assigned to this manager
+              const assignedRecruiters = roleData["recruiter"]?.filter(
+                (recruiter) => {
+                  const recruiterManagerId =
+                    recruiter.assignedManager?._id?.toString() ||
+                    recruiter.assignedManager?.toString() ||
+                    recruiter.assignedManager;
+                  return recruiterManagerId === userId;
+                }
+              ) || [];
 
-            u.jobsPosted = userJobs.length;
+              u.totalRecruiters = assignedRecruiters.length;
 
-            // Set defaults - detailed analytics will be shown on the analytics page
-            u.totalApplications = 0;
-            u.totalCandidates = 0;
-            u.totalInterviews = 0;
-            u.matchRate = 0;
+              // Aggregate jobs from all assigned recruiters
+              let totalJobs = 0;
+              let totalApplications = 0;
+              let totalCandidates = new Set();
+              let totalInterviews = 0;
+
+              assignedRecruiters.forEach((recruiter) => {
+                const recruiterId =
+                  recruiter._id?.toString() || recruiter.id?.toString();
+                const recruiterJobs = allJobs.filter((job) => {
+                  const jobRecruiterId =
+                    job.primary_recruiter_id?._id?.toString() ||
+                    job.primary_recruiter_id?.toString() ||
+                    job.primary_recruiter_id;
+                  return jobRecruiterId === recruiterId;
+                });
+
+                totalJobs += recruiterJobs.length;
+
+                // Aggregate applications, candidates, and interviews from recruiter's jobs
+                recruiterJobs.forEach((job) => {
+                  const jobId = job._id?.toString() || job.id?.toString();
+                  const matches = allJobMatches[jobId] || [];
+                  
+                  // Count applications (all matches)
+                  totalApplications += matches.length;
+                  
+                  // Count unique candidates
+                  matches.forEach((match) => {
+                    const candidateId = 
+                      match.candidateId?._id?.toString() || 
+                      match.candidateId?.toString() || 
+                      match.candidateId;
+                    if (candidateId) {
+                      totalCandidates.add(candidateId);
+                    }
+                  });
+                  
+                  // Count interviews from RecruiterTask collection
+                  const interviewCount = interviewCountsByJob[jobId] || 0;
+                  totalInterviews += interviewCount;
+                });
+              });
+
+              u.jobsPosted = totalJobs;
+              u.totalApplications = totalApplications;
+              u.totalCandidates = totalCandidates.size;
+              u.totalInterviews = totalInterviews;
+              
+              // Calculate average match rate from all recruiter matches
+              let totalMatchScore = 0;
+              let matchCount = 0;
+              assignedRecruiters.forEach((recruiter) => {
+                const recruiterId =
+                  recruiter._id?.toString() || recruiter.id?.toString();
+                const recruiterJobs = allJobs.filter((job) => {
+                  const jobRecruiterId =
+                    job.primary_recruiter_id?._id?.toString() ||
+                    job.primary_recruiter_id?.toString() ||
+                    job.primary_recruiter_id;
+                  return jobRecruiterId === recruiterId;
+                });
+                
+                recruiterJobs.forEach((job) => {
+                  const jobId = job._id?.toString() || job.id?.toString();
+                  const matches = allJobMatches[jobId] || [];
+                  matches.forEach((match) => {
+                    if (match.matchScore) {
+                      totalMatchScore += match.matchScore;
+                      matchCount++;
+                    }
+                  });
+                });
+              });
+              
+              u.matchRate = matchCount > 0 
+                ? Math.round((totalMatchScore / matchCount) * 100) 
+                : 0;
+            } else {
+              // For recruiters, calculate their own stats
+              const userJobs = allJobs.filter((job) => {
+                const recruiterId =
+                  job.primary_recruiter_id?._id?.toString() ||
+                  job.primary_recruiter_id?.toString() ||
+                  job.primary_recruiter_id;
+                return recruiterId === userId;
+              });
+
+              u.jobsPosted = userJobs.length;
+
+              // Calculate applications, candidates, and interviews from recruiter's jobs
+              let recruiterApplications = 0;
+              let recruiterCandidates = new Set();
+              let recruiterInterviews = 0;
+              let totalMatchScore = 0;
+              let matchCount = 0;
+
+              userJobs.forEach((job) => {
+                const jobId = job._id?.toString() || job.id?.toString();
+                const matches = allJobMatches[jobId] || [];
+                
+                // Count applications
+                recruiterApplications += matches.length;
+                
+                // Count unique candidates and calculate match scores
+                matches.forEach((match) => {
+                  const candidateId = 
+                    match.candidateId?._id?.toString() || 
+                    match.candidateId?.toString() || 
+                    match.candidateId;
+                  if (candidateId) {
+                    recruiterCandidates.add(candidateId);
+                  }
+                  if (match.matchScore) {
+                    totalMatchScore += match.matchScore;
+                    matchCount++;
+                  }
+                });
+                
+                // Count interviews from RecruiterTask collection
+                const interviewCount = interviewCountsByJob[jobId] || 0;
+                recruiterInterviews += interviewCount;
+              });
+
+              u.totalApplications = recruiterApplications;
+              u.totalCandidates = recruiterCandidates.size;
+              u.totalInterviews = recruiterInterviews;
+              u.matchRate = matchCount > 0 
+                ? Math.round((totalMatchScore / matchCount) * 100) 
+                : 0;
+            }
           }
 
           roleStats[role].jobsPosted = users.reduce(
@@ -373,6 +561,11 @@ export default function ReportsPageContent() {
                           <th className="px-6 py-3 text-left text-xs font-semibold text-slate-900 uppercase tracking-wider">
                             Status
                           </th>
+                          {selectedRole === "manager" && (
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                              Recruiters
+                            </th>
+                          )}
                           <th className="px-6 py-3 text-left text-xs font-semibold text-slate-900 uppercase tracking-wider">
                             Jobs Posted
                           </th>
@@ -397,7 +590,7 @@ export default function ReportsPageContent() {
                         {currentUsers.length === 0 ? (
                           <tr>
                             <td
-                              colSpan="9"
+                              colSpan={selectedRole === "manager" ? "10" : "9"}
                               className="px-6 py-12 text-center text-slate-600"
                             >
                               <Users className="h-12 w-12 mx-auto mb-4 text-slate-400" />
@@ -406,7 +599,8 @@ export default function ReportsPageContent() {
                           </tr>
                         ) : (
                           currentUsers.map((userItem) => {
-                            const isClickable = selectedRole === "recruiter";
+                            // Both managers and recruiters should be clickable
+                            const isClickable = selectedRole === "recruiter" || selectedRole === "manager";
                             return (
                               <tr
                                 key={userItem._id || userItem.id}
@@ -444,6 +638,13 @@ export default function ReportsPageContent() {
                                       : "Inactive"}
                                   </span>
                                 </td>
+                                {selectedRole === "manager" && (
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm font-medium text-slate-900">
+                                      {userItem.totalRecruiters || 0}
+                                    </div>
+                                  </td>
+                                )}
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <div className="text-sm font-medium text-slate-900">
                                     {userItem.jobsPosted || 0}

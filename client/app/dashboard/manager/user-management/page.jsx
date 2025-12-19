@@ -201,7 +201,13 @@ export default function UserManagementPage() {
         if (formData.password) {
           updateData.password = formData.password;
         }
-        const response = await userAPI.updateUser(editingUser.id, updateData);
+        const userId = editingUser.id || editingUser._id;
+        if (!userId) {
+          setError("User ID is missing. Please try again.");
+          setIsSubmitting(false);
+          return;
+        }
+        const response = await userAPI.updateUser(userId, updateData);
         setSuccess(
           `User updated successfully! ${response.user.name} has been updated.`
         );

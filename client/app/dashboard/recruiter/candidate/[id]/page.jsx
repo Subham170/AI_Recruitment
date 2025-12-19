@@ -122,6 +122,16 @@ export default function CandidateDetailPage() {
   const fetchMatchedJobs = async () => {
     try {
       setLoadingJobs(true);
+      
+      // First, refresh the candidate matches to get the latest updates
+      try {
+        await candidateAPI.refreshCandidateMatches(candidateId);
+      } catch (refreshErr) {
+        // Log but don't fail - continue to fetch existing matches
+        console.warn("Error refreshing candidate matches:", refreshErr);
+      }
+      
+      // Then fetch the updated matches
       const response = await candidateAPI.getCandidateMatchedJobs(candidateId);
       // Filter out any matches with null or undefined jobId
       const validMatches = (response.matches || []).filter(

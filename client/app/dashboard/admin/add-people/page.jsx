@@ -245,14 +245,26 @@ export default function AddPeoplePage() {
         if (formData.password) {
           updateData.password = formData.password;
         }
-        // Include assignedManager if role is recruiter
-        if (formData.role === "recruiter" && formData.assignedManager) {
-          updateData.assignedManager = formData.assignedManager;
-        } else if (formData.role !== "recruiter") {
+        // Handle assignedManager based on role
+        if (formData.role === "recruiter") {
+          // Only include assignedManager if it's a valid non-empty value
+          if (formData.assignedManager && formData.assignedManager.trim() !== "") {
+            updateData.assignedManager = formData.assignedManager;
+          } else {
+            // If recruiter but no manager selected, set to null to clear
+            updateData.assignedManager = null;
+          }
+        } else {
           // Clear assignedManager if role is not recruiter
           updateData.assignedManager = null;
         }
-        const response = await userAPI.updateUser(editingUser.id, updateData);
+        const userId = editingUser.id || editingUser._id;
+        if (!userId) {
+          setError("User ID is missing. Please try again.");
+          setIsSubmitting(false);
+          return;
+        }
+        const response = await userAPI.updateUser(userId, updateData);
         setSuccess(
           `User updated successfully! ${response.user.name} has been updated.`
         );

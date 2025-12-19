@@ -7,6 +7,7 @@ import {
   updateTaskStatus,
   cancelInterview,
   getBookedSlots,
+  getInterviewCountsByJobs,
 } from "./controller.js";
 
 const router = express.Router();
@@ -33,5 +34,8 @@ router.patch("/:taskId/status", updateTaskStatus);
 
 // Cancel interview (cancels Cal.com booking and updates task)
 router.post("/:taskId/cancel", cancelInterview);
+
+// Get interview counts for multiple jobs (for reports - admin/manager only)
+router.post("/interview-counts", getInterviewCountsByJobs);
 
 export default router;

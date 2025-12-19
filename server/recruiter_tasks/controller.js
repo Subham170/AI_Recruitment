@@ -540,3 +540,59 @@ export const cancelInterview = async (req, res) => {
     });
   }
 };
+
+// Get interview counts for multiple jobs (for reports)
+export const getInterviewCountsByJobs = async (req, res) => {
+  try {
+    const { jobIds } = req.body;
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      return res.status(401).json({
+        message: "Authentication required",
+      });
+    }
+
+    // Only admin and manager can access this
+    if (!["admin", "manager"].includes(currentUser.role)) {
+      return res.status(403).json({
+        message: "Access denied",
+      });
+    }
+
+    if (!jobIds || !Array.isArray(jobIds) || jobIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        interviewCounts: {},
+      });
+    }
+
+    // Count interviews (RecruiterTasks) for each job
+    // Exclude cancelled interviews
+    const interviewCounts = {};
+    
+    // Fetch all tasks for these jobs
+    const tasks = await RecruiterTask.find({
+      job_id: { $in: jobIds },
+      status: { $ne: "cancelled" }, // Exclude cancelled interviews
+    }).select("job_id");
+
+    // Count interviews per job
+    tasks.forEach((task) => {
+      const jobId = task.job_id?.toString() || task.job_id;
+      if (jobId) {
+        interviewCounts[jobId] = (interviewCounts[jobId] || 0) + 1;
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      interviewCounts,
+    });
+  } catch (error) {
+    console.error("Error fetching interview counts:", error);
+    res.status(500).json({
+      message: error.message || "Failed to fetch interview counts",
+    });
+  }
+};

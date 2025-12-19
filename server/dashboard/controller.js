@@ -241,8 +241,26 @@ export const getUserAnalytics = async (req, res) => {
           { secondary_recruiter_id: userIdObj },
         ],
       }).populate("primary_recruiter_id", "name email");
+    } else if (targetUser.role === "manager") {
+      // For managers, get jobs from their assigned recruiters
+      const assignedRecruiters = await User.find({
+        role: "recruiter",
+        assignedManager: userIdObj,
+      }).select("_id");
+      const recruiterIds = assignedRecruiters.map((r) => r._id);
+
+      if (recruiterIds.length > 0) {
+        userJobs = await JobPosting.find({
+          $or: [
+            { primary_recruiter_id: { $in: recruiterIds } },
+            { secondary_recruiter_id: { $in: recruiterIds } },
+          ],
+        }).populate("primary_recruiter_id", "name email");
+      } else {
+        userJobs = [];
+      }
     } else {
-      // For managers, get all jobs (they oversee everything)
+      // For other roles, get all jobs
       userJobs = await JobPosting.find({}).populate(
         "primary_recruiter_id",
         "name email"

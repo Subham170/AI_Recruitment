@@ -299,36 +299,62 @@ export const updateUser = async (req, res) => {
         // When admin changes user to manager, assign admin to manager
         user.assignedAdmin = currentUser.id;
         user.assignedManager = null; // Clear manager assignment
-      } else if (role === "recruiter") {
+      } else if (role === "recruiter" || user.role === "recruiter") {
+        // Handle assignedManager for recruiters (current or new role)
         if (assignedManager !== undefined) {
-          if (assignedManager === null || assignedManager === "") {
+          // Normalize the value - handle null, empty string, or "undefined" string
+          const normalizedManagerId = 
+            assignedManager === null || 
+            assignedManager === "" || 
+            assignedManager === "undefined" ||
+            assignedManager === "null"
+              ? null
+              : String(assignedManager).trim();
+          
+          if (normalizedManagerId === null || normalizedManagerId === "") {
             // Clear assignment
             user.assignedManager = null;
           } else {
             // Validate that the assignedManager exists and is actually a manager
-            const manager = await User.findById(assignedManager);
-            if (!manager) {
-              return res.status(400).json({
-                message: "Selected manager does not exist",
-              });
-            }
-            if (manager.role !== "manager") {
-              return res.status(400).json({
-                message: "Selected user is not a manager",
-              });
-            }
-            // If admin is updating, ensure the manager belongs to this admin
-            if (currentUser.role === "admin") {
-              if (
-                !manager.assignedAdmin ||
-                manager.assignedAdmin.toString() !== currentUser.id
-              ) {
-                return res.status(403).json({
-                  message: "Selected manager is not assigned to you",
+            try {
+              // Check if it's a valid ObjectId format before querying
+              if (!/^[0-9a-fA-F]{24}$/.test(normalizedManagerId)) {
+                return res.status(400).json({
+                  message: "Invalid manager ID format",
                 });
               }
+              
+              const manager = await User.findById(normalizedManagerId);
+              if (!manager) {
+                return res.status(400).json({
+                  message: "Selected manager does not exist",
+                });
+              }
+              if (manager.role !== "manager") {
+                return res.status(400).json({
+                  message: "Selected user is not a manager",
+                });
+              }
+              // If admin is updating, ensure the manager belongs to this admin
+              if (currentUser.role === "admin") {
+                if (
+                  !manager.assignedAdmin ||
+                  manager.assignedAdmin.toString() !== currentUser.id
+                ) {
+                  return res.status(403).json({
+                    message: "Selected manager is not assigned to you",
+                  });
+                }
+              }
+              user.assignedManager = normalizedManagerId;
+            } catch (error) {
+              if (error.name === "CastError" || error.message?.includes("Cast to ObjectId")) {
+                return res.status(400).json({
+                  message: "Invalid manager ID format",
+                });
+              }
+              throw error;
             }
-            user.assignedManager = assignedManager;
           }
         }
         user.assignedAdmin = null; // Clear admin assignment for recruiters

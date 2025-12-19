@@ -235,6 +235,12 @@ export const candidateAPI = {
       method: "GET",
     });
   },
+
+  refreshCandidateMatches: async (candidateId) => {
+    return apiRequest(`/matching/candidate/${candidateId}/refresh`, {
+      method: "POST",
+    });
+  },
 };
 
 // Resume Parser API functions
@@ -477,6 +483,13 @@ export const recruiterTasksAPI = {
   cancelInterview: async (taskId) => {
     return apiRequest(`/recruiter-tasks/${taskId}/cancel`, {
       method: "POST",
+    });
+  },
+
+  getInterviewCountsByJobs: async (jobIds) => {
+    return apiRequest("/recruiter-tasks/interview-counts", {
+      method: "POST",
+      body: { jobIds },
     });
   },
 };
