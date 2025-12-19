@@ -31,7 +31,6 @@ const candidateSchema = new mongoose.Schema(
     },
     role: {
       type: [String],
-      enum: ["SDET", "QA", "DevOps", "Frontend", "Backend", "Full-stack"],
       default: [],
     },
     bio: {

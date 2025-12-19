@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import RecruiterAvailability from "@/components/RecruiterAvailability";
 import Sidebar, { useSidebarState } from "@/components/Sidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,7 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import Loading from "@/components/ui/loading";
 import {
   Select,
@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   bolnaAPI,
@@ -74,7 +75,7 @@ import {
   X,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export default function RecruiterJobDetailPage() {
@@ -87,38 +88,58 @@ export default function RecruiterJobDetailPage() {
   const [jobPosting, setJobPosting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Initialize activeTab from localStorage synchronously to prevent reset
   const getInitialTab = () => {
     if (typeof window !== "undefined" && jobId) {
       const stored = localStorage.getItem(`job-posting-tab-${jobId}`);
-      const validTabs = ["details", "ai-match", "applicants", "screenings", "interviews", "offers", "rejected"];
+      const validTabs = [
+        "details",
+        "ai-match",
+        "applicants",
+        "screenings",
+        "interviews",
+        "offers",
+        "rejected",
+      ];
       if (stored && validTabs.includes(stored)) {
         return stored;
       }
     }
     return "details";
   };
-  
+
   const [activeTab, setActiveTab] = useState(() => getInitialTab());
   const isInitialMount = useRef(true);
   const hasLoadedFromStorage = useRef(false);
-  
+
   // Load saved tab from localStorage only on initial mount or when jobId changes
   // This runs first to ensure we have the correct tab before any saves happen
   const loadedJobId = useRef(null);
-  
+
   useEffect(() => {
     // Only load if this is a new jobId (different from what we've already loaded)
     // This prevents the effect from overriding user clicks
-    if (typeof window !== "undefined" && jobId && loadedJobId.current !== jobId) {
+    if (
+      typeof window !== "undefined" &&
+      jobId &&
+      loadedJobId.current !== jobId
+    ) {
       const stored = localStorage.getItem(`job-posting-tab-${jobId}`);
-      const validTabs = ["details", "ai-match", "applicants", "screenings", "interviews", "offers", "rejected"];
-      
+      const validTabs = [
+        "details",
+        "ai-match",
+        "applicants",
+        "screenings",
+        "interviews",
+        "offers",
+        "rejected",
+      ];
+
       // Mark as loaded for this jobId
       loadedJobId.current = jobId;
       hasLoadedFromStorage.current = true;
-      
+
       if (stored && validTabs.includes(stored)) {
         // Only set if we haven't loaded for this jobId yet
         setActiveTab(stored);
@@ -126,7 +147,7 @@ export default function RecruiterJobDetailPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]); // Only depend on jobId - this ensures it runs when navigating to a different job
-  
+
   // Save activeTab to localStorage whenever it changes (but skip on initial mount)
   useEffect(() => {
     // Skip saving on initial mount to prevent overwriting with default "details"
@@ -134,12 +155,17 @@ export default function RecruiterJobDetailPage() {
       isInitialMount.current = false;
       return;
     }
-    
+
     // Only save after we've loaded from storage to prevent race conditions
     // Allow user to switch to any tab, including "details", after initial mount
-    if (typeof window !== "undefined" && jobId && activeTab && hasLoadedFromStorage.current) {
+    if (
+      typeof window !== "undefined" &&
+      jobId &&
+      activeTab &&
+      hasLoadedFromStorage.current
+    ) {
       const stored = localStorage.getItem(`job-posting-tab-${jobId}`);
-      
+
       // Only save if different to avoid unnecessary writes
       // Don't prevent user from explicitly switching to "details" - that's a valid action
       if (stored !== activeTab) {
@@ -176,7 +202,7 @@ export default function RecruiterJobDetailPage() {
     phone_no: "",
     skills: "",
     experience: "",
-    role: [],
+    role: "",
     bio: "",
   });
   const [closeType, setCloseType] = useState(null); // "permanent" or "temporary"
@@ -208,8 +234,10 @@ export default function RecruiterJobDetailPage() {
   const [offerRejectDialogOpen, setOfferRejectDialogOpen] = useState(false);
   const [selectedInterviewForAction, setSelectedInterviewForAction] =
     useState(null);
-  const [interviewDetailsDialogOpen, setInterviewDetailsDialogOpen] = useState(false);
-  const [selectedInterviewDetails, setSelectedInterviewDetails] = useState(null);
+  const [interviewDetailsDialogOpen, setInterviewDetailsDialogOpen] =
+    useState(false);
+  const [selectedInterviewDetails, setSelectedInterviewDetails] =
+    useState(null);
   const [actionType, setActionType] = useState(""); // "offer" or "reject"
   const [feedback, setFeedback] = useState("");
   const [submittingAction, setSubmittingAction] = useState(false);
@@ -262,20 +290,27 @@ export default function RecruiterJobDetailPage() {
 
   const fetchSlotsData = async () => {
     if (!jobId) return;
-    
+
     try {
       setLoadingSlots(true);
-      
+
       // Get all recruiters for this job
       const jobRecruiters = [];
       if (jobPosting?.primary_recruiter_id) {
-        const primaryId = jobPosting.primary_recruiter_id._id?.toString() || jobPosting.primary_recruiter_id.toString();
+        const primaryId =
+          jobPosting.primary_recruiter_id._id?.toString() ||
+          jobPosting.primary_recruiter_id.toString();
         jobRecruiters.push(primaryId);
       }
       if (jobPosting?.secondary_recruiter_id) {
         const secondaryIds = Array.isArray(jobPosting.secondary_recruiter_id)
-          ? jobPosting.secondary_recruiter_id.map(r => r._id?.toString() || r.toString())
-          : [jobPosting.secondary_recruiter_id._id?.toString() || jobPosting.secondary_recruiter_id.toString()];
+          ? jobPosting.secondary_recruiter_id.map(
+              (r) => r._id?.toString() || r.toString()
+            )
+          : [
+              jobPosting.secondary_recruiter_id._id?.toString() ||
+                jobPosting.secondary_recruiter_id.toString(),
+            ];
         jobRecruiters.push(...secondaryIds);
       }
 
@@ -287,27 +322,38 @@ export default function RecruiterJobDetailPage() {
       // Fetch availability and booked slots for all recruiters
       const [availabilityResponse, bookedSlotsPromises] = await Promise.all([
         recruiterAvailabilityAPI.getAllAvailabilityByJob(jobId),
-        Promise.all(jobRecruiters.map(recruiterId => 
-          recruiterTasksAPI.getBookedSlots(recruiterId, jobId).catch(err => {
-            console.error(`Error fetching booked slots for recruiter ${recruiterId}:`, err);
-            return { bookedSlots: [] };
-          })
-        ))
+        Promise.all(
+          jobRecruiters.map((recruiterId) =>
+            recruiterTasksAPI
+              .getBookedSlots(recruiterId, jobId)
+              .catch((err) => {
+                console.error(
+                  `Error fetching booked slots for recruiter ${recruiterId}:`,
+                  err
+                );
+                return { bookedSlots: [] };
+              })
+          )
+        ),
       ]);
 
       // Process booked slots first (grouped by recruiter)
       const bookedSlotsByRecruiter = new Map();
       bookedSlotsPromises.forEach((response, index) => {
         const recruiterId = jobRecruiters[index];
-        const recruiter = recruiters.find(r => 
-          (r._id?.toString() || r.toString()) === recruiterId
-        ) || allAvailabilities.find(a => 
-          (a.recruiter_id?._id?.toString() || a.recruiter_id?.toString()) === recruiterId
-        )?.recruiter_id;
+        const recruiter =
+          recruiters.find(
+            (r) => (r._id?.toString() || r.toString()) === recruiterId
+          ) ||
+          allAvailabilities.find(
+            (a) =>
+              (a.recruiter_id?._id?.toString() ||
+                a.recruiter_id?.toString()) === recruiterId
+          )?.recruiter_id;
         const recruiterName = recruiter?.name || "Unknown Recruiter";
-        
+
         if (response?.bookedSlots && response.bookedSlots.length > 0) {
-          const recruiterBookedSlots = response.bookedSlots.map(slot => ({
+          const recruiterBookedSlots = response.bookedSlots.map((slot) => ({
             recruiterId,
             recruiterName,
             startTime: new Date(slot.startTime),
@@ -326,31 +372,37 @@ export default function RecruiterJobDetailPage() {
       // Process available slots and split them based on booked slots
       const allAvailabilities = availabilityResponse?.availabilities || [];
       const availableSlots = [];
-      
-      allAvailabilities.forEach(avail => {
-        const recruiterId = avail.recruiter_id?._id?.toString() || avail.recruiter_id?.toString();
+
+      allAvailabilities.forEach((avail) => {
+        const recruiterId =
+          avail.recruiter_id?._id?.toString() || avail.recruiter_id?.toString();
         const recruiterName = avail.recruiter_id?.name || "Unknown Recruiter";
-        const recruiterBookedSlots = bookedSlotsByRecruiter.get(recruiterId) || [];
-        
+        const recruiterBookedSlots =
+          bookedSlotsByRecruiter.get(recruiterId) || [];
+
         if (avail.availability_slots && avail.availability_slots.length > 0) {
-          avail.availability_slots.forEach(slot => {
+          avail.availability_slots.forEach((slot) => {
             if (slot.is_available !== false) {
               const slotDate = new Date(slot.date);
               const slotStartTime = new Date(slotDate);
               const [hours, minutes] = slot.start_time.split(":").map(Number);
               slotStartTime.setHours(hours, minutes, 0, 0);
-              
+
               const slotEndTime = new Date(slotStartTime);
-              const [endHours, endMinutes] = slot.end_time.split(":").map(Number);
+              const [endHours, endMinutes] = slot.end_time
+                .split(":")
+                .map(Number);
               slotEndTime.setHours(endHours, endMinutes, 0, 0);
 
               // Find overlapping booked slots for this recruiter
-              const overlappingBookings = recruiterBookedSlots.filter((bookedSlot) => {
-                return (
-                  slotStartTime < bookedSlot.endTime &&
-                  slotEndTime > bookedSlot.startTime
-                );
-              });
+              const overlappingBookings = recruiterBookedSlots.filter(
+                (bookedSlot) => {
+                  return (
+                    slotStartTime < bookedSlot.endTime &&
+                    slotEndTime > bookedSlot.startTime
+                  );
+                }
+              );
 
               if (overlappingBookings.length === 0) {
                 // No overlap, keep the slot as is
@@ -363,24 +415,41 @@ export default function RecruiterJobDetailPage() {
                 });
               } else {
                 // Sort overlapping bookings by start time
-                overlappingBookings.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+                overlappingBookings.sort(
+                  (a, b) => a.startTime.getTime() - b.startTime.getTime()
+                );
 
                 // Create available segments by subtracting booked times
                 let currentStart = slotStartTime;
-                
+
                 overlappingBookings.forEach((bookedSlot) => {
                   // If there's available time before this booking, create a slot
                   if (currentStart < bookedSlot.startTime) {
                     const availableStart = new Date(currentStart);
                     const availableEnd = new Date(bookedSlot.startTime);
-                    
+
                     // Only add if there's at least 15 minutes available
-                    if (availableEnd.getTime() - availableStart.getTime() >= 15 * 60 * 1000) {
-                      const startHours = availableStart.getHours().toString().padStart(2, '0');
-                      const startMinutes = availableStart.getMinutes().toString().padStart(2, '0');
-                      const endHours = availableEnd.getHours().toString().padStart(2, '0');
-                      const endMinutes = availableEnd.getMinutes().toString().padStart(2, '0');
-                      
+                    if (
+                      availableEnd.getTime() - availableStart.getTime() >=
+                      15 * 60 * 1000
+                    ) {
+                      const startHours = availableStart
+                        .getHours()
+                        .toString()
+                        .padStart(2, "0");
+                      const startMinutes = availableStart
+                        .getMinutes()
+                        .toString()
+                        .padStart(2, "0");
+                      const endHours = availableEnd
+                        .getHours()
+                        .toString()
+                        .padStart(2, "0");
+                      const endMinutes = availableEnd
+                        .getMinutes()
+                        .toString()
+                        .padStart(2, "0");
+
                       availableSlots.push({
                         recruiterId,
                         recruiterName,
@@ -391,23 +460,41 @@ export default function RecruiterJobDetailPage() {
                       });
                     }
                   }
-                  
+
                   // Update current start to after this booking
-                  currentStart = bookedSlot.endTime > currentStart ? bookedSlot.endTime : currentStart;
+                  currentStart =
+                    bookedSlot.endTime > currentStart
+                      ? bookedSlot.endTime
+                      : currentStart;
                 });
-                
+
                 // If there's available time after the last booking, create a slot
                 if (currentStart < slotEndTime) {
                   const availableStart = new Date(currentStart);
                   const availableEnd = new Date(slotEndTime);
-                  
+
                   // Only add if there's at least 15 minutes available
-                  if (availableEnd.getTime() - availableStart.getTime() >= 15 * 60 * 1000) {
-                    const startHours = availableStart.getHours().toString().padStart(2, '0');
-                    const startMinutes = availableStart.getMinutes().toString().padStart(2, '0');
-                    const endHours = availableEnd.getHours().toString().padStart(2, '0');
-                    const endMinutes = availableEnd.getMinutes().toString().padStart(2, '0');
-                    
+                  if (
+                    availableEnd.getTime() - availableStart.getTime() >=
+                    15 * 60 * 1000
+                  ) {
+                    const startHours = availableStart
+                      .getHours()
+                      .toString()
+                      .padStart(2, "0");
+                    const startMinutes = availableStart
+                      .getMinutes()
+                      .toString()
+                      .padStart(2, "0");
+                    const endHours = availableEnd
+                      .getHours()
+                      .toString()
+                      .padStart(2, "0");
+                    const endMinutes = availableEnd
+                      .getMinutes()
+                      .toString()
+                      .padStart(2, "0");
+
                     availableSlots.push({
                       recruiterId,
                       recruiterName,
@@ -661,17 +748,6 @@ export default function RecruiterJobDetailPage() {
     if (candidateSuccess) setCandidateSuccess("");
   };
 
-  const handleRoleChange = (value) => {
-    setFormData((prev) => {
-      const currentRoles = prev.role || [];
-      if (currentRoles.includes(value)) {
-        return { ...prev, role: currentRoles.filter((r) => r !== value) };
-      } else {
-        return { ...prev, role: [...currentRoles, value] };
-      }
-    });
-  };
-
   const validateResumeFile = (file) => {
     const allowedTypes = [
       "application/pdf",
@@ -821,7 +897,12 @@ export default function RecruiterJobDetailPage() {
           ? formData.skills.split(",").map((s) => s.trim())
           : [],
         experience: formData.experience ? parseInt(formData.experience) : 0,
-        role: formData.role || [],
+        role: formData.role
+          ? formData.role
+              .split(",")
+              .map((r) => r.trim())
+              .filter((r) => r)
+          : [],
         bio: formData.bio || undefined,
       };
 
@@ -855,7 +936,7 @@ export default function RecruiterJobDetailPage() {
       phone_no: "",
       skills: "",
       experience: "",
-      role: [],
+      role: "",
       bio: "",
     });
     setCandidateError("");
@@ -1590,7 +1671,7 @@ export default function RecruiterJobDetailPage() {
 
     try {
       setLoadingAvailability(true);
-      
+
       // Fetch availability and booked slots in parallel
       const [allResponse, bookedSlotsResponse] = await Promise.all([
         recruiterAvailabilityAPI.getAllAvailabilityByJob(jobId),
@@ -1614,13 +1695,13 @@ export default function RecruiterJobDetailPage() {
         const bookedSlots = bookedSlotsResponse?.bookedSlots || [];
         if (bookedSlots.length > 0) {
           const processedSlots = [];
-          
+
           availableSlots.forEach((slot) => {
             const slotDate = new Date(slot.date);
             const slotStartTime = new Date(slotDate);
             const [hours, minutes] = slot.start_time.split(":").map(Number);
             slotStartTime.setHours(hours, minutes, 0, 0);
-            
+
             const slotEndTime = new Date(slotStartTime);
             const [endHours, endMinutes] = slot.end_time.split(":").map(Number);
             slotEndTime.setHours(endHours, endMinutes, 0, 0);
@@ -1629,12 +1710,9 @@ export default function RecruiterJobDetailPage() {
             const overlappingBookings = bookedSlots.filter((bookedSlot) => {
               const bookedStart = new Date(bookedSlot.startTime);
               const bookedEnd = new Date(bookedSlot.endTime);
-              
+
               // Check for overlap: slot starts before booked ends AND slot ends after booked starts
-              return (
-                slotStartTime < bookedEnd &&
-                slotEndTime > bookedStart
-              );
+              return slotStartTime < bookedEnd && slotEndTime > bookedStart;
             });
 
             if (overlappingBookings.length === 0) {
@@ -1642,29 +1720,46 @@ export default function RecruiterJobDetailPage() {
               processedSlots.push(slot);
             } else {
               // Sort overlapping bookings by start time
-              overlappingBookings.sort((a, b) => 
-                new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+              overlappingBookings.sort(
+                (a, b) =>
+                  new Date(a.startTime).getTime() -
+                  new Date(b.startTime).getTime()
               );
 
               // Create available segments by subtracting booked times
               let currentStart = slotStartTime;
-              
+
               overlappingBookings.forEach((bookedSlot) => {
                 const bookedStart = new Date(bookedSlot.startTime);
                 const bookedEnd = new Date(bookedSlot.endTime);
-                
+
                 // If there's available time before this booking, create a slot
                 if (currentStart < bookedStart) {
                   const availableStart = new Date(currentStart);
                   const availableEnd = new Date(bookedStart);
-                  
+
                   // Only add if there's at least 15 minutes available
-                  if (availableEnd.getTime() - availableStart.getTime() >= 15 * 60 * 1000) {
-                    const startHours = availableStart.getHours().toString().padStart(2, '0');
-                    const startMinutes = availableStart.getMinutes().toString().padStart(2, '0');
-                    const endHours = availableEnd.getHours().toString().padStart(2, '0');
-                    const endMinutes = availableEnd.getMinutes().toString().padStart(2, '0');
-                    
+                  if (
+                    availableEnd.getTime() - availableStart.getTime() >=
+                    15 * 60 * 1000
+                  ) {
+                    const startHours = availableStart
+                      .getHours()
+                      .toString()
+                      .padStart(2, "0");
+                    const startMinutes = availableStart
+                      .getMinutes()
+                      .toString()
+                      .padStart(2, "0");
+                    const endHours = availableEnd
+                      .getHours()
+                      .toString()
+                      .padStart(2, "0");
+                    const endMinutes = availableEnd
+                      .getMinutes()
+                      .toString()
+                      .padStart(2, "0");
+
                     processedSlots.push({
                       ...slot,
                       start_time: `${startHours}:${startMinutes}`,
@@ -1673,23 +1768,39 @@ export default function RecruiterJobDetailPage() {
                     });
                   }
                 }
-                
+
                 // Update current start to after this booking
-                currentStart = bookedEnd > currentStart ? bookedEnd : currentStart;
+                currentStart =
+                  bookedEnd > currentStart ? bookedEnd : currentStart;
               });
-              
+
               // If there's available time after the last booking, create a slot
               if (currentStart < slotEndTime) {
                 const availableStart = new Date(currentStart);
                 const availableEnd = new Date(slotEndTime);
-                
+
                 // Only add if there's at least 15 minutes available
-                if (availableEnd.getTime() - availableStart.getTime() >= 15 * 60 * 1000) {
-                  const startHours = availableStart.getHours().toString().padStart(2, '0');
-                  const startMinutes = availableStart.getMinutes().toString().padStart(2, '0');
-                  const endHours = availableEnd.getHours().toString().padStart(2, '0');
-                  const endMinutes = availableEnd.getMinutes().toString().padStart(2, '0');
-                  
+                if (
+                  availableEnd.getTime() - availableStart.getTime() >=
+                  15 * 60 * 1000
+                ) {
+                  const startHours = availableStart
+                    .getHours()
+                    .toString()
+                    .padStart(2, "0");
+                  const startMinutes = availableStart
+                    .getMinutes()
+                    .toString()
+                    .padStart(2, "0");
+                  const endHours = availableEnd
+                    .getHours()
+                    .toString()
+                    .padStart(2, "0");
+                  const endMinutes = availableEnd
+                    .getMinutes()
+                    .toString()
+                    .padStart(2, "0");
+
                   processedSlots.push({
                     ...slot,
                     start_time: `${startHours}:${startMinutes}`,
@@ -1700,7 +1811,7 @@ export default function RecruiterJobDetailPage() {
               }
             }
           });
-          
+
           availableSlots = processedSlots;
         }
 
@@ -2767,7 +2878,8 @@ export default function RecruiterJobDetailPage() {
                                         ? "Call already scheduled"
                                         : callStatus &&
                                           (callStatus.status === "no-answer" ||
-                                            callStatus.status === "call-disconnected" ||
+                                            callStatus.status ===
+                                              "call-disconnected" ||
                                             callStatus.status === "busy")
                                         ? "Retry call"
                                         : "Schedule a call for this candidate"
@@ -2992,8 +3104,10 @@ export default function RecruiterJobDetailPage() {
                                             callStatus.status === "scheduled"
                                           ? "Call already scheduled"
                                           : callStatus &&
-                                            (callStatus.status === "no-answer" ||
-                                              callStatus.status === "call-disconnected" ||
+                                            (callStatus.status ===
+                                              "no-answer" ||
+                                              callStatus.status ===
+                                                "call-disconnected" ||
                                               callStatus.status === "busy")
                                           ? "Retry call"
                                           : "Schedule a call for this candidate"
@@ -3090,9 +3204,10 @@ export default function RecruiterJobDetailPage() {
                             const interviewTime = interviewData.interviewTime
                               ? new Date(interviewData.interviewTime)
                               : null;
-                            const interviewEndTime = interviewData.interviewEndTime
-                              ? new Date(interviewData.interviewEndTime)
-                              : null;
+                            const interviewEndTime =
+                              interviewData.interviewEndTime
+                                ? new Date(interviewData.interviewEndTime)
+                                : null;
                             const emailSent = interviewData.emailSent;
 
                             // If email is sent and interview time exists
@@ -3102,11 +3217,19 @@ export default function RecruiterJobDetailPage() {
                                 return "pending";
                               }
                               // If interview end time exists and current time is between start and end -> Running
-                              else if (interviewEndTime && now >= interviewTime && now <= interviewEndTime) {
+                              else if (
+                                interviewEndTime &&
+                                now >= interviewTime &&
+                                now <= interviewEndTime
+                              ) {
                                 return "running";
                               }
                               // If current time is after end time (or no end time and after start time) -> Completed
-                              else if (interviewEndTime ? now > interviewEndTime : now > interviewTime) {
+                              else if (
+                                interviewEndTime
+                                  ? now > interviewEndTime
+                                  : now > interviewTime
+                              ) {
                                 return "completed";
                               }
                             }
@@ -3244,9 +3367,11 @@ export default function RecruiterJobDetailPage() {
                                       ? "Interview is currently running. Please wait for it to complete."
                                       : interviewStatus === "not_scheduled"
                                       ? "Interview is not scheduled yet."
-                                      : interviewData.interviewOutcome === "offer"
+                                      : interviewData.interviewOutcome ===
+                                        "offer"
                                       ? "Offer already sent"
-                                      : interviewData.interviewOutcome === "reject"
+                                      : interviewData.interviewOutcome ===
+                                        "reject"
                                       ? "Candidate already rejected"
                                       : "Select offer or reject"
                                   }
@@ -4424,28 +4549,20 @@ export default function RecruiterJobDetailPage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-900 font-medium">Roles</Label>
-              <div className="flex flex-wrap gap-2">
-                {validRoles.map((role) => (
-                  <Button
-                    key={role}
-                    type="button"
-                    variant={
-                      formData.role?.includes(role) ? "default" : "outline"
-                    }
-                    onClick={() => handleRoleChange(role)}
-                    className={
-                      formData.role?.includes(role)
-                        ? "bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
-                        : ""
-                    }
-                  >
-                    {role}
-                  </Button>
-                ))}
-              </div>
+              <Label htmlFor="role" className="text-slate-900 font-medium">
+                Roles
+              </Label>
+              <Textarea
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                placeholder="Enter roles separated by commas (e.g., Frontend, Backend, Full-stack)"
+                rows={3}
+                className="w-full px-3 py-2 bg-white/80 border border-white/70 text-slate-900 rounded-md focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200/70 focus:shadow-lg focus:shadow-cyan-400/20 transition-all duration-200 backdrop-blur"
+              />
               <p className="text-xs text-slate-500">
-                Select one or more roles for this candidate
+                Separate multiple roles with commas
               </p>
             </div>
 
@@ -4817,9 +4934,9 @@ export default function RecruiterJobDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4">
-            <RecruiterAvailability 
-              jobId={jobId} 
-              user={user} 
+            <RecruiterAvailability
+              jobId={jobId}
+              user={user}
               onSaveSuccess={() => setAvailabilityDialogOpen(false)}
             />
           </div>
@@ -5429,7 +5546,8 @@ export default function RecruiterJobDetailPage() {
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-slate-500" />
                       <p className="text-sm text-slate-900">
-                        {selectedInterviewDetails.candidateId?.phone_no || "N/A"}
+                        {selectedInterviewDetails.candidateId?.phone_no ||
+                          "N/A"}
                       </p>
                     </div>
                   </div>
@@ -5438,7 +5556,8 @@ export default function RecruiterJobDetailPage() {
                       Role
                     </p>
                     <p className="text-sm text-slate-900">
-                      {selectedInterviewDetails.candidateId?.role?.join(", ") || "N/A"}
+                      {selectedInterviewDetails.candidateId?.role?.join(", ") ||
+                        "N/A"}
                     </p>
                   </div>
                   <div>
@@ -5446,7 +5565,8 @@ export default function RecruiterJobDetailPage() {
                       Experience
                     </p>
                     <p className="text-sm text-slate-900">
-                      {selectedInterviewDetails.candidateId?.experience !== undefined
+                      {selectedInterviewDetails.candidateId?.experience !==
+                      undefined
                         ? `${selectedInterviewDetails.candidateId.experience} years`
                         : "N/A"}
                     </p>
@@ -5459,7 +5579,8 @@ export default function RecruiterJobDetailPage() {
                     selectedInterviewDetails.screeningScore !== undefined ? (
                       <div
                         className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                          Math.round(selectedInterviewDetails.screeningScore) / 100
+                          Math.round(selectedInterviewDetails.screeningScore) /
+                            100
                         )}`}
                       >
                         {Math.round(selectedInterviewDetails.screeningScore)}%
@@ -5521,12 +5642,14 @@ export default function RecruiterJobDetailPage() {
                     </p>
                     {(() => {
                       const now = new Date();
-                      const interviewTime = selectedInterviewDetails.interviewTime
-                        ? new Date(selectedInterviewDetails.interviewTime)
-                        : null;
-                      const interviewEndTime = selectedInterviewDetails.interviewEndTime
-                        ? new Date(selectedInterviewDetails.interviewEndTime)
-                        : null;
+                      const interviewTime =
+                        selectedInterviewDetails.interviewTime
+                          ? new Date(selectedInterviewDetails.interviewTime)
+                          : null;
+                      const interviewEndTime =
+                        selectedInterviewDetails.interviewEndTime
+                          ? new Date(selectedInterviewDetails.interviewEndTime)
+                          : null;
                       const emailSent = selectedInterviewDetails.emailSent;
 
                       // If email is sent and interview time exists
@@ -5541,7 +5664,11 @@ export default function RecruiterJobDetailPage() {
                           );
                         }
                         // If interview end time exists and current time is between start and end -> Running
-                        else if (interviewEndTime && now >= interviewTime && now <= interviewEndTime) {
+                        else if (
+                          interviewEndTime &&
+                          now >= interviewTime &&
+                          now <= interviewEndTime
+                        ) {
                           return (
                             <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-blue-500 text-white">
                               <Clock className="h-3 w-3" />
@@ -5550,7 +5677,11 @@ export default function RecruiterJobDetailPage() {
                           );
                         }
                         // If current time is after end time (or no end time and after start time) -> Completed
-                        else if (interviewEndTime ? now > interviewEndTime : now > interviewTime) {
+                        else if (
+                          interviewEndTime
+                            ? now > interviewEndTime
+                            : now > interviewTime
+                        ) {
                           return (
                             <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
                               <CheckCircle2 className="h-3 w-3" />
@@ -5561,7 +5692,9 @@ export default function RecruiterJobDetailPage() {
                       }
                       // If email not sent or no interview time
                       return (
-                        <span className="text-sm text-slate-600">Not scheduled</span>
+                        <span className="text-sm text-slate-600">
+                          Not scheduled
+                        </span>
                       );
                     })()}
                   </div>
@@ -5619,7 +5752,8 @@ export default function RecruiterJobDetailPage() {
                         Name
                       </p>
                       <p className="text-sm font-semibold text-slate-900">
-                        {selectedInterviewDetails.assignRecruiter?.name || "N/A"}
+                        {selectedInterviewDetails.assignRecruiter?.name ||
+                          "N/A"}
                       </p>
                     </div>
                     <div>
@@ -5629,7 +5763,8 @@ export default function RecruiterJobDetailPage() {
                       <div className="flex items-center gap-2">
                         <Mail className="h-4 w-4 text-slate-500" />
                         <p className="text-sm text-slate-900">
-                          {selectedInterviewDetails.assignRecruiter?.email || "N/A"}
+                          {selectedInterviewDetails.assignRecruiter?.email ||
+                            "N/A"}
                         </p>
                       </div>
                     </div>
@@ -5677,7 +5812,9 @@ export default function RecruiterJobDetailPage() {
                         </p>
                         <p className="text-sm text-slate-900">
                           {formatFullDateTimeWithAMPM(
-                            new Date(selectedInterviewDetails.interviewOutcomeAt)
+                            new Date(
+                              selectedInterviewDetails.interviewOutcomeAt
+                            )
                           )}
                         </p>
                       </div>
@@ -5705,7 +5842,8 @@ export default function RecruiterJobDetailPage() {
               Recruiter Availability & Booked Slots
             </DialogTitle>
             <DialogDescription className="text-slate-600 mt-2">
-              View all available time slots and booked interviews for recruiters assigned to this job posting.
+              View all available time slots and booked interviews for recruiters
+              assigned to this job posting.
             </DialogDescription>
           </DialogHeader>
 
@@ -5731,9 +5869,11 @@ export default function RecruiterJobDetailPage() {
                     {slotsData.available.map((slot, index) => {
                       const slotDate = new Date(slot.date);
                       const slotDateTime = new Date(slotDate);
-                      const [hours, minutes] = slot.start_time.split(":").map(Number);
+                      const [hours, minutes] = slot.start_time
+                        .split(":")
+                        .map(Number);
                       slotDateTime.setHours(hours, minutes, 0, 0);
-                      
+
                       return (
                         <div
                           key={index}
@@ -5748,7 +5888,9 @@ export default function RecruiterJobDetailPage() {
                                 {slot.recruiterName}
                               </p>
                               <p className="text-sm text-slate-600">
-                                {format(slotDate, "EEEE, MMMM d, yyyy")} • {convert24To12Hour(slot.start_time)} - {convert24To12Hour(slot.end_time)}
+                                {format(slotDate, "EEEE, MMMM d, yyyy")} •{" "}
+                                {convert24To12Hour(slot.start_time)} -{" "}
+                                {convert24To12Hour(slot.end_time)}
                               </p>
                             </div>
                           </div>
@@ -5793,20 +5935,22 @@ export default function RecruiterJobDetailPage() {
                               {slot.recruiterName}
                             </p>
                             <p className="text-sm text-slate-600">
-                              {formatFullDateTimeWithAMPM(slot.startTime)} - {formatFullDateTimeWithAMPM(slot.endTime)}
+                              {formatFullDateTimeWithAMPM(slot.startTime)} -{" "}
+                              {formatFullDateTimeWithAMPM(slot.endTime)}
                             </p>
                           </div>
                         </div>
-                        <Badge 
+                        <Badge
                           className={`${
-                            slot.status === "completed" 
+                            slot.status === "completed"
                               ? "bg-blue-100 text-blue-700 border-blue-200"
                               : slot.status === "scheduled"
                               ? "bg-yellow-100 text-yellow-700 border-yellow-200"
                               : "bg-red-100 text-red-700 border-red-200"
                           }`}
                         >
-                          {slot.status.charAt(0).toUpperCase() + slot.status.slice(1)}
+                          {slot.status.charAt(0).toUpperCase() +
+                            slot.status.slice(1)}
                         </Badge>
                       </div>
                     ))}

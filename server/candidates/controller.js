@@ -29,25 +29,7 @@ export const createCandidateData = async (candidateData) => {
     throw new Error("Candidate already exists with this email");
   }
 
-  // Validate role if provided
-  if (role && Array.isArray(role)) {
-    const validRoles = [
-      "SDET",
-      "QA",
-      "DevOps",
-      "Frontend",
-      "Backend",
-      "Full-stack",
-    ];
-    const invalidRoles = role.filter((r) => !validRoles.includes(r));
-    if (invalidRoles.length > 0) {
-      throw new Error(
-        `Invalid role(s): ${invalidRoles.join(
-          ", "
-        )}. Must be one of: ${validRoles.join(", ")}`
-      );
-    }
-  }
+  // Role validation removed - now accepts any role values
 
   // Create candidate
   const candidate = await Candidate.create({
@@ -158,7 +140,9 @@ export const getCandidates = async (req, res) => {
       ];
     }
 
-    const candidates = await Candidate.find(filterQuery).sort({ createdAt: -1 });
+    const candidates = await Candidate.find(filterQuery).sort({
+      createdAt: -1,
+    });
 
     res.status(200).json({
       count: candidates.length,
@@ -204,21 +188,6 @@ export const getCandidateByIdOrEmail = async (req, res) => {
 export const getCandidatesByRole = async (req, res) => {
   try {
     const { role } = req.params;
-
-    // Validate role
-    const validRoles = [
-      "SDET",
-      "QA",
-      "DevOps",
-      "Frontend",
-      "Backend",
-      "Full-stack",
-    ];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({
-        message: `Invalid role. Must be one of: ${validRoles.join(", ")}`,
-      });
-    }
 
     // Find candidates with the specified role
     // Since role is an array, we use $in operator to match

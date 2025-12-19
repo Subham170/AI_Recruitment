@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Loading from "@/components/ui/loading";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { candidateAPI } from "@/lib/api";
 import {
@@ -54,7 +55,7 @@ export default function CandidatesPage() {
     phone_no: "",
     skills: "",
     experience: "",
-    role: [],
+    role: "",
     bio: "",
     resume_url: "",
   });
@@ -116,17 +117,6 @@ export default function CandidatesPage() {
     }));
     if (error) setError("");
     if (success) setSuccess("");
-  };
-
-  const handleRoleChange = (value) => {
-    setFormData((prev) => {
-      const currentRoles = prev.role || [];
-      if (currentRoles.includes(value)) {
-        return { ...prev, role: currentRoles.filter((r) => r !== value) };
-      } else {
-        return { ...prev, role: [...currentRoles, value] };
-      }
-    });
   };
 
   const handleResumeUpload = (e) => {
@@ -202,7 +192,12 @@ export default function CandidatesPage() {
           ? formData.skills.split(",").map((s) => s.trim())
           : [],
         experience: formData.experience ? parseInt(formData.experience) : 0,
-        role: formData.role || [],
+        role: formData.role
+          ? formData.role
+              .split(",")
+              .map((r) => r.trim())
+              .filter((r) => r)
+          : [],
         bio: formData.bio || undefined,
         resume_url: formData.resume_url || undefined,
       };
@@ -230,7 +225,7 @@ export default function CandidatesPage() {
       phone_no: "",
       skills: "",
       experience: "",
-      role: [],
+      role: "",
       bio: "",
       resume_url: "",
     });
@@ -570,28 +565,20 @@ export default function CandidatesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-900 font-medium">Roles</Label>
-              <div className="flex flex-wrap gap-2">
-                {validRoles.map((role) => (
-                  <Button
-                    key={role}
-                    type="button"
-                    variant={
-                      formData.role?.includes(role) ? "default" : "outline"
-                    }
-                    onClick={() => handleRoleChange(role)}
-                    className={
-                      formData.role?.includes(role)
-                        ? "bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
-                        : ""
-                    }
-                  >
-                    {role}
-                  </Button>
-                ))}
-              </div>
+              <Label htmlFor="role" className="text-slate-900 font-medium">
+                Roles
+              </Label>
+              <Textarea
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                placeholder="Enter roles separated by commas (e.g., Frontend, Backend, Full-stack)"
+                rows={3}
+                className="w-full px-3 py-2 bg-white/80 border border-white/70 text-slate-900 rounded-md focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200/70 focus:shadow-lg focus:shadow-cyan-400/20 transition-all duration-200 backdrop-blur"
+              />
               <p className="text-xs text-slate-500">
-                Select one or more roles for this candidate
+                Separate multiple roles with commas
               </p>
             </div>
 
