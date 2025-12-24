@@ -678,15 +678,17 @@ export default function JobsPageContent() {
     };
 
     return (
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 px-4 py-3 bg-slate-50 border-t border-slate-200">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-600">Rows per page:</span>
+      <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 bg-slate-50/80 border-t border-slate-200">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2.5 whitespace-nowrap">
+            <span className="text-sm font-medium text-slate-700">
+              Rows per page:
+            </span>
             <Select
               value={rowsPerPage.toString()}
               onValueChange={(value) => onRowsPerPageChange(parseInt(value))}
             >
-              <SelectTrigger className="w-20 h-8">
+              <SelectTrigger className="w-20 h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -697,8 +699,16 @@ export default function JobsPageContent() {
               </SelectContent>
             </Select>
           </div>
-          <span className="text-sm text-slate-600">
-            Showing {startIndex + 1} to {endIndex} of {totalItems} entries
+          <div className="h-4 w-px bg-slate-300"></div>
+          <span className="text-sm text-slate-600 font-medium whitespace-nowrap">
+            Showing{" "}
+            <span className="text-slate-900 font-semibold">
+              {startIndex + 1}
+            </span>{" "}
+            to <span className="text-slate-900 font-semibold">{endIndex}</span>{" "}
+            of{" "}
+            <span className="text-slate-900 font-semibold">{totalItems}</span>{" "}
+            entries
           </span>
         </div>
 
@@ -828,18 +838,21 @@ export default function JobsPageContent() {
               </tr>
             </thead>
             <tbody>
-              {paginatedJobs.map((job) => {
+              {paginatedJobs.map((job, index) => {
                 const isOwner =
                   isRecruiter &&
                   job.primary_recruiter_id &&
                   job.primary_recruiter_id._id?.toString() ===
                     user.id?.toString();
+                const isLastRow = index === paginatedJobs.length - 1;
 
                 return (
                   <tr
                     key={job._id}
                     onClick={() => handleViewDetails(job)}
-                    className="border-b border-slate-200 bg-white hover:bg-slate-50 transition-colors duration-150 cursor-pointer"
+                    className={`bg-white hover:bg-slate-50 transition-colors duration-150 cursor-pointer ${
+                      !isLastRow ? "border-b border-slate-200" : ""
+                    }`}
                   >
                     <td className="p-4">
                       <div>
