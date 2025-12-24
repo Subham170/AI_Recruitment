@@ -989,7 +989,7 @@ export default function JobsPageContent() {
 
       <div className="flex flex-1 flex-col overflow-hidden relative z-10">
         <Navbar
-          title="Job Postings"
+          title="Manage Jobs"
           sidebarOpen={sidebarOpen}
           onSidebarToggle={setSidebarOpen}
         />
@@ -1004,7 +1004,7 @@ export default function JobsPageContent() {
               {/* Header */}
               <div className="mb-6">
                 <h1 className="text-3xl font-bold text-slate-900 drop-shadow-[0_1px_1px_rgba(15,23,42,0.18)] mb-2">
-                  Manage Job Posting
+                  Manage Jobs
                 </h1>
                 <p className="text-base font-medium text-slate-800 drop-shadow-[0_1px_1px_rgba(15,23,42,0.12)]">
                   Create, edit, and manage your job postings

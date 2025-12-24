@@ -66,7 +66,7 @@ export default function DashboardPage() {
             "Post new job positions",
             "Review candidate applications",
             "Schedule interviews",
-            "Manage job postings",
+            "Manage jobs",
             "View analytics and reports",
           ],
           color: "bg-green-500",

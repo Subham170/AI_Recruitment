@@ -122,7 +122,7 @@ export default function AdminDashboardPage() {
                     <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all duration-300" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors">
-                    Manage Job Posting
+                    Manage Jobs
                   </h3>
                   <p className="text-slate-600 text-sm">
                     Create, edit, and manage job postings across the platform
@@ -166,7 +166,7 @@ export default function AdminDashboardPage() {
                     <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all duration-300" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-purple-600 transition-colors">
-                    Candidate List
+                    All Candidates
                   </h3>
                   <p className="text-slate-600 text-sm">
                     View and manage all candidates in the system
