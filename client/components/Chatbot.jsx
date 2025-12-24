@@ -197,7 +197,7 @@ export default function Chatbot() {
           <div className="bg-linear-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MessageCircle className="h-5 w-5" />
-              <h3 className="font-semibold">Lean Assistant</h3>
+              <h3 className="font-semibold">LEAN Assistant</h3>
             </div>
             <Button
               onClick={toggleChat}

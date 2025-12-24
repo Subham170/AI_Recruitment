@@ -2431,8 +2431,8 @@ export default function RecruiterJobDetailPage() {
 
               {/* Status Workflow Tabs */}
               <div className="mb-6">
-                <div className="inline-flex gap-2 bg-slate-100/70 border border-white/70 p-1 rounded-full shadow-inner shadow-white/50">
-                  {statusOptions.map((option) => {
+                <div className="inline-flex items-center gap-0 bg-slate-100 p-1 rounded-lg">
+                  {statusOptions.map((option, index) => {
                     // Disable Draft button when job is open or closed
                     // Once a job is opened or closed, it cannot go back to draft
                     const isDraftDisabled =
@@ -2443,6 +2443,8 @@ export default function RecruiterJobDetailPage() {
                     // Admin and Manager can change status, recruiters need edit access
                     const isDisabled =
                       !canEdit || updatingStatus || isDraftDisabled;
+
+                    const isActive = currentStatus === option.value;
 
                     return (
                       <button
@@ -2455,14 +2457,14 @@ export default function RecruiterJobDetailPage() {
                           }
                         }}
                         disabled={isDisabled}
-                        className={`px-6 py-2.5 text-sm font-medium transition-all duration-200 rounded-full ${
+                        className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 rounded-md ${
                           isDisabled
                             ? "cursor-not-allowed opacity-50"
                             : "cursor-pointer"
                         } ${
-                          currentStatus === option.value
-                            ? "bg-white text-blue-600 shadow-sm border border-slate-200"
-                            : "text-slate-600 hover:text-slate-800"
+                          isActive
+                            ? "bg-indigo-600 text-white shadow-md"
+                            : "text-slate-600 hover:text-slate-800 hover:bg-slate-50"
                         }`}
                         title={
                           isDraftDisabled
