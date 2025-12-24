@@ -286,7 +286,7 @@ export default function CandidateProgressPage() {
                         .toUpperCase() || "N/A"}
                     </div>
                     <div className="flex-1">
-                      <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                      <h1 className="text-2xl font-bold text-slate-900 mb-1.5">
                         {candidateData?.name || "Unknown Candidate"}
                       </h1>
                       <div className="flex items-center gap-4 text-slate-600 mb-2">

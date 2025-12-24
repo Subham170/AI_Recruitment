@@ -371,10 +371,10 @@ export default function CandidateDetailPage() {
                     </span>
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-slate-900">
+                    <h1 className="text-2xl font-bold text-slate-900">
                       {candidate.name}
                     </h1>
-                    <p className="text-slate-600 mt-1">{candidate.email}</p>
+                    <p className="text-sm text-slate-600 mt-1">{candidate.email}</p>
                   </div>
                 </div>
               </div>

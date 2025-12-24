@@ -435,7 +435,7 @@ export default function RecruiterTasksPage() {
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
-              <h2 className="text-3xl font-bold mb-2 text-slate-900">
+              <h2 className="text-2xl font-bold mb-1.5 text-slate-900">
                 My Tasks
               </h2>
               <p className="text-slate-600">

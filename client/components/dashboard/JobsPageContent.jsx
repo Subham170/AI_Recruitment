@@ -1003,10 +1003,10 @@ export default function JobsPageContent() {
             <>
               {/* Header */}
               <div className="mb-6">
-                <h1 className="text-3xl font-bold text-slate-900 drop-shadow-[0_1px_1px_rgba(15,23,42,0.18)] mb-2">
+                <h1 className="text-2xl font-bold text-slate-900 mb-1.5">
                   Manage Jobs
                 </h1>
-                <p className="text-base font-medium text-slate-800 drop-shadow-[0_1px_1px_rgba(15,23,42,0.12)]">
+                <p className="text-sm text-slate-600">
                   Create, edit, and manage your job postings
                 </p>
               </div>

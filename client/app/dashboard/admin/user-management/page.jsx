@@ -496,10 +496,10 @@ export default function UserManagementPage() {
           <div className="space-y-6 max-w-7xl mx-auto">
             {/* Page title */}
             <div className="mb-2">
-              <h1 className="text-3xl font-bold text-slate-900 mb-1 drop-shadow-[0_1px_1px_rgba(15,23,42,0.18)]">
+              <h1 className="text-2xl font-bold text-slate-900 mb-1.5">
                 User Management
               </h1>
-              <p className="text-slate-600">Manage all users in the system</p>
+              <p className="text-sm text-slate-600">Manage all users in the system</p>
             </div>
 
             {/* Search + Add button */}

@@ -183,7 +183,7 @@ export default function CalcomCredentialsPage() {
           <div className="max-w-4xl mx-auto space-y-6">
             {/* Header */}
             <div className="mb-8">
-              <h2 className="text-3xl font-bold mb-2 text-slate-900">
+              <h2 className="text-2xl font-bold mb-1.5 text-slate-900">
                 Cal.com Credentials
               </h2>
               <p className="text-slate-600">

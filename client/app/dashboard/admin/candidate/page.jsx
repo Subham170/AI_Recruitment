@@ -313,10 +313,10 @@ export default function CandidatesPage() {
           <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-2">
-              <h1 className="text-3xl font-bold text-slate-900 mb-1">
+              <h1 className="text-2xl font-bold text-slate-900 mb-1.5">
                 All Candidates
               </h1>
-              <p className="text-slate-600">
+              <p className="text-sm text-slate-600">
                 View and manage all candidates in your database
               </p>
             </div>

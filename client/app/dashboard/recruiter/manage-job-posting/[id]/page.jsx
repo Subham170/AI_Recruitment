@@ -2315,10 +2315,10 @@ export default function RecruiterJobDetailPage() {
                 <div className="flex items-center gap-4 flex-1">
                   <Briefcase className="h-8 w-8 text-slate-700" />
                   <div>
-                    <h1 className="text-3xl font-bold text-slate-900">
+                    <h1 className="text-2xl font-bold text-slate-900">
                       {jobPosting?.title || "Loading..."}
                     </h1>
-                    <p className="text-slate-600 mt-1">
+                    <p className="text-sm text-slate-600 mt-1">
                       {jobPosting?.company || ""}
                     </p>
                   </div>
