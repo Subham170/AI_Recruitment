@@ -155,7 +155,7 @@ AI Recruitment/
 │   ├── config/                      # Configuration files
 │   │   └── roleMenuConfig.js        # Role-based menu configuration
 │   └── public/                      # Static assets
-│       └── LEAN_IT_LOGO.png         # Logo
+│       └── LEAN AI POWERED orginal.png         # Logo
 │
 ├── server/                          # Express.js backend application
 │   ├── server.js                    # Entry point

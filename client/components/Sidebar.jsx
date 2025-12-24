@@ -38,13 +38,13 @@ export default function Sidebar({
   const SidebarContent = () => (
     <div className="flex h-screen w-60 flex-col border-r border-white/30 bg-white/10 text-slate-900 backdrop-blur-2xl shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
       {/* Logo/Brand */}
-      <div className="flex h-16 items-center justify-center border-b border-white/20 px-4 bg-white/40 backdrop-blur-xl">
+      <div className="flex h-16 items-center justify-center border-b border-white/20 px-4 py-2 bg-white/40 backdrop-blur-xl">
         <Image
-          src="/LEAN_IT_LOGO.png"
-          alt="LEAN IT Logo"
+          src="/LEAN AI POWERED orginal.png"
+          alt="LEAN AI Logo"
           width={200}
           height={60}
-          className="h-12 w-full object-contain object-center"
+          className="h-10 w-full max-w-[180px] object-contain object-center"
           priority
         />
       </div>

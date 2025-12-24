@@ -34,13 +34,13 @@ export default function LandingPage() {
       {/* Header */}
       <header className="relative z-10 border-b border-white/40 bg-white/60 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 py-2">
             <Image
-              src="/LEAN_IT_LOGO.png"
-              alt="LEAN IT Logo"
+              src="/LEAN AI POWERED orginal.png"
+              alt="LEAN AI Logo"
               width={200}
               height={60}
-              className="h-16 w-auto object-contain"
+              className="h-12 w-auto max-w-[160px] object-contain"
               priority
             />
           </div>
@@ -198,11 +198,11 @@ export default function LandingPage() {
             <div>
               <div className="mb-4 flex items-center gap-2">
                 <Image
-                  src="/LEAN_IT_LOGO.png"
-                  alt="LEAN IT Logo"
+                  src="/LEAN AI POWERED orginal.png"
+                  alt="LEAN AI Logo"
                   width={160}
                   height={48}
-                  className="h-12 w-auto object-contain"
+                  className="h-10 w-auto max-w-[140px] object-contain"
                 />
               </div>
               <p className="text-sm text-slate-600">

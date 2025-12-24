@@ -13,13 +13,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 
 const LeanLogo = () => (
-  <div className="flex items-center justify-center w-full">
+  <div className="flex items-center justify-center w-full px-4 py-2">
     <Image
-      src="/LEAN_IT_LOGO.png"
-      alt="LEAN IT Logo"
+      src="/LEAN AI POWERED orginal.png"
+      alt="LEAN AI Logo"
       width={300}
       height={90}
-      className="h-20 w-full max-w-md object-contain"
+      className="h-16 w-full max-w-xs object-contain"
       priority
     />
   </div>
