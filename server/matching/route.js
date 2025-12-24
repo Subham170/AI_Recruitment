@@ -1,6 +1,7 @@
 import express from "express";
 import { authenticate } from "../middleware/auth.middleware.js";
 import {
+  getCandidateAppliedJobs,
   getCandidateMatches,
   getJobMatches,
   markCandidateAsApplied,
@@ -15,6 +16,9 @@ router.get("/job/:jobId/candidates", getJobMatches);
 
 // Get matching jobs for a candidate
 router.get("/candidate/:candidateId/jobs", getCandidateMatches);
+
+// Get applied jobs for a candidate
+router.get("/candidate/:candidateId/applied-jobs", getCandidateAppliedJobs);
 
 // Mark a candidate as applied for a job
 router.post(

@@ -128,10 +128,10 @@ export const getCandidates = async (req, res) => {
   try {
     const { search } = req.query;
 
-    // Build filter query
+    // Build filter query - only handle search on backend
     const filterQuery = { is_active: { $ne: false } };
 
-    // Search filter (name, email, skills)
+    // Search filter (name, email, skills) - general search
     if (search) {
       filterQuery.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -140,9 +140,10 @@ export const getCandidates = async (req, res) => {
       ];
     }
 
-    const candidates = await Candidate.find(filterQuery).sort({
-      createdAt: -1,
-    });
+    // Get all candidates (filtering, sorting, and pagination handled on frontend)
+    const candidates = await Candidate.find(filterQuery)
+      .sort({ createdAt: -1 })
+      .lean();
 
     res.status(200).json({
       count: candidates.length,

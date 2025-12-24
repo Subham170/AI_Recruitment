@@ -17,13 +17,26 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Loading from "@/components/ui/loading";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { candidateAPI, resumeParserAPI } from "@/lib/api";
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   FileText,
+  Filter,
   Loader2,
   Plus,
   Search,
@@ -53,6 +66,40 @@ export default function CandidatesPage() {
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [parsedResumeData, setParsedResumeData] = useState(null);
+
+  // Sorting state
+  const [sortConfig, setSortConfig] = useState({
+    key: null, // 'name', 'email', 'experience', 'createdAt'
+    direction: "asc", // 'asc' or 'desc'
+  });
+
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    rowsPerPage: 10,
+  });
+
+  // Filtering state
+  const [filters, setFilters] = useState({
+    name: "",
+    email: "",
+    experience_min: "",
+    experience_max: "",
+    date_from: "",
+    date_to: "",
+  });
+
+  // Temporary filters (for sidebar inputs, not applied until Apply is clicked)
+  const [tempFilters, setTempFilters] = useState({
+    name: "",
+    email: "",
+    experience_min: "",
+    experience_max: "",
+    date_from: "",
+    date_to: "",
+  });
+
+  const [showFilters, setShowFilters] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -324,8 +371,177 @@ export default function CandidatesPage() {
     return "secondary";
   };
 
-  // Candidates are now filtered on the server side via API
-  const filteredCandidates = candidates;
+  // Sort function
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+    // Reset pagination to page 1 when sorting changes
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  // Sort candidates based on sortConfig
+  const sortCandidates = (candidatesList) => {
+    if (!sortConfig.key) return candidatesList;
+
+    const sorted = [...candidatesList].sort((a, b) => {
+      let aValue, bValue;
+
+      switch (sortConfig.key) {
+        case "name":
+          aValue = (a.name || "").toLowerCase();
+          bValue = (b.name || "").toLowerCase();
+          break;
+        case "email":
+          aValue = (a.email || "").toLowerCase();
+          bValue = (b.email || "").toLowerCase();
+          break;
+        case "experience":
+          aValue = a.experience !== undefined ? a.experience : 0;
+          bValue = b.experience !== undefined ? b.experience : 0;
+          break;
+        case "createdAt":
+          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  };
+
+  // Sort icon component
+  const SortIcon = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) {
+      return <ArrowUpDown className="h-4 w-4 text-slate-400" />;
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp className="h-4 w-4 text-indigo-600" />
+    ) : (
+      <ArrowDown className="h-4 w-4 text-indigo-600" />
+    );
+  };
+
+  // Filter candidates based on filters
+  const filterCandidates = (candidatesList) => {
+    return candidatesList.filter((candidate) => {
+      // Name filter
+      if (filters.name) {
+        const nameMatch = (candidate.name || "")
+          .toLowerCase()
+          .includes(filters.name.toLowerCase());
+        if (!nameMatch) return false;
+      }
+
+      // Email filter
+      if (filters.email) {
+        const emailMatch = (candidate.email || "")
+          .toLowerCase()
+          .includes(filters.email.toLowerCase());
+        if (!emailMatch) return false;
+      }
+
+      // Experience filter
+      if (filters.experience_min) {
+        const exp = candidate.experience !== undefined ? candidate.experience : 0;
+        if (exp < parseFloat(filters.experience_min)) return false;
+      }
+      if (filters.experience_max) {
+        const exp = candidate.experience !== undefined ? candidate.experience : 0;
+        if (exp > parseFloat(filters.experience_max)) return false;
+      }
+
+      // Date filter
+      if (filters.date_from || filters.date_to) {
+        if (!candidate.createdAt) return false;
+        const candidateDate = new Date(candidate.createdAt);
+        if (filters.date_from) {
+          const fromDate = new Date(filters.date_from);
+          if (candidateDate < fromDate) return false;
+        }
+        if (filters.date_to) {
+          const toDate = new Date(filters.date_to);
+          toDate.setHours(23, 59, 59, 999);
+          if (candidateDate > toDate) return false;
+        }
+      }
+
+      return true;
+    });
+  };
+
+  // Apply filters
+  const applyFilters = () => {
+    setFilters(tempFilters);
+    setShowFilters(false);
+    // Reset pagination when filters change
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  // Clear filters
+  const clearFilters = () => {
+    const emptyFilters = {
+      name: "",
+      email: "",
+      experience_min: "",
+      experience_max: "",
+      date_from: "",
+      date_to: "",
+    };
+    setTempFilters(emptyFilters);
+    setFilters(emptyFilters);
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+    setShowFilters(false);
+    // Reset pagination when filters are cleared
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const hasActiveFilters = () => {
+    return (
+      filters.name ||
+      filters.email ||
+      filters.experience_min ||
+      filters.experience_max ||
+      filters.date_from ||
+      filters.date_to ||
+      searchQuery
+    );
+  };
+
+  // Pagination handlers
+  const handlePageChange = (newPage) => {
+    setPagination((prev) => ({ ...prev, page: newPage }));
+  };
+
+  const handleRowsPerPageChange = (newRowsPerPage) => {
+    setPagination((prev) => ({ page: 1, rowsPerPage: newRowsPerPage }));
+  };
+
+  // Initialize tempFilters when sidebar opens
+  useEffect(() => {
+    if (showFilters) {
+      setTempFilters(filters);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFilters]);
+
+  // Filter and sort candidates on frontend
+  const filteredCandidates = filterCandidates(candidates);
+  const sortedCandidates = sortCandidates(filteredCandidates);
+
+  // Paginate candidates on frontend
+  const startIndex = (pagination.page - 1) * pagination.rowsPerPage;
+  const endIndex = startIndex + pagination.rowsPerPage;
+  const paginatedCandidates = sortedCandidates.slice(startIndex, endIndex);
 
   const validRoles = [
     "SDET",
@@ -430,24 +646,52 @@ export default function CandidatesPage() {
               </div>
             </div>
 
+            <div className="flex items-center gap-3 mb-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className={`cursor-pointer rounded-md px-4 py-2.5 backdrop-blur-xl shadow-sm transition-all
+                  hover:bg-indigo-600 hover:text-white hover:border-indigo-500 hover:shadow-indigo-500/40
+                  ${
+                    hasActiveFilters()
+                      ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-500/40"
+                      : "bg-white/80 text-slate-700 border-white/70"
+                  }`}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                <span>Filters</span>
+                {hasActiveFilters() && (
+                  <span className="ml-2 px-2 py-0.5 rounded-full bg-indigo-500 text-white text-xs font-medium">
+                    {
+                      [
+                        filters.name,
+                        filters.email,
+                        filters.experience_min || filters.experience_max,
+                        filters.date_from || filters.date_to,
+                        searchQuery,
+                      ].filter((v) => v && v !== "").length
+                    }
+                  </span>
+                )}
+              </Button>
+              {hasActiveFilters() && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-1 text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300"
+                  onClick={clearFilters}
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
+
             {!loadingCandidates && !initialLoading && (
               <div className="mb-4 text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
                 <span>
-                  Showing {filteredCandidates.length} of {candidates.length}{" "}
-                  candidates
+                  Showing {startIndex + 1} to {Math.min(endIndex, sortedCandidates.length)} of{" "}
+                  {sortedCandidates.length} candidates
                 </span>
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-1 text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300"
-                    onClick={() => {
-                      setSearchQuery("");
-                    }}
-                  >
-                    Clear filters
-                  </Button>
-                )}
               </div>
             )}
 
@@ -463,7 +707,7 @@ export default function CandidatesPage() {
                       <Loading size="md" />
                     </div>
                   )}
-                  {filteredCandidates.length === 0 ? (
+                  {sortedCandidates.length === 0 ? (
                     <div className="p-12 flex flex-col items-center justify-center">
                       <div className="p-4 rounded-full bg-linear-to-br from-cyan-400/20 to-blue-500/20 mb-4">
                         <Users className="h-12 w-12 text-cyan-600 dark:text-cyan-400" />
@@ -473,76 +717,239 @@ export default function CandidatesPage() {
                       </p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-white/70 bg-white/60 backdrop-blur">
-                            <th className="text-left p-4 font-semibold text-slate-800">
-                              Name
-                            </th>
-                            <th className="text-left p-4 font-semibold text-slate-800">
-                              Email
-                            </th>
-                            <th className="text-left p-4 font-semibold text-slate-800">
-                              Status
-                            </th>
-                            <th className="text-left p-4 font-semibold text-slate-800">
-                              Experience
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredCandidates.map((candidate) => (
-                            <tr
-                              key={candidate._id || candidate.id}
-                              onClick={() => handleRowClick(candidate)}
-                              className="border-b border-white/60 bg-white/70 backdrop-blur hover:bg-white/90 transition-colors duration-150 cursor-pointer"
-                            >
-                              <td className="p-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                                    <span className="text-sm font-bold text-slate-700">
-                                      {candidate.name?.charAt(0).toUpperCase()}
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="w-full table-fixed">
+                          <thead>
+                            <tr className="border-b border-white/70 bg-white/60 backdrop-blur">
+                              <th
+                                className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-1/4"
+                                onClick={() => handleSort("name")}
+                              >
+                                <div className="flex items-center gap-2">
+                                  Name
+                                  <SortIcon columnKey="name" />
+                                </div>
+                              </th>
+                              <th
+                                className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-1/4"
+                                onClick={() => handleSort("email")}
+                              >
+                                <div className="flex items-center gap-2">
+                                  Email
+                                  <SortIcon columnKey="email" />
+                                </div>
+                              </th>
+                              <th
+                                className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-1/4"
+                                onClick={() => handleSort("experience")}
+                              >
+                                <div className="flex items-center gap-2">
+                                  Experience
+                                  <SortIcon columnKey="experience" />
+                                </div>
+                              </th>
+                              <th
+                                className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-1/4"
+                                onClick={() => handleSort("createdAt")}
+                              >
+                                <div className="flex items-center gap-2">
+                                  Created At
+                                  <SortIcon columnKey="createdAt" />
+                                </div>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedCandidates.map((candidate) => (
+                              <tr
+                                key={candidate._id || candidate.id}
+                                onClick={() => handleRowClick(candidate)}
+                                className="border-b border-white/60 bg-white/70 backdrop-blur hover:bg-white/90 transition-colors duration-150 cursor-pointer"
+                              >
+                                <td className="p-4 w-1/4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 shrink-0">
+                                      <span className="text-sm font-bold text-slate-700">
+                                        {candidate.name?.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                    <span className="font-medium text-slate-800 truncate">
+                                      {candidate.name}
                                     </span>
                                   </div>
-                                  <span className="font-medium text-slate-800">
-                                    {candidate.name}
+                                </td>
+                                <td className="p-4 w-1/4">
+                                  <span className="text-slate-600 truncate block">
+                                    {candidate.email || "-"}
                                   </span>
-                                </div>
-                              </td>
-                              <td className="p-4">
-                                <span className="text-slate-600">
-                                  {candidate.email || "-"}
-                                </span>
-                              </td>
-                              <td className="p-4">
-                                <Badge
-                                  variant={
-                                    candidate.status === "offer"
-                                      ? "default"
-                                      : candidate.status === "rejected"
-                                      ? "destructive"
-                                      : candidate.status === "screening"
-                                      ? "secondary"
-                                      : "outline"
+                                </td>
+                                <td className="p-4 w-1/4">
+                                  <span className="text-slate-600">
+                                    {candidate.experience !== undefined
+                                      ? `${candidate.experience} years`
+                                      : "-"}
+                                  </span>
+                                </td>
+                                <td className="p-4 w-1/4">
+                                  <span className="text-slate-600">
+                                    {candidate.createdAt
+                                      ? new Date(candidate.createdAt).toLocaleDateString("en-US", {
+                                          year: "numeric",
+                                          month: "short",
+                                          day: "numeric",
+                                        })
+                                      : "-"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {/* Pagination Controls */}
+                      {sortedCandidates.length > 0 && (
+                        <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 bg-white/60 border-t border-white/70 backdrop-blur">
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-2.5 whitespace-nowrap">
+                              <span className="text-sm font-medium text-slate-700">
+                                Rows per page:
+                              </span>
+                              <Select
+                                value={pagination.rowsPerPage.toString()}
+                                onValueChange={(value) =>
+                                  handleRowsPerPageChange(parseInt(value))
+                                }
+                              >
+                                <SelectTrigger className="w-20 h-8 text-sm bg-white/80">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="10">10</SelectItem>
+                                  <SelectItem value="20">20</SelectItem>
+                                  <SelectItem value="50">50</SelectItem>
+                                  <SelectItem value="100">100</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="h-4 w-px bg-slate-300"></div>
+                            <span className="text-sm text-slate-600 font-medium whitespace-nowrap">
+                              Showing{" "}
+                              <span className="text-slate-900 font-semibold">
+                                {startIndex + 1}
+                              </span>{" "}
+                              to{" "}
+                              <span className="text-slate-900 font-semibold">
+                                {Math.min(endIndex, sortedCandidates.length)}
+                              </span>{" "}
+                              of{" "}
+                              <span className="text-slate-900 font-semibold">
+                                {sortedCandidates.length}
+                              </span>{" "}
+                              entries
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handlePageChange(pagination.page - 1)}
+                              disabled={pagination.page === 1}
+                              className="h-8 bg-white/80"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+
+                            <div className="flex items-center gap-1">
+                              {(() => {
+                                const totalPages = Math.ceil(
+                                  sortedCandidates.length / pagination.rowsPerPage
+                                );
+                                const pages = [];
+                                const maxVisible = 5;
+
+                                if (totalPages <= maxVisible) {
+                                  for (let i = 1; i <= totalPages; i++) {
+                                    pages.push(i);
                                   }
-                                  className="capitalize"
-                                >
-                                  {candidate.status || "new"}
-                                </Badge>
-                              </td>
-                              <td className="p-4">
-                                <span className="text-slate-600">
-                                  {candidate.experience !== undefined
-                                    ? `${candidate.experience} years`
-                                    : "-"}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                                } else {
+                                  if (pagination.page <= 3) {
+                                    for (let i = 1; i <= 4; i++) pages.push(i);
+                                    pages.push("...");
+                                    pages.push(totalPages);
+                                  } else if (pagination.page >= totalPages - 2) {
+                                    pages.push(1);
+                                    pages.push("...");
+                                    for (
+                                      let i = totalPages - 3;
+                                      i <= totalPages;
+                                      i++
+                                    )
+                                      pages.push(i);
+                                  } else {
+                                    pages.push(1);
+                                    pages.push("...");
+                                    for (
+                                      let i = pagination.page - 1;
+                                      i <= pagination.page + 1;
+                                      i++
+                                    )
+                                      pages.push(i);
+                                    pages.push("...");
+                                    pages.push(totalPages);
+                                  }
+                                }
+
+                                return pages.map((page, index) =>
+                                  page === "..." ? (
+                                    <span
+                                      key={`ellipsis-${index}`}
+                                      className="px-2 text-slate-400"
+                                    >
+                                      ...
+                                    </span>
+                                  ) : (
+                                    <Button
+                                      key={page}
+                                      variant={
+                                        pagination.page === page
+                                          ? "default"
+                                          : "outline"
+                                      }
+                                      size="sm"
+                                      onClick={() => handlePageChange(page)}
+                                      className={`h-8 min-w-8 bg-white/80 ${
+                                        pagination.page === page
+                                          ? "bg-indigo-600 text-white"
+                                          : ""
+                                      }`}
+                                    >
+                                      {page}
+                                    </Button>
+                                  )
+                                );
+                              })()}
+                            </div>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handlePageChange(pagination.page + 1)}
+                              disabled={
+                                pagination.page >=
+                                Math.ceil(
+                                  sortedCandidates.length / pagination.rowsPerPage
+                                )
+                              }
+                              className="h-8 bg-white/80"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -550,6 +957,140 @@ export default function CandidatesPage() {
           </div>
         </main>
       </div>
+
+      {/* Filter Sidebar */}
+      <Sheet open={showFilters} onOpenChange={setShowFilters}>
+        <SheetContent
+          side="right"
+          className="w-full sm:w-[400px] overflow-y-auto bg-white/80 backdrop-blur-2xl p-0 border-l border-white/60"
+        >
+          <SheetTitle className="sr-only">Filter Candidates</SheetTitle>
+          <div className="border-b border-white/60 pb-4 px-6 pt-6">
+            <h2 className="flex items-center gap-3 text-xl font-bold text-slate-900">
+              <div className="p-2 rounded-lg bg-indigo-50">
+                <Filter className="h-5 w-5 text-indigo-600" />
+              </div>
+              Filter Candidates
+            </h2>
+          </div>
+
+          <div className="flex-1 py-6 px-6 space-y-6 overflow-y-auto">
+            {/* Name Filter */}
+            <div>
+              <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                Name
+              </Label>
+              <Input
+                type="text"
+                placeholder="Filter by name..."
+                value={tempFilters.name}
+                onChange={(e) =>
+                  setTempFilters({ ...tempFilters, name: e.target.value })
+                }
+                className="bg-white/70 border-white/70 text-slate-900 placeholder:text-slate-500 backdrop-blur rounded-xl shadow-sm"
+              />
+            </div>
+
+            {/* Email Filter */}
+            <div>
+              <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                Email
+              </Label>
+              <Input
+                type="text"
+                placeholder="Filter by email..."
+                value={tempFilters.email}
+                onChange={(e) =>
+                  setTempFilters({ ...tempFilters, email: e.target.value })
+                }
+                className="bg-white/70 border-white/70 text-slate-900 placeholder:text-slate-500 backdrop-blur rounded-xl shadow-sm"
+              />
+            </div>
+
+            {/* Experience Range */}
+            <div>
+              <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                Experience (years)
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={tempFilters.experience_min}
+                  onChange={(e) =>
+                    setTempFilters({
+                      ...tempFilters,
+                      experience_min: e.target.value,
+                    })
+                  }
+                  className="bg-white/70 border-white/70 text-slate-900 placeholder:text-slate-500 backdrop-blur"
+                  min="0"
+                />
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={tempFilters.experience_max}
+                  onChange={(e) =>
+                    setTempFilters({
+                      ...tempFilters,
+                      experience_max: e.target.value,
+                    })
+                  }
+                  className="bg-white/70 border-white/70 text-slate-900 placeholder:text-slate-500 backdrop-blur"
+                  min="0"
+                />
+              </div>
+            </div>
+
+            {/* Date From */}
+            <div>
+              <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                Created From
+              </Label>
+              <Input
+                type="date"
+                value={tempFilters.date_from}
+                onChange={(e) =>
+                  setTempFilters({ ...tempFilters, date_from: e.target.value })
+                }
+                className="bg-white/70 border-white/70 text-slate-900 backdrop-blur"
+              />
+            </div>
+
+            {/* Date To */}
+            <div>
+              <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                Created To
+              </Label>
+              <Input
+                type="date"
+                value={tempFilters.date_to}
+                onChange={(e) =>
+                  setTempFilters({ ...tempFilters, date_to: e.target.value })
+                }
+                className="bg-white/70 border-white/70 text-slate-900 backdrop-blur"
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-white/60 pt-4 px-6 pb-6 gap-2 flex">
+            <Button
+              variant="outline"
+              onClick={clearFilters}
+              className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Clear All
+            </Button>
+            <Button
+              onClick={applyFilters}
+              className="flex-1 bg-linear-to-r from-indigo-600 to-sky-500 hover:from-indigo-700 hover:to-sky-600 text-white shadow-lg shadow-indigo-500/25"
+            >
+              Apply Filters
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Add Candidate Dialog - Same as before */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
