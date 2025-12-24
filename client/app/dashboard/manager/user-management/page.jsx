@@ -29,6 +29,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { userAPI } from "@/lib/api";
 import {
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Briefcase,
   ChevronLeft,
   ChevronRight,
@@ -64,7 +67,11 @@ export default function UserManagementPage() {
     totalCount: 0,
     totalPages: 1,
     currentPage: 1,
-    pageSize: 7,
+    pageSize: 10,
+  });
+  const [sortConfig, setSortConfig] = useState({
+    key: null, // 'name', 'email', 'role'
+    direction: "asc", // 'asc' or 'desc'
   });
   const [formData, setFormData] = useState({
     name: "",
@@ -113,6 +120,13 @@ export default function UserManagementPage() {
     }
   }, [currentPage]);
 
+  useEffect(() => {
+    if (user && user.role === "manager") {
+      fetchUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.pageSize]);
+
   const fetchUsers = async () => {
     try {
       setLoadingUsers(true);
@@ -120,20 +134,73 @@ export default function UserManagementPage() {
         filterRole: "recruiter", // Managers can only manage recruiters
         search: searchQuery,
         page: currentPage,
-        pageSize: 7,
+        pageSize: pagination.pageSize,
       });
       setUsers(response.users || []);
-      setPagination({
+      setPagination((prev) => ({
         totalCount: response.totalCount || 0,
         totalPages: response.totalPages || 1,
-        currentPage: response.currentPage || 1,
-        pageSize: response.pageSize || 7,
-      });
+        currentPage: response.currentPage || currentPage,
+        pageSize: response.pageSize || prev.pageSize,
+      }));
     } catch (err) {
       setError(err.message || "Failed to fetch users");
     } finally {
       setLoadingUsers(false);
     }
+  };
+
+  // Sort function
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Sort users based on sortConfig
+  const sortUsers = (usersList) => {
+    if (!sortConfig.key) return usersList;
+
+    const sorted = [...usersList].sort((a, b) => {
+      let aValue, bValue;
+
+      switch (sortConfig.key) {
+        case "name":
+          aValue = (a.name || "").toLowerCase();
+          bValue = (b.name || "").toLowerCase();
+          break;
+        case "email":
+          aValue = (a.email || "").toLowerCase();
+          bValue = (b.email || "").toLowerCase();
+          break;
+        case "role":
+          aValue = (a.role || "").toLowerCase();
+          bValue = (b.role || "").toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  };
+
+  // Sort icon component
+  const SortIcon = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) {
+      return <ArrowUpDown className="h-4 w-4 text-slate-400" />;
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp className="h-4 w-4 text-indigo-600" />
+    ) : (
+      <ArrowDown className="h-4 w-4 text-indigo-600" />
+    );
   };
 
   const handleChange = (e) => {
@@ -393,24 +460,19 @@ export default function UserManagementPage() {
               </Button>
             </div>
 
-            {!loadingUsers && (
+            {!loadingUsers && searchQuery && (
               <div className="mb-4 text-sm text-slate-600 flex items-center gap-2">
-                <span>
-                  Showing {users.length} of {pagination.totalCount} users
-                </span>
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-1 text-xs text-cyan-600 hover:text-cyan-700"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setCurrentPage(1);
-                    }}
-                  >
-                    Clear filters
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-1 text-xs text-cyan-600 hover:text-cyan-700"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setCurrentPage(1);
+                  }}
+                >
+                  Clear filters
+                </Button>
               </div>
             )}
 
@@ -433,14 +495,32 @@ export default function UserManagementPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-100/80">
-                        <th className="text-left p-4 font-semibold text-slate-800">
-                          Name
+                        <th
+                          className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                          onClick={() => handleSort("name")}
+                        >
+                          <div className="flex items-center gap-2">
+                            Name
+                            <SortIcon columnKey="name" />
+                          </div>
                         </th>
-                        <th className="text-left p-4 font-semibold text-slate-800">
-                          Email
+                        <th
+                          className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                          onClick={() => handleSort("email")}
+                        >
+                          <div className="flex items-center gap-2">
+                            Email
+                            <SortIcon columnKey="email" />
+                          </div>
                         </th>
-                        <th className="text-left p-4 font-semibold text-slate-800">
-                          Role
+                        <th
+                          className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                          onClick={() => handleSort("role")}
+                        >
+                          <div className="flex items-center gap-2">
+                            Role
+                            <SortIcon columnKey="role" />
+                          </div>
                         </th>
                         <th className="text-right p-4 font-semibold text-slate-800">
                           Actions
@@ -448,7 +528,7 @@ export default function UserManagementPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {users.map((userItem) => {
+                      {sortUsers(users).map((userItem) => {
                         const RoleIcon = getRoleIcon(userItem.role);
                         return (
                           <tr
@@ -516,82 +596,134 @@ export default function UserManagementPage() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+                {!loadingUsers && (
+                  <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 bg-slate-50/80 border-t border-slate-200">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-2.5 whitespace-nowrap">
+                        <span className="text-sm font-medium text-slate-700">
+                          Rows per page:
+                        </span>
+                        <Select
+                          value={pagination.pageSize.toString()}
+                          onValueChange={(value) => {
+                            const newPageSize = parseInt(value);
+                            setPagination((prev) => ({
+                              ...prev,
+                              pageSize: newPageSize,
+                              currentPage: 1,
+                            }));
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger className="w-20 h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="30">30</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="h-4 w-px bg-slate-300"></div>
+                      <span className="text-sm text-slate-600 font-medium whitespace-nowrap">
+                        Showing{" "}
+                        <span className="text-slate-900 font-semibold">
+                          {(currentPage - 1) * pagination.pageSize + 1}
+                        </span>{" "}
+                        to{" "}
+                        <span className="text-slate-900 font-semibold">
+                          {Math.min(
+                            currentPage * pagination.pageSize,
+                            pagination.totalCount
+                          )}
+                        </span>{" "}
+                        of{" "}
+                        <span className="text-slate-900 font-semibold">
+                          {pagination.totalCount}
+                        </span>{" "}
+                        entries
+                      </span>
+                    </div>
 
-            {!loadingUsers && pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
-                <div className="text-sm text-slate-600 dark:text-slate-400">
-                  Page {pagination.currentPage} of {pagination.totalPages}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setCurrentPage((prev) => Math.max(1, prev - 1))
-                    }
-                    disabled={currentPage === 1}
-                    className="border-slate-200 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from(
-                      { length: pagination.totalPages },
-                      (_, i) => i + 1
-                    )
-                      .filter((page) => {
-                        return (
-                          page === 1 ||
-                          page === pagination.totalPages ||
-                          (page >= currentPage - 1 && page <= currentPage + 1)
-                        );
-                      })
-                      .map((page, index, array) => {
-                        const showEllipsisBefore =
-                          index > 0 && array[index - 1] !== page - 1;
-                        return (
-                          <div key={page} className="flex items-center gap-1">
-                            {showEllipsisBefore && (
-                              <span className="px-2 text-slate-400 dark:text-slate-500">
-                                ...
-                              </span>
-                            )}
-                            <Button
-                              variant={
-                                currentPage === page ? "default" : "outline"
-                              }
-                              size="sm"
-                              onClick={() => setCurrentPage(page)}
-                              className={`min-w-10 ${
-                                currentPage === page
-                                  ? "bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
-                                  : "border-slate-200 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700"
-                              }`}
-                            >
-                              {page}
-                            </Button>
-                          </div>
-                        );
-                      })}
+                    {pagination.totalPages > 1 && (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newPage = Math.max(1, currentPage - 1);
+                            setCurrentPage(newPage);
+                            setPagination((prev) => ({ ...prev, currentPage: newPage }));
+                          }}
+                          disabled={currentPage === 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+
+                        <div className="flex items-center gap-1">
+                          {Array.from(
+                            { length: pagination.totalPages },
+                            (_, i) => i + 1
+                          )
+                            .filter((page) => {
+                              return (
+                                page === 1 ||
+                                page === pagination.totalPages ||
+                                (page >= currentPage - 1 && page <= currentPage + 1)
+                              );
+                            })
+                            .map((page, index, array) => {
+                              const showEllipsisBefore =
+                                index > 0 && array[index - 1] !== page - 1;
+                              return (
+                                <div key={page} className="flex items-center gap-1">
+                                  {showEllipsisBefore && (
+                                    <span className="px-2 text-slate-400">
+                                      ...
+                                    </span>
+                                  )}
+                                  <Button
+                                    variant={
+                                      currentPage === page ? "default" : "outline"
+                                    }
+                                    size="sm"
+                                    onClick={() => {
+                                      setCurrentPage(page);
+                                      setPagination((prev) => ({ ...prev, currentPage: page }));
+                                    }}
+                                    className={`h-8 min-w-8 ${
+                                      currentPage === page
+                                        ? "bg-indigo-600 text-white"
+                                        : ""
+                                    }`}
+                                  >
+                                    {page}
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newPage = Math.min(pagination.totalPages, currentPage + 1);
+                            setCurrentPage(newPage);
+                            setPagination((prev) => ({ ...prev, currentPage: newPage }));
+                          }}
+                          disabled={currentPage === pagination.totalPages}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setCurrentPage((prev) =>
-                        Math.min(pagination.totalPages, prev + 1)
-                      )
-                    }
-                    disabled={currentPage === pagination.totalPages}
-                    className="border-slate-200 dark:border-slate-700 hover:bg-cyan-50 dark:hover:bg-cyan-950/20 hover:border-cyan-300 dark:hover:border-cyan-700"
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
+                )}
               </div>
             )}
           </div>

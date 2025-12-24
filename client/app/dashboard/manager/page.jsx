@@ -57,13 +57,6 @@ export default function ManagerDashboardPage() {
     }
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  };
-
   if (loading) {
     return (
       <div className="relative min-h-screen flex items-center justify-center bg-[#eef2f7]">
@@ -90,20 +83,6 @@ export default function ManagerDashboardPage() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-              <div>
-                <p className="text-sm font-medium text-indigo-600 mb-1">
-                  {getGreeting()}
-                </p>
-                <h2 className="text-4xl font-bold mb-2 bg-linear-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                  {user.name}
-                </h2>
-                <p className="text-slate-600 text-lg">
-                  Manage your recruitment team and operations
-                </p>
-              </div>
-            </div>
-
             {/* Quick Links */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* User Management Link */}

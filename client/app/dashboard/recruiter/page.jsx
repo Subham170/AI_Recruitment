@@ -160,13 +160,6 @@ export default function RecruiterDashboardPage() {
     );
   };
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  };
-
   const getTimeUntilInterview = (interviewTime) => {
     const now = new Date();
     const interview = new Date(interviewTime);
@@ -203,20 +196,6 @@ export default function RecruiterDashboardPage() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-              <div>
-                <p className="text-sm font-medium text-indigo-600 mb-1">
-                  {getGreeting()}
-                </p>
-                <h2 className="text-4xl font-bold mb-2 bg-linear-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                  {user.name}
-                </h2>
-                <p className="text-slate-600 text-lg">
-                  Manage your recruitment pipeline and find the best candidates
-                </p>
-              </div>
-            </div>
-
             {/* Upcoming Tasks */}
             <div className="space-y-6">
               <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
