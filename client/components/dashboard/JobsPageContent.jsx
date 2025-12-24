@@ -1375,10 +1375,10 @@ export default function JobsPageContent() {
                 {isRecruiter && (
                   <>
                     <div className="mb-8">
-                      <h2 className="text-2xl font-semibold mb-2 text-black drop-shadow-[0_1px_1px_rgba(0,0,0,0.32)]">
+                      <h2 className="text-lg font-semibold mb-1.5 text-slate-900">
                         Your Open Roles
                       </h2>
-                      <p className="text-sm text-slate-700 mb-2">
+                      <p className="text-sm text-slate-600 mb-2">
                         Positions where you are the primary owner.
                       </p>
                       {filterJobs(jobPostings.myJobPostings).length > 0 ? (
@@ -1401,10 +1401,10 @@ export default function JobsPageContent() {
                     </div>
 
                     <div className="mb-8">
-                      <h2 className="text-2xl font-semibold mb-2 text-black drop-shadow-[0_1px_1px_rgba(0,0,0,0.32)]">
+                      <h2 className="text-lg font-semibold mb-1.5 text-slate-900">
                         Shared with You
                       </h2>
-                      <p className="text-sm text-slate-700 mb-2">
+                      <p className="text-sm text-slate-600 mb-2">
                         Roles where you support another recruiter.
                       </p>
                       {filterJobs(jobPostings.secondaryJobPostings).length >
