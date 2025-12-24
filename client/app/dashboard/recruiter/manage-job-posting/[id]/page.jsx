@@ -54,7 +54,10 @@ import {
 } from "@/lib/timeFormatter";
 import { format } from "date-fns";
 import {
+  ArrowDown,
   ArrowLeft,
+  ArrowUp,
+  ArrowUpDown,
   Briefcase,
   Calendar,
   CheckCircle2,
@@ -181,6 +184,16 @@ export default function RecruiterJobDetailPage() {
   const [rejected, setRejected] = useState([]);
   const [loadingAiMatches, setLoadingAiMatches] = useState(false);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
+
+  // Sorting state for each tab
+  const [sortConfigs, setSortConfigs] = useState({
+    aiMatch: { key: null, direction: "asc" },
+    applicants: { key: null, direction: "asc" },
+    screenings: { key: null, direction: "asc" },
+    interviews: { key: null, direction: "asc" },
+    offers: { key: null, direction: "asc" },
+    rejected: { key: null, direction: "asc" },
+  });
   const [loadingScreenings, setLoadingScreenings] = useState(false);
   const [loadingInterviews, setLoadingInterviews] = useState(false);
   const [loadingOffers, setLoadingOffers] = useState(false);
@@ -1220,6 +1233,122 @@ export default function RecruiterJobDetailPage() {
       setRejected([]);
     } finally {
       setLoadingRejected(false);
+    }
+  };
+
+  // Sort function for candidate tables
+  const handleSort = (tab, key) => {
+    setSortConfigs((prev) => {
+      const currentConfig = prev[tab] || { key: null, direction: "asc" };
+      let direction = "asc";
+      if (currentConfig.key === key && currentConfig.direction === "asc") {
+        direction = "desc";
+      }
+      return {
+        ...prev,
+        [tab]: { key, direction },
+      };
+    });
+  };
+
+  // Sort icon component
+  const SortIcon = ({ tab, columnKey }) => {
+    const sortConfig = sortConfigs[tab] || { key: null, direction: "asc" };
+    if (sortConfig.key !== columnKey) {
+      return <ArrowUpDown className="h-4 w-4 text-slate-400" />;
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp className="h-4 w-4 text-indigo-600" />
+    ) : (
+      <ArrowDown className="h-4 w-4 text-indigo-600" />
+    );
+  };
+
+  // Sort data based on sortConfig
+  const sortData = (data, tab, getValue) => {
+    const sortConfig = sortConfigs[tab] || { key: null, direction: "asc" };
+    if (!sortConfig.key) return data;
+
+    const sorted = [...data].sort((a, b) => {
+      const aValue = getValue(a, sortConfig.key);
+      const bValue = getValue(b, sortConfig.key);
+
+      // Handle different value types
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        const aLower = aValue.toLowerCase();
+        const bLower = bValue.toLowerCase();
+        if (aLower < bLower) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aLower > bLower) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      }
+
+      if (typeof aValue === "number" && typeof bValue === "number") {
+        if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      }
+
+      // Handle null/undefined
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return sortConfig.direction === "asc" ? 1 : -1;
+      if (bValue == null) return sortConfig.direction === "asc" ? -1 : 1;
+
+      return 0;
+    });
+
+    return sorted;
+  };
+
+  // Get value for sorting based on key
+  const getSortValue = (item, key, tab) => {
+    const candidate = item.candidateId || item;
+
+    switch (key) {
+      case "name":
+        return candidate?.name?.toLowerCase() || "";
+      case "role":
+        return candidate?.role?.join(", ").toLowerCase() || "";
+      case "email":
+        return candidate?.email?.toLowerCase() || "";
+      case "phone":
+        return candidate?.phone_no || "";
+      case "experience":
+        return candidate?.experience || 0;
+      case "matchScore":
+        return (item.matchScore || 0) * 100; // Convert to percentage for sorting
+      case "screeningScore":
+        return item.screeningScore || 0;
+      case "status":
+        // Handle different status fields based on tab
+        if (tab === "interviews") {
+          // For interviews, determine status from interview data
+          const now = new Date();
+          const interviewTime = item.interviewTime
+            ? new Date(item.interviewTime)
+            : null;
+          const interviewEndTime = item.interviewEndTime
+            ? new Date(item.interviewEndTime)
+            : null;
+          const emailSent = item.emailSent;
+
+          if (
+            item.interviewOutcome === "offer" ||
+            item.interviewOutcome === "reject"
+          ) {
+            return item.interviewOutcome.toLowerCase();
+          }
+          if (interviewTime && interviewEndTime) {
+            if (now < interviewTime) return "scheduled";
+            if (now >= interviewTime && now <= interviewEndTime)
+              return "running";
+            if (now > interviewEndTime) return "completed";
+          }
+          if (emailSent) return "scheduled";
+          return "not_scheduled";
+        }
+        return item.status?.toLowerCase() || "";
+      default:
+        return "";
     }
   };
 
@@ -2364,7 +2493,7 @@ export default function RecruiterJobDetailPage() {
                   { id: "details", label: "Details" },
                   { id: "ai-match", label: "AI Match" },
                   { id: "applicants", label: "Applicants" },
-                  { id: "screenings", label: "Screenings" },
+                  { id: "screenings", label: "AI Screening" },
                   { id: "interviews", label: "Interviews" },
                   { id: "offers", label: "Offers" },
                   { id: "rejected", label: "Rejected" },
@@ -2524,18 +2653,76 @@ export default function RecruiterJobDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Candidate</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Match %</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Phone</TableHead>
-                          <TableHead>Experience</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("aiMatch", "name")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Candidate
+                              <SortIcon tab="aiMatch" columnKey="name" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("aiMatch", "role")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Role
+                              <SortIcon tab="aiMatch" columnKey="role" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none whitespace-nowrap"
+                            onClick={() => handleSort("aiMatch", "matchScore")}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>Score</span>
+                              <SortIcon tab="aiMatch" columnKey="matchScore" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("aiMatch", "email")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Email
+                              <SortIcon tab="aiMatch" columnKey="email" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("aiMatch", "phone")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Phone
+                              <SortIcon tab="aiMatch" columnKey="phone" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("aiMatch", "experience")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Experience
+                              <SortIcon tab="aiMatch" columnKey="experience" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("aiMatch", "status")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Status
+                              <SortIcon tab="aiMatch" columnKey="status" />
+                            </div>
+                          </TableHead>
                           <TableHead className="text-center">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {aiMatches.map((match, index) => {
+                        {sortData(aiMatches, "aiMatch", (item, key) =>
+                          getSortValue(item, key, "aiMatch")
+                        ).map((match, index) => {
                           const candidate = match.candidateId;
                           if (!candidate) return null;
 
@@ -2705,12 +2892,70 @@ export default function RecruiterJobDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Candidate</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Match %</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Phone</TableHead>
-                          <TableHead>Experience</TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("applicants", "name")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Candidate
+                              <SortIcon tab="applicants" columnKey="name" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("applicants", "role")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Role
+                              <SortIcon tab="applicants" columnKey="role" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none whitespace-nowrap"
+                            onClick={() =>
+                              handleSort("applicants", "matchScore")
+                            }
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>Score</span>
+                              <SortIcon
+                                tab="applicants"
+                                columnKey="matchScore"
+                              />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("applicants", "email")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Email
+                              <SortIcon tab="applicants" columnKey="email" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("applicants", "phone")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Phone
+                              <SortIcon tab="applicants" columnKey="phone" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() =>
+                              handleSort("applicants", "experience")
+                            }
+                          >
+                            <div className="flex items-center gap-2">
+                              Experience
+                              <SortIcon
+                                tab="applicants"
+                                columnKey="experience"
+                              />
+                            </div>
+                          </TableHead>
                           <TableHead className="text-center">
                             Call Status
                           </TableHead>
@@ -2718,7 +2963,9 @@ export default function RecruiterJobDetailPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {applicants.map((match, index) => {
+                        {sortData(applicants, "applicants", (item, key) =>
+                          getSortValue(item, key, "applicants")
+                        ).map((match, index) => {
                           const candidate = match.candidateId;
                           if (!candidate) return null;
 
@@ -2906,7 +3153,7 @@ export default function RecruiterJobDetailPage() {
             {activeTab === "screenings" && (
               <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
-                  <CardTitle>Completed Screenings</CardTitle>
+                  <CardTitle>AI Screening</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {(() => {
@@ -2930,13 +3177,79 @@ export default function RecruiterJobDetailPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Candidate</TableHead>
-                            <TableHead>Role</TableHead>
-                            <TableHead>Score</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Phone</TableHead>
-                            <TableHead>Experience</TableHead>
-                            <TableHead>Status</TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() => handleSort("screenings", "name")}
+                            >
+                              <div className="flex items-center gap-2">
+                                Candidate
+                                <SortIcon tab="screenings" columnKey="name" />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() => handleSort("screenings", "role")}
+                            >
+                              <div className="flex items-center gap-2">
+                                Role
+                                <SortIcon tab="screenings" columnKey="role" />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() =>
+                                handleSort("screenings", "screeningScore")
+                              }
+                            >
+                              <div className="flex items-center gap-2">
+                                Score
+                                <SortIcon
+                                  tab="screenings"
+                                  columnKey="screeningScore"
+                                />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() => handleSort("screenings", "email")}
+                            >
+                              <div className="flex items-center gap-2">
+                                Email
+                                <SortIcon tab="screenings" columnKey="email" />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() => handleSort("screenings", "phone")}
+                            >
+                              <div className="flex items-center gap-2">
+                                Phone
+                                <SortIcon tab="screenings" columnKey="phone" />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() =>
+                                handleSort("screenings", "experience")
+                              }
+                            >
+                              <div className="flex items-center gap-2">
+                                Experience
+                                <SortIcon
+                                  tab="screenings"
+                                  columnKey="experience"
+                                />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() => handleSort("screenings", "status")}
+                            >
+                              <div className="flex items-center gap-2">
+                                Status
+                                <SortIcon tab="screenings" columnKey="status" />
+                              </div>
+                            </TableHead>
                             <TableHead className="text-center">Call</TableHead>
                             <TableHead className="text-center">
                               Schedule Interview
@@ -2944,7 +3257,9 @@ export default function RecruiterJobDetailPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {screenings.map((screeningData, index) => {
+                          {sortData(screenings, "screenings", (item, key) =>
+                            getSortValue(item, key, "screenings")
+                          ).map((screeningData, index) => {
                             const candidate = screeningData.candidateId;
                             if (!candidate) return null;
 
@@ -3173,17 +3488,72 @@ export default function RecruiterJobDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Candidate</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Phone</TableHead>
-                          <TableHead>Experience</TableHead>
-                          <TableHead>Interview Status</TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("interviews", "name")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Candidate
+                              <SortIcon tab="interviews" columnKey="name" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("interviews", "role")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Role
+                              <SortIcon tab="interviews" columnKey="role" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("interviews", "email")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Email
+                              <SortIcon tab="interviews" columnKey="email" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("interviews", "phone")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Phone
+                              <SortIcon tab="interviews" columnKey="phone" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() =>
+                              handleSort("interviews", "experience")
+                            }
+                          >
+                            <div className="flex items-center gap-2">
+                              Experience
+                              <SortIcon
+                                tab="interviews"
+                                columnKey="experience"
+                              />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("interviews", "status")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Interview Status
+                              <SortIcon tab="interviews" columnKey="status" />
+                            </div>
+                          </TableHead>
                           <TableHead className="text-center">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {interviews.map((interviewData, index) => {
+                        {sortData(interviews, "interviews", (item, key) =>
+                          getSortValue(item, key, "interviews")
+                        ).map((interviewData, index) => {
                           const candidate = interviewData.candidateId;
                           if (!candidate) return null;
 
@@ -3424,17 +3794,80 @@ export default function RecruiterJobDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Candidate</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Phone</TableHead>
-                          <TableHead>Experience</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("offers", "name")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Candidate
+                              <SortIcon tab="offers" columnKey="name" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("offers", "role")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Role
+                              <SortIcon tab="offers" columnKey="role" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() =>
+                              handleSort("offers", "screeningScore")
+                            }
+                          >
+                            <div className="flex items-center gap-2">
+                              Score
+                              <SortIcon
+                                tab="offers"
+                                columnKey="screeningScore"
+                              />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("offers", "email")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Email
+                              <SortIcon tab="offers" columnKey="email" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("offers", "phone")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Phone
+                              <SortIcon tab="offers" columnKey="phone" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("offers", "experience")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Experience
+                              <SortIcon tab="offers" columnKey="experience" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("offers", "status")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Status
+                              <SortIcon tab="offers" columnKey="status" />
+                            </div>
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {offers.map((candidateData, index) => {
+                        {sortData(offers, "offers", (item, key) =>
+                          getSortValue(item, key, "offers")
+                        ).map((candidateData, index) => {
                           const candidate = candidateData.candidateId;
                           if (!candidate) return null;
 
@@ -3578,17 +4011,80 @@ export default function RecruiterJobDetailPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Candidate</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Score</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Phone</TableHead>
-                          <TableHead>Experience</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("rejected", "name")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Candidate
+                              <SortIcon tab="rejected" columnKey="name" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("rejected", "role")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Role
+                              <SortIcon tab="rejected" columnKey="role" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() =>
+                              handleSort("rejected", "screeningScore")
+                            }
+                          >
+                            <div className="flex items-center gap-2">
+                              Score
+                              <SortIcon
+                                tab="rejected"
+                                columnKey="screeningScore"
+                              />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("rejected", "email")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Email
+                              <SortIcon tab="rejected" columnKey="email" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("rejected", "phone")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Phone
+                              <SortIcon tab="rejected" columnKey="phone" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("rejected", "experience")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Experience
+                              <SortIcon tab="rejected" columnKey="experience" />
+                            </div>
+                          </TableHead>
+                          <TableHead
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            onClick={() => handleSort("rejected", "status")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Status
+                              <SortIcon tab="rejected" columnKey="status" />
+                            </div>
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {rejected.map((candidateData, index) => {
+                        {sortData(rejected, "rejected", (item, key) =>
+                          getSortValue(item, key, "rejected")
+                        ).map((candidateData, index) => {
                           const candidate = candidateData.candidateId;
                           if (!candidate) return null;
 
