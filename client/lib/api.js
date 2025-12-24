@@ -42,6 +42,24 @@ export const authAPI = {
       body: { email, password },
     });
   },
+  forgotPassword: async (email) => {
+    return apiRequest("/auth/forgot-password", {
+      method: "POST",
+      body: { email },
+    });
+  },
+  verifyOTP: async (email, otp) => {
+    return apiRequest("/auth/verify-otp", {
+      method: "POST",
+      body: { email, otp },
+    });
+  },
+  resetPassword: async (email, newPassword, confirmPassword) => {
+    return apiRequest("/auth/reset-password", {
+      method: "POST",
+      body: { email, newPassword, confirmPassword },
+    });
+  },
 };
 
 // User API functions

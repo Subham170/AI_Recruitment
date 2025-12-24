@@ -181,9 +181,8 @@ export default function LoginPage() {
 
         <div className="mt-8 text-center">
           <Link
-            href="#"
+            href="/forgot-password"
             className="text-sm font-semibold text-slate-500 transition-colors hover:text-indigo-600"
-            onClick={(e) => e.preventDefault()}
           >
             Forgot password?
           </Link>

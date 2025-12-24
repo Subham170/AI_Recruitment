@@ -2,6 +2,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import bolnaRoutes from "./bolna/route.js";
+import calcomCredentialsRoutes from "./calcom_credentials/route.js";
 import candidateProgressRoutes from "./candidate_progress/route.js";
 import candidateRoutes from "./candidates/route.js";
 import chatRoutes from "./chat/route.js";
@@ -11,9 +12,9 @@ import jobPostingRoutes from "./job_posting/route.js";
 import matchingRoutes from "./matching/route.js";
 import recruiterAvailabilityRoutes from "./recruiter_availability/route.js";
 import recruiterTasksRoutes from "./recruiter_tasks/route.js";
+import resetPasswordRoutes from "./reset_password/route.js";
 import resumeParserRoutes from "./resume_parser/route.js";
 import userRoutes from "./user/route.js";
-import calcomCredentialsRoutes from "./calcom_credentials/route.js";
 
 // TODO: Uncomment when these route files are created
 // import applicationRoutes from "./routes/application.routes.js";
@@ -56,6 +57,9 @@ app.use("/api/users", userRoutes);
 
 // Auth routes alias (for backward compatibility)
 app.use("/api/auth", userRoutes);
+
+// Reset password routes
+app.use("/api/auth", resetPasswordRoutes);
 
 // Candidate routes
 app.use("/api/candidates", candidateRoutes);
