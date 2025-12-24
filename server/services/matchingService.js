@@ -315,14 +315,29 @@ export async function updateCandidateMatches(candidateId, filters = {}) {
         (m) => m.candidateId.toString() === candidateId.toString()
       );
 
+      // Preserve existing status if match already exists, otherwise default to "pending"
+      const existingStatus =
+        existingMatchIndex >= 0
+          ? jobMatches.matches[existingMatchIndex].status || "pending"
+          : "pending";
+
       const candidateMatch = {
         candidateId: new mongoose.Types.ObjectId(candidateId),
         matchScore: match.matchScore,
-        matchedAt: new Date(),
+        matchedAt:
+          existingMatchIndex >= 0
+            ? jobMatches.matches[existingMatchIndex].matchedAt || new Date()
+            : new Date(),
+        status: existingStatus, // Preserve existing status
       };
 
       if (existingMatchIndex >= 0) {
-        jobMatches.matches[existingMatchIndex] = candidateMatch;
+        // Preserve the existing status when updating
+        jobMatches.matches[existingMatchIndex] = {
+          ...jobMatches.matches[existingMatchIndex],
+          ...candidateMatch,
+          status: existingStatus, // Ensure status is preserved
+        };
       } else {
         jobMatches.matches.push(candidateMatch);
       }

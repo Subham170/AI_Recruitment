@@ -53,9 +53,11 @@ export default function CandidateDetailPage() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("details");
   const [matchedJobs, setMatchedJobs] = useState([]);
+  const [appliedJobs, setAppliedJobs] = useState([]);
   const [screenings, setScreenings] = useState([]);
   const [interviews, setInterviews] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [loadingAppliedJobs, setLoadingAppliedJobs] = useState(false);
   const [loadingScreenings, setLoadingScreenings] = useState(false);
   const [loadingInterviews, setLoadingInterviews] = useState(false);
   const [callDetailsDialogOpen, setCallDetailsDialogOpen] = useState(false);
@@ -81,6 +83,32 @@ export default function CandidateDetailPage() {
       !loadingJobs
     ) {
       fetchMatchedJobs();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidate, activeTab]);
+
+  // Fetch applied jobs when tab is active (don't refresh matches)
+  useEffect(() => {
+    if (
+      candidate &&
+      activeTab === "applied-jobs" &&
+      appliedJobs.length === 0 &&
+      !loadingAppliedJobs
+    ) {
+      fetchAppliedJobs();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidate, activeTab]);
+
+  // Fetch applied jobs when tab is active
+  useEffect(() => {
+    if (
+      candidate &&
+      activeTab === "applied-jobs" &&
+      appliedJobs.length === 0 &&
+      !loadingAppliedJobs
+    ) {
+      fetchAppliedJobs();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidate, activeTab]);
@@ -123,12 +151,15 @@ export default function CandidateDetailPage() {
     try {
       setLoadingJobs(true);
       
-      // First, refresh the candidate matches to get the latest updates
-      try {
-        await candidateAPI.refreshCandidateMatches(candidateId);
-      } catch (refreshErr) {
-        // Log but don't fail - continue to fetch existing matches
-        console.warn("Error refreshing candidate matches:", refreshErr);
+      // Only refresh if we don't have any matches yet (first load)
+      // This prevents resetting applied status on subsequent visits
+      if (matchedJobs.length === 0) {
+        try {
+          await candidateAPI.refreshCandidateMatches(candidateId);
+        } catch (refreshErr) {
+          // Log but don't fail - continue to fetch existing matches
+          console.warn("Error refreshing candidate matches:", refreshErr);
+        }
       }
       
       // Then fetch the updated matches
@@ -194,6 +225,23 @@ export default function CandidateDetailPage() {
       setScreenings([]);
     } finally {
       setLoadingScreenings(false);
+    }
+  };
+
+  const fetchAppliedJobs = async () => {
+    if (!candidateId) return;
+
+    try {
+      setLoadingAppliedJobs(true);
+      const response = await candidateAPI.getCandidateAppliedJobs(candidateId);
+      const appliedJobsData = response.appliedJobs || [];
+      setAppliedJobs(appliedJobsData);
+    } catch (err) {
+      console.error("Error fetching applied jobs:", err);
+      toast.error(err.message || "Failed to load applied jobs");
+      setAppliedJobs([]);
+    } finally {
+      setLoadingAppliedJobs(false);
     }
   };
 
@@ -422,6 +470,7 @@ export default function CandidateDetailPage() {
                 {[
                   { id: "details", label: "Details" },
                   { id: "top-matches", label: "Top Matches" },
+                  { id: "applied-jobs", label: "Applied Jobs" },
                   { id: "screenings", label: "Screenings" },
                   { id: "interviews", label: "Interviews" },
                 ].map((tab) => (
@@ -434,6 +483,12 @@ export default function CandidateDetailPage() {
                         matchedJobs.length === 0
                       ) {
                         fetchMatchedJobs();
+                      }
+                      if (
+                        tab.id === "applied-jobs" &&
+                        appliedJobs.length === 0
+                      ) {
+                        fetchAppliedJobs();
                       }
                     }}
                     className={`px-5 py-2 text-sm font-medium rounded-full transition-all cursor-pointer ${
@@ -690,6 +745,112 @@ export default function CandidateDetailPage() {
                                       {job.exp_req === 1 ? "year" : "years"} exp
                                     </span>
                                   )}
+                                </div>
+                                {job.role && job.role.length > 0 && (
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {job.role.map((role, idx) => (
+                                      <Badge
+                                        key={idx}
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
+                                        {role}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "applied-jobs" && (
+              <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    Applied Jobs
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingAppliedJobs ? (
+                    <div className="text-center py-8">
+                      <Loading />
+                    </div>
+                  ) : appliedJobs.length === 0 ? (
+                    <p className="text-center py-8 text-slate-500">
+                      No applied jobs found
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {appliedJobs.map((appliedJob) => {
+                        const job = appliedJob.jobId;
+                        if (!job) return null;
+
+                        const matchPercentage = Math.round(
+                          (appliedJob.matchScore || 0) * 100
+                        );
+                        const appliedDate = appliedJob.matchedAt
+                          ? new Date(appliedJob.matchedAt).toLocaleDateString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              }
+                            )
+                          : "N/A";
+
+                        return (
+                          <div
+                            key={appliedJob._id || Math.random()}
+                            onClick={() => job._id && handleJobClick(job._id)}
+                            className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 hover:border-green-300 transition-all cursor-pointer"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="font-semibold text-slate-900">
+                                    {job.title || "Untitled Job"}
+                                  </h3>
+                                  <Badge
+                                    variant="default"
+                                    className="bg-green-500 text-white"
+                                  >
+                                    Applied
+                                  </Badge>
+                                  <div
+                                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getMatchScoreColor(
+                                      appliedJob.matchScore || 0
+                                    )}`}
+                                  >
+                                    {matchPercentage}%
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4 text-sm text-slate-600 mb-2">
+                                  <span className="font-medium">
+                                    {job.company || "N/A"}
+                                  </span>
+                                  {job.ctc && (
+                                    <span className="flex items-center gap-1">
+                                      <span>₹{job.ctc}</span>
+                                    </span>
+                                  )}
+                                  {job.exp_req !== undefined && (
+                                    <span>
+                                      {job.exp_req}{" "}
+                                      {job.exp_req === 1 ? "year" : "years"} exp
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-slate-500 mb-2">
+                                  Applied on: {appliedDate}
                                 </div>
                                 {job.role && job.role.length > 0 && (
                                   <div className="flex flex-wrap gap-2 mt-2">

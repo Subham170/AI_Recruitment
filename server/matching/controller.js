@@ -258,3 +258,66 @@ export const refreshCandidateMatches = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+/**
+ * Get applied jobs for a candidate
+ * GET /api/matching/candidate/:candidateId/applied-jobs
+ */
+export const getCandidateAppliedJobs = async (req, res) => {
+  try {
+    const { candidateId } = req.params;
+
+    // Validate ObjectId format
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(candidateId);
+    if (!isObjectId) {
+      return res.status(400).json({
+        message: "Invalid candidate ID format",
+      });
+    }
+
+    // Find all JobMatches where this candidate has status "applied"
+    const allJobMatches = await JobMatches.find({}).populate(
+      "jobId",
+      "title description company role skills exp_req ctc job_type createdAt"
+    );
+
+    const appliedJobs = [];
+
+    // Iterate through all job matches to find where this candidate has applied
+    for (const jobMatch of allJobMatches) {
+      if (!jobMatch.jobId) continue;
+
+      // Find the match entry for this candidate
+      const candidateMatch = jobMatch.matches.find(
+        (match) =>
+          match.candidateId &&
+          match.candidateId.toString() === candidateId &&
+          match.status === "applied"
+      );
+
+      if (candidateMatch) {
+        appliedJobs.push({
+          _id: candidateMatch._id,
+          jobId: jobMatch.jobId,
+          matchScore: candidateMatch.matchScore,
+          matchedAt: candidateMatch.matchedAt,
+          status: candidateMatch.status,
+        });
+      }
+    }
+
+    // Sort by matchedAt descending (most recent first)
+    appliedJobs.sort(
+      (a, b) => new Date(b.matchedAt) - new Date(a.matchedAt)
+    );
+
+    res.status(200).json({
+      candidateId,
+      appliedJobs,
+      totalApplied: appliedJobs.length,
+    });
+  } catch (error) {
+    console.error("Error getting candidate applied jobs:", error);
+    res.status(500).json({ message: error.message });
+  }
+};

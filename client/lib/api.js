@@ -254,6 +254,12 @@ export const candidateAPI = {
     });
   },
 
+  getCandidateAppliedJobs: async (candidateId) => {
+    return apiRequest(`/matching/candidate/${candidateId}/applied-jobs`, {
+      method: "GET",
+    });
+  },
+
   refreshCandidateMatches: async (candidateId) => {
     return apiRequest(`/matching/candidate/${candidateId}/refresh`, {
       method: "POST",
