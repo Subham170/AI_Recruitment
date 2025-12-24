@@ -287,6 +287,9 @@ export const getJobPostings = async (req, res) => {
 
       return res.status(200).json({
         count: allJobPostings.length,
+        myJobPostingsCount: myJobPostings.length,
+        secondaryJobPostingsCount: secondaryJobPostings.length,
+        remainingJobPostingsCount: remainingJobPostings.length,
         myJobPostings,
         secondaryJobPostings,
         remainingJobPostings,

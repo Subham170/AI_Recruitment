@@ -32,7 +32,12 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { jobPostingAPI, userAPI } from "@/lib/api";
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Briefcase,
+  ChevronLeft,
+  ChevronRight,
   Edit,
   Eye,
   Filter,
@@ -59,6 +64,12 @@ export default function JobsPageContent() {
     secondaryJobPostings: [],
     remainingJobPostings: [],
     allJobPostings: [],
+  });
+  const [jobCounts, setJobCounts] = useState({
+    myJobPostingsCount: 0,
+    secondaryJobPostingsCount: 0,
+    remainingJobPostingsCount: 0,
+    totalCount: 0,
   });
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -96,6 +107,20 @@ export default function JobsPageContent() {
   });
 
   const [showFilters, setShowFilters] = useState(false);
+
+  // Sorting state
+  const [sortConfig, setSortConfig] = useState({
+    key: null, // 'title', 'company', 'job_type', 'ctc', 'createdAt'
+    direction: "asc", // 'asc' or 'desc'
+  });
+
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    myJobs: { page: 1, rowsPerPage: 10 },
+    secondaryJobs: { page: 1, rowsPerPage: 10 },
+    remainingJobs: { page: 1, rowsPerPage: 10 },
+    allJobs: { page: 1, rowsPerPage: 10 },
+  });
 
   // Form state
   const [jobForm, setJobForm] = useState({
@@ -232,12 +257,24 @@ export default function JobsPageContent() {
           remainingJobPostings: response.remainingJobPostings || [],
           allJobPostings: response.allJobPostings || [],
         });
+        setJobCounts({
+          myJobPostingsCount: response.myJobPostingsCount || 0,
+          secondaryJobPostingsCount: response.secondaryJobPostingsCount || 0,
+          remainingJobPostingsCount: response.remainingJobPostingsCount || 0,
+          totalCount: response.count || 0,
+        });
       } else {
         setJobPostings({
           myJobPostings: [],
           secondaryJobPostings: [],
           remainingJobPostings: [],
           allJobPostings: response.jobPostings || [],
+        });
+        setJobCounts({
+          myJobPostingsCount: 0,
+          secondaryJobPostingsCount: 0,
+          remainingJobPostingsCount: 0,
+          totalCount: response.count || 0,
         });
       }
     } catch (err) {
@@ -412,6 +449,19 @@ export default function JobsPageContent() {
   const applyFilters = () => {
     setFilters(tempFilters);
     setShowFilters(false);
+    // Reset pagination when filters change
+    setPagination({
+      myJobs: { page: 1, rowsPerPage: pagination.myJobs.rowsPerPage },
+      secondaryJobs: {
+        page: 1,
+        rowsPerPage: pagination.secondaryJobs.rowsPerPage,
+      },
+      remainingJobs: {
+        page: 1,
+        rowsPerPage: pagination.remainingJobs.rowsPerPage,
+      },
+      allJobs: { page: 1, rowsPerPage: pagination.allJobs.rowsPerPage },
+    });
   };
 
   const clearFilters = () => {
@@ -432,6 +482,19 @@ export default function JobsPageContent() {
     setSearchQuery("");
     setDebouncedSearchQuery("");
     setShowFilters(false);
+    // Reset pagination when filters are cleared
+    setPagination({
+      myJobs: { page: 1, rowsPerPage: pagination.myJobs.rowsPerPage },
+      secondaryJobs: {
+        page: 1,
+        rowsPerPage: pagination.secondaryJobs.rowsPerPage,
+      },
+      remainingJobs: {
+        page: 1,
+        rowsPerPage: pagination.remainingJobs.rowsPerPage,
+      },
+      allJobs: { page: 1, rowsPerPage: pagination.allJobs.rowsPerPage },
+    });
   };
 
   const hasActiveFilters = () => {
@@ -477,11 +540,240 @@ export default function JobsPageContent() {
     return ctc;
   };
 
+  // Sort function
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+    // Reset pagination to page 1 when sorting changes
+    setPagination((prev) => ({
+      myJobs: { ...prev.myJobs, page: 1 },
+      secondaryJobs: { ...prev.secondaryJobs, page: 1 },
+      remainingJobs: { ...prev.remainingJobs, page: 1 },
+      allJobs: { ...prev.allJobs, page: 1 },
+    }));
+  };
+
+  // Sort jobs based on sortConfig
+  const sortJobs = (jobs) => {
+    if (!sortConfig.key) return jobs;
+
+    const sorted = [...jobs].sort((a, b) => {
+      let aValue, bValue;
+
+      switch (sortConfig.key) {
+        case "title":
+          aValue = a.title?.toLowerCase() || "";
+          bValue = b.title?.toLowerCase() || "";
+          break;
+        case "company":
+          aValue =
+            typeof a.company === "string"
+              ? a.company.toLowerCase()
+              : a.company?.name?.toLowerCase() || "";
+          bValue =
+            typeof b.company === "string"
+              ? b.company.toLowerCase()
+              : b.company?.name?.toLowerCase() || "";
+          break;
+        case "job_type":
+          aValue = (a.job_type || "Full time").toLowerCase();
+          bValue = (b.job_type || "Full time").toLowerCase();
+          break;
+        case "ctc":
+          aValue = a.ctc
+            ? parseFloat(a.ctc.toString().match(/[\d.]+/)?.[0] || 0)
+            : 0;
+          bValue = b.ctc
+            ? parseFloat(b.ctc.toString().match(/[\d.]+/)?.[0] || 0)
+            : 0;
+          break;
+        case "createdAt":
+          aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  };
+
+  // Sort icon component
+  const SortIcon = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) {
+      return <ArrowUpDown className="h-4 w-4 text-slate-400" />;
+    }
+    return sortConfig.direction === "asc" ? (
+      <ArrowUp className="h-4 w-4 text-indigo-600" />
+    ) : (
+      <ArrowDown className="h-4 w-4 text-indigo-600" />
+    );
+  };
+
+  // Pagination handlers
+  const handlePageChange = (section, newPage) => {
+    setPagination((prev) => ({
+      ...prev,
+      [section]: { ...prev[section], page: newPage },
+    }));
+  };
+
+  const handleRowsPerPageChange = (section, newRowsPerPage) => {
+    setPagination((prev) => ({
+      ...prev,
+      [section]: { page: 1, rowsPerPage: newRowsPerPage },
+    }));
+  };
+
+  // Pagination component
+  const PaginationControls = ({
+    section,
+    totalItems,
+    currentPage,
+    rowsPerPage,
+    onPageChange,
+    onRowsPerPageChange,
+  }) => {
+    const totalPages = Math.ceil(totalItems / rowsPerPage);
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = Math.min(startIndex + rowsPerPage, totalItems);
+
+    if (totalItems === 0) return null;
+
+    const getPageNumbers = () => {
+      const pages = [];
+      const maxVisible = 5;
+
+      if (totalPages <= maxVisible) {
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        if (currentPage <= 3) {
+          for (let i = 1; i <= 4; i++) pages.push(i);
+          pages.push("...");
+          pages.push(totalPages);
+        } else if (currentPage >= totalPages - 2) {
+          pages.push(1);
+          pages.push("...");
+          for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+        } else {
+          pages.push(1);
+          pages.push("...");
+          for (let i = currentPage - 1; i <= currentPage + 1; i++)
+            pages.push(i);
+          pages.push("...");
+          pages.push(totalPages);
+        }
+      }
+      return pages;
+    };
+
+    return (
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 px-4 py-3 bg-slate-50 border-t border-slate-200">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600">Rows per page:</span>
+            <Select
+              value={rowsPerPage.toString()}
+              onValueChange={(value) => onRowsPerPageChange(parseInt(value))}
+            >
+              <SelectTrigger className="w-20 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <span className="text-sm text-slate-600">
+            Showing {startIndex + 1} to {endIndex} of {totalItems} entries
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="h-8"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+
+          <div className="flex items-center gap-1">
+            {getPageNumbers().map((page, index) =>
+              page === "..." ? (
+                <span key={`ellipsis-${index}`} className="px-2 text-slate-400">
+                  ...
+                </span>
+              ) : (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onPageChange(page)}
+                  className={`h-8 min-w-8 ${
+                    currentPage === page ? "bg-indigo-600 text-white" : ""
+                  }`}
+                >
+                  {page}
+                </Button>
+              )
+            )}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="h-8"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   // Job table component
-  const JobTable = ({ jobs, showEdit = false }) => {
+  const JobTable = ({
+    jobs,
+    showEdit = false,
+    section = "myJobs",
+    totalCount = 0,
+  }) => {
     if (!jobs || jobs.length === 0) {
       return null;
     }
+
+    // Sort jobs before displaying
+    const sortedJobs = sortJobs(jobs);
+
+    // Get pagination config for this section
+    const paginationConfig = pagination[section] || {
+      page: 1,
+      rowsPerPage: 10,
+    };
+    const { page, rowsPerPage } = paginationConfig;
+
+    // Calculate pagination
+    const startIndex = (page - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    const paginatedJobs = sortedJobs.slice(startIndex, endIndex);
 
     return (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-md overflow-hidden">
@@ -489,17 +781,41 @@ export default function JobsPageContent() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-100/80">
-                <th className="text-left p-4 font-semibold text-slate-800">
-                  Job Role
+                <th
+                  className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                  onClick={() => handleSort("title")}
+                >
+                  <div className="flex items-center gap-2">
+                    Job Role
+                    <SortIcon columnKey="title" />
+                  </div>
                 </th>
-                <th className="text-left p-4 font-semibold text-slate-800">
-                  Company Name
+                <th
+                  className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                  onClick={() => handleSort("company")}
+                >
+                  <div className="flex items-center gap-2">
+                    Company Name
+                    <SortIcon columnKey="company" />
+                  </div>
                 </th>
-                <th className="text-left p-4 font-semibold text-slate-800">
-                  Job Type
+                <th
+                  className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                  onClick={() => handleSort("job_type")}
+                >
+                  <div className="flex items-center gap-2">
+                    Job Type
+                    <SortIcon columnKey="job_type" />
+                  </div>
                 </th>
-                <th className="text-left p-4 font-semibold text-slate-800">
-                  Salary Range
+                <th
+                  className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                  onClick={() => handleSort("ctc")}
+                >
+                  <div className="flex items-center gap-2">
+                    Salary Range
+                    <SortIcon columnKey="ctc" />
+                  </div>
                 </th>
                 {isRecruiter && (
                   <th className="text-left p-4 font-semibold text-slate-800">
@@ -512,7 +828,7 @@ export default function JobsPageContent() {
               </tr>
             </thead>
             <tbody>
-              {jobs.map((job) => {
+              {paginatedJobs.map((job) => {
                 const isOwner =
                   isRecruiter &&
                   job.primary_recruiter_id &&
@@ -627,6 +943,16 @@ export default function JobsPageContent() {
             </tbody>
           </table>
         </div>
+        <PaginationControls
+          section={section}
+          totalItems={totalCount || sortedJobs.length}
+          currentPage={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={(newPage) => handlePageChange(section, newPage)}
+          onRowsPerPageChange={(newRowsPerPage) =>
+            handleRowsPerPageChange(section, newRowsPerPage)
+          }
+        />
       </div>
     );
   };
@@ -1046,6 +1372,10 @@ export default function JobsPageContent() {
                         <JobTable
                           jobs={filterJobs(jobPostings.myJobPostings)}
                           showEdit={true}
+                          section="myJobs"
+                          totalCount={
+                            filterJobs(jobPostings.myJobPostings).length
+                          }
                         />
                       ) : (
                         <div className="bg-slate-50/90 backdrop-blur-sm border border-dashed border-slate-300 rounded-xl p-8 text-center">
@@ -1069,6 +1399,10 @@ export default function JobsPageContent() {
                         <JobTable
                           jobs={filterJobs(jobPostings.secondaryJobPostings)}
                           showEdit={false}
+                          section="secondaryJobs"
+                          totalCount={
+                            filterJobs(jobPostings.secondaryJobPostings).length
+                          }
                         />
                       ) : (
                         <div className="bg-slate-50/90 backdrop-blur-sm border border-dashed border-slate-300 rounded-xl p-8 text-center">
@@ -1093,6 +1427,10 @@ export default function JobsPageContent() {
                         <JobTable
                           jobs={filterJobs(jobPostings.remainingJobPostings)}
                           showEdit={false}
+                          section="remainingJobs"
+                          totalCount={
+                            filterJobs(jobPostings.remainingJobPostings).length
+                          }
                         />
                       ) : (
                         <div className="bg-slate-50/90 backdrop-blur-sm border border-dashed border-slate-300 rounded-xl p-8 text-center">
@@ -1112,6 +1450,10 @@ export default function JobsPageContent() {
                       <JobTable
                         jobs={filterJobs(jobPostings.allJobPostings)}
                         showEdit={false}
+                        section="allJobs"
+                        totalCount={
+                          filterJobs(jobPostings.allJobPostings).length
+                        }
                       />
                     ) : (
                       <div className="bg-slate-50/90 backdrop-blur-sm border border-dashed border-slate-300 rounded-xl p-8 text-center">
@@ -1502,8 +1844,10 @@ export default function JobsPageContent() {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       {editingJob ? "Updating..." : "Creating..."}
                     </>
+                  ) : editingJob ? (
+                    "Update Job"
                   ) : (
-                    editingJob ? "Update Job" : "Create Job"
+                    "Create Job"
                   )}
                 </Button>
               </DialogFooter>
