@@ -10,7 +10,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 const LeanLogo = () => (
   <div className="flex items-center justify-center w-full">
@@ -25,7 +25,7 @@ const LeanLogo = () => (
   </div>
 );
 
-export default function VerifyOTPPage() {
+function VerifyOTPForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -239,5 +239,25 @@ export default function VerifyOTPPage() {
         </div>
       </GlassCard>
     </GlassPageShell>
+  );
+}
+
+export default function VerifyOTPPage() {
+  return (
+    <Suspense fallback={
+      <GlassPageShell>
+        <GlassCard className="p-10">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <LeanLogo />
+            <h1 className="mt-4 text-2xl font-bold text-slate-900">Verify OTP</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Loading...
+            </p>
+          </div>
+        </GlassCard>
+      </GlassPageShell>
+    }>
+      <VerifyOTPForm />
+    </Suspense>
   );
 }
