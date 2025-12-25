@@ -1,10 +1,12 @@
 import express from "express";
 import {
   createCandidate,
+  deleteCandidate,
   getCandidateByIdOrEmail,
   getCandidates,
   getCandidatesByRole,
   seedCandidates,
+  updateCandidate,
 } from "./controller.js";
 
 const router = express.Router();
@@ -21,8 +23,13 @@ router.get("/", getCandidates);
 // Get candidates by role (must be before /:identifier to avoid route conflict)
 router.get("/role/:role", getCandidatesByRole);
 
-// Get candidate by ID or email
+// Update a candidate by ID
+router.put("/:id", updateCandidate);
+
+// Delete a candidate by ID
+router.delete("/:id", deleteCandidate);
+
+// Get candidate by ID or email (must be last to avoid route conflicts)
 router.get("/:identifier", getCandidateByIdOrEmail);
 
 export default router;
-

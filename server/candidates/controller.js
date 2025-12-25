@@ -206,3 +206,129 @@ export const getCandidatesByRole = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Update an existing candidate
+export const updateCandidate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      email,
+      phone_no,
+      image,
+      skills,
+      experience,
+      resume_url,
+      role,
+      bio,
+      is_active,
+      social_links,
+    } = req.body;
+
+    // Find the candidate
+    const candidate = await Candidate.findById(id);
+    if (!candidate) {
+      return res.status(404).json({
+        message: "Candidate not found",
+      });
+    }
+
+    // Check if email is being changed and if new email already exists
+    if (email && email !== candidate.email) {
+      const existingCandidate = await Candidate.findOne({ email });
+      if (existingCandidate) {
+        return res.status(400).json({
+          message: "Another candidate already exists with this email",
+        });
+      }
+    }
+
+    // Update candidate fields (only update provided fields)
+    if (name !== undefined) candidate.name = name;
+    if (email !== undefined) candidate.email = email;
+    if (phone_no !== undefined) candidate.phone_no = phone_no;
+    if (image !== undefined) candidate.image = image;
+    if (skills !== undefined) candidate.skills = skills;
+    if (experience !== undefined) candidate.experience = experience;
+    if (resume_url !== undefined) candidate.resume_url = resume_url;
+    if (role !== undefined) candidate.role = role;
+    if (bio !== undefined) candidate.bio = bio;
+    if (is_active !== undefined) candidate.is_active = is_active;
+    if (social_links !== undefined) candidate.social_links = social_links;
+
+    // Save the updated candidate
+    await candidate.save();
+
+    // Regenerate embedding if relevant fields changed
+    const fieldsThatAffectEmbedding = [
+      "name",
+      "email",
+      "skills",
+      "experience",
+      "role",
+      "bio",
+    ];
+    const hasEmbeddingRelevantChanges = fieldsThatAffectEmbedding.some(
+      (field) => req.body[field] !== undefined
+    );
+
+    if (hasEmbeddingRelevantChanges) {
+      try {
+        const embedding = await generateCandidateEmbedding(candidate);
+        candidate.vector = embedding;
+        await candidate.save();
+
+        // Trigger matching process asynchronously
+        updateCandidateMatches(candidate._id.toString()).catch((matchError) => {
+          console.error("Error updating candidate matches:", matchError);
+        });
+      } catch (embeddingError) {
+        console.error(
+          "Error regenerating embedding for candidate:",
+          embeddingError
+        );
+        // Continue without updating embedding - it can be regenerated later
+      }
+    }
+
+    res.status(200).json({
+      message: "Candidate updated successfully",
+      candidate,
+    });
+  } catch (error) {
+    // Handle duplicate key error (email unique constraint)
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: "Another candidate already exists with this email",
+      });
+    }
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete a candidate
+export const deleteCandidate = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find and delete the candidate
+    const candidate = await Candidate.findByIdAndDelete(id);
+
+    if (!candidate) {
+      return res.status(404).json({
+        message: "Candidate not found",
+      });
+    }
+
+    res.status(200).json({
+      message: "Candidate deleted successfully",
+      candidate: {
+        id: candidate._id,
+        name: candidate.name,
+        email: candidate.email,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

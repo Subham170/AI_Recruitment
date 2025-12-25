@@ -248,6 +248,19 @@ export const candidateAPI = {
     });
   },
 
+  updateCandidate: async (candidateId, candidateData) => {
+    return apiRequest(`/candidates/${candidateId}`, {
+      method: "PUT",
+      body: candidateData,
+    });
+  },
+
+  deleteCandidate: async (candidateId) => {
+    return apiRequest(`/candidates/${candidateId}`, {
+      method: "DELETE",
+    });
+  },
+
   getCandidateMatchedJobs: async (candidateId) => {
     return apiRequest(`/matching/candidate/${candidateId}/jobs`, {
       method: "GET",

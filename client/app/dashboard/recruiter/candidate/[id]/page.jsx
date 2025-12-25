@@ -9,9 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import Loading from "@/components/ui/loading";
 import {
   Table,
@@ -21,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { bolnaAPI, candidateAPI, recruiterTasksAPI } from "@/lib/api";
 import { formatFullDateTimeWithAMPM } from "@/lib/timeFormatter";
@@ -28,6 +33,7 @@ import {
   ArrowLeft,
   Calendar,
   CheckCircle2,
+  Edit,
   FileText,
   Github,
   Globe,
@@ -35,6 +41,7 @@ import {
   Mail,
   Phone,
   PhoneCall,
+  Trash2,
   TrendingUp,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -63,6 +70,18 @@ export default function CandidateDetailPage() {
   const [callDetailsDialogOpen, setCallDetailsDialogOpen] = useState(false);
   const [selectedCallDetails, setSelectedCallDetails] = useState(null);
   const [loadingCallDetails, setLoadingCallDetails] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone_no: "",
+    skills: "",
+    experience: "",
+    role: "",
+  });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -147,10 +166,94 @@ export default function CandidateDetailPage() {
     }
   };
 
+  const openEditModal = () => {
+    if (candidate) {
+      setFormData({
+        name: candidate.name || "",
+        email: candidate.email || "",
+        phone_no: candidate.phone_no || "",
+        skills: candidate.skills?.join(", ") || "",
+        experience: candidate.experience?.toString() || "",
+        role: candidate.role?.join(", ") || "",
+      });
+      setError(null);
+      setEditModalOpen(true);
+    }
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const candidateData = {
+        name: formData.name,
+        email: formData.email,
+        phone_no: formData.phone_no || undefined,
+        skills: formData.skills
+          ? formData.skills
+              .split(",")
+              .map((s) => s.trim())
+              .filter((s) => s)
+          : [],
+        experience: formData.experience
+          ? parseFloat(formData.experience)
+          : undefined,
+        role: formData.role
+          ? formData.role
+              .split(",")
+              .map((r) => r.trim())
+              .filter((r) => r)
+          : [],
+      };
+
+      await candidateAPI.updateCandidate(candidateId, candidateData);
+      toast.success("Candidate updated successfully!");
+      setEditModalOpen(false);
+      // Refresh candidate data
+      await fetchCandidate();
+    } catch (err) {
+      console.error("Error updating candidate:", err);
+      setError(err.message || "Failed to update candidate");
+      toast.error(err.message || "Failed to update candidate");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    setError(null);
+
+    try {
+      await candidateAPI.deleteCandidate(candidateId);
+      toast.success("Candidate deleted successfully!");
+      setDeleteDialogOpen(false);
+      // Redirect to candidates list
+      const role = user?.role || "recruiter";
+      router.push(`/dashboard/${role}/candidate`);
+    } catch (err) {
+      console.error("Error deleting candidate:", err);
+      setError(err.message || "Failed to delete candidate");
+      toast.error(err.message || "Failed to delete candidate");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
   const fetchMatchedJobs = async () => {
     try {
       setLoadingJobs(true);
-      
+
       // Only refresh if we don't have any matches yet (first load)
       // This prevents resetting applied status on subsequent visits
       if (matchedJobs.length === 0) {
@@ -161,7 +264,7 @@ export default function CandidateDetailPage() {
           console.warn("Error refreshing candidate matches:", refreshErr);
         }
       }
-      
+
       // Then fetch the updated matches
       const response = await candidateAPI.getCandidateMatchedJobs(candidateId);
       // Filter out any matches with null or undefined jobId
@@ -422,8 +525,31 @@ export default function CandidateDetailPage() {
                     <h1 className="text-2xl font-bold text-slate-900">
                       {candidate.name}
                     </h1>
-                    <p className="text-sm text-slate-600 mt-1">{candidate.email}</p>
+                    <p className="text-sm text-slate-600 mt-1">
+                      {candidate.email}
+                    </p>
                   </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={openEditModal}
+                    className="cursor-pointer rounded-lg border-indigo-200 bg-white hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition-all"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setError(null);
+                      setDeleteDialogOpen(true);
+                    }}
+                    className="cursor-pointer rounded-lg border-red-200 bg-white hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
                 </div>
               </div>
 
@@ -1230,6 +1356,214 @@ export default function CandidateDetailPage() {
               </p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Candidate Modal */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-slate-200 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
+              <div className="p-2 rounded-lg bg-linear-to-br from-cyan-400/20 to-blue-500/20">
+                <Edit className="h-6 w-6 text-cyan-600" />
+              </div>
+              Edit Candidate
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              Update the candidate information below
+            </DialogDescription>
+          </DialogHeader>
+
+          {error && (
+            <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleEditSubmit} className="space-y-6 mt-6">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name" className="text-slate-900 font-medium">
+                Full Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="edit-name"
+                name="name"
+                type="text"
+                value={formData.name}
+                onChange={handleFormChange}
+                placeholder="Enter full name"
+                required
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-email"
+                className="text-slate-900 font-medium"
+              >
+                Email Address <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="edit-email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleFormChange}
+                placeholder="Enter email address"
+                required
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-phone"
+                className="text-slate-900 font-medium"
+              >
+                Phone Number
+              </Label>
+              <Input
+                id="edit-phone"
+                name="phone_no"
+                type="tel"
+                value={formData.phone_no}
+                onChange={handleFormChange}
+                placeholder="Enter phone number"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-experience"
+                className="text-slate-900 font-medium"
+              >
+                Experience (Years)
+              </Label>
+              <Input
+                id="edit-experience"
+                name="experience"
+                type="number"
+                min="0"
+                step="0.5"
+                value={formData.experience}
+                onChange={handleFormChange}
+                placeholder="Enter years of experience"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-role" className="text-slate-900 font-medium">
+                Roles
+              </Label>
+              <Textarea
+                id="edit-role"
+                name="role"
+                value={formData.role}
+                onChange={handleFormChange}
+                placeholder="Enter roles separated by commas (e.g., Frontend, Backend, Full-stack)"
+                rows={3}
+                className="w-full px-3 py-2 bg-white border border-slate-200 text-slate-900 rounded-md focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200/70"
+              />
+              <p className="text-xs text-slate-500">
+                Separate multiple roles with commas
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-skills"
+                className="text-slate-900 font-medium"
+              >
+                Skills
+              </Label>
+              <Input
+                id="edit-skills"
+                name="skills"
+                type="text"
+                value={formData.skills}
+                onChange={handleFormChange}
+                placeholder="Enter skills separated by commas (e.g., React, Node.js, Python)"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+              <p className="text-xs text-slate-500">
+                Separate multiple skills with commas
+              </p>
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-slate-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditModalOpen(false);
+                  setError(null);
+                }}
+                className="border-slate-200 hover:bg-slate-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                {isSubmitting ? "Updating..." : "Update Candidate"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md bg-white border-slate-200 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-xl text-slate-900">
+              <div className="p-2 rounded-lg bg-red-100">
+                <Trash2 className="h-5 w-5 text-red-600" />
+              </div>
+              Delete Candidate
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold text-slate-900">
+                {candidate?.name}
+              </span>
+              ? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          {error && (
+            <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          <DialogFooter className="pt-4 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setError(null);
+              }}
+              className="border-slate-200 hover:bg-slate-50"
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? "Deleting..." : "Delete Candidate"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
