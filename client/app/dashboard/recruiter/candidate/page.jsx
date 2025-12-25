@@ -451,11 +451,13 @@ export default function CandidatesPage() {
 
       // Experience filter
       if (filters.experience_min) {
-        const exp = candidate.experience !== undefined ? candidate.experience : 0;
+        const exp =
+          candidate.experience !== undefined ? candidate.experience : 0;
         if (exp < parseFloat(filters.experience_min)) return false;
       }
       if (filters.experience_max) {
-        const exp = candidate.experience !== undefined ? candidate.experience : 0;
+        const exp =
+          candidate.experience !== undefined ? candidate.experience : 0;
         if (exp > parseFloat(filters.experience_max)) return false;
       }
 
@@ -602,35 +604,25 @@ export default function CandidatesPage() {
           <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-slate-900 mb-1.5">
-                All Candidates
-              </h1>
-              <p className="text-sm text-slate-600">
-                View and manage all candidates in your database
-              </p>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1 group">
-                <Search className="pointer-events-none absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-cyan-500 transition-colors z-10" />
-                <Input
-                  type="text"
-                  placeholder="Search by name, email, or skills..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-12 rounded-lg border border-white/70 bg-white! text-slate-900 placeholder:text-slate-500 pl-10 pr-4 shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition-all focus:outline-none focus:ring-2 focus:ring-indigo-200/80 focus:border-indigo-400"
-                />
+              <div className="mb-4">
+                <h1 className="text-2xl font-bold text-slate-900 mb-1.5">
+                  All Candidates
+                </h1>
+                <p className="text-sm text-slate-600">
+                  View and manage all candidates in your database
+                </p>
               </div>
 
-              <Button
-                onClick={openAddForm}
-                className="cursor-pointer gap-2 rounded-lg bg-linear-to-r from-indigo-600 to-sky-500 hover:from-indigo-700 hover:to-sky-600 text-white shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300"
-              >
-                <Plus className="h-4 w-4" />
-                Add Candidate
-              </Button>
+              {/* Action Buttons - Below Title, Right Aligned */}
+              <div className="flex items-center justify-end gap-4">
+                <Button
+                  onClick={openAddForm}
+                  className="cursor-pointer gap-2 rounded-lg bg-linear-to-r from-indigo-600 to-sky-500 hover:from-indigo-700 hover:to-sky-600 text-white shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Candidate
+                </Button>
 
-              <div>
                 <Button
                   type="button"
                   variant="outline"
@@ -646,55 +638,6 @@ export default function CandidatesPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 mb-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-                className={`cursor-pointer rounded-md px-4 py-2.5 backdrop-blur-xl shadow-sm transition-all
-                  hover:bg-indigo-600 hover:text-white hover:border-indigo-500 hover:shadow-indigo-500/40
-                  ${
-                    hasActiveFilters()
-                      ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-500/40"
-                      : "bg-white/80 text-slate-700 border-white/70"
-                  }`}
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                <span>Filters</span>
-                {hasActiveFilters() && (
-                  <span className="ml-2 px-2 py-0.5 rounded-full bg-indigo-500 text-white text-xs font-medium">
-                    {
-                      [
-                        filters.name,
-                        filters.email,
-                        filters.experience_min || filters.experience_max,
-                        filters.date_from || filters.date_to,
-                        searchQuery,
-                      ].filter((v) => v && v !== "").length
-                    }
-                  </span>
-                )}
-              </Button>
-              {hasActiveFilters() && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto p-1 text-xs text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300"
-                  onClick={clearFilters}
-                >
-                  Clear filters
-                </Button>
-              )}
-            </div>
-
-            {!loadingCandidates && !initialLoading && (
-              <div className="mb-4 text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                <span>
-                  Showing {startIndex + 1} to {Math.min(endIndex, sortedCandidates.length)} of{" "}
-                  {sortedCandidates.length} candidates
-                </span>
-              </div>
-            )}
-
             <div className="bg-white/75 border border-white/60 rounded-2xl shadow-[0_18px_60px_rgba(15,23,42,0.25)] backdrop-blur-xl overflow-hidden relative min-h-[400px]">
               {initialLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -702,254 +645,375 @@ export default function CandidatesPage() {
                 </div>
               ) : (
                 <>
-                  {loadingCandidates && (
-                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
-                      <Loading size="md" />
-                    </div>
-                  )}
-                  {sortedCandidates.length === 0 ? (
-                    <div className="p-12 flex flex-col items-center justify-center">
-                      <div className="p-4 rounded-full bg-linear-to-br from-cyan-400/20 to-blue-500/20 mb-4">
-                        <Users className="h-12 w-12 text-cyan-600 dark:text-cyan-400" />
-                      </div>
-                      <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">
-                        No candidates found
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="overflow-x-auto">
-                        <table className="w-full table-fixed">
-                          <thead>
-                            <tr className="border-b border-white/70 bg-white/60 backdrop-blur">
-                              <th
-                                className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-1/4"
-                                onClick={() => handleSort("name")}
+                  <div className="overflow-x-auto">
+                    <table className="w-full table-fixed">
+                      <thead>
+                        {/* Search and Filter Row - Top Left */}
+                        <tr className="border-b border-white/70 bg-white/60 backdrop-blur">
+                          <th colSpan={5} className="p-4">
+                            <div className="flex items-center justify-start gap-3">
+                              <div className="relative flex-1 max-w-md group">
+                                <div className="absolute inset-0 bg-linear-to-r from-indigo-500/10 to-purple-500/10 rounded-lg blur-sm opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
+                                <Search className="pointer-events-none absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors duration-200 z-10" />
+                                <Input
+                                  type="text"
+                                  placeholder="Search candidates by name, email, or skills..."
+                                  value={searchQuery}
+                                  onChange={(e) =>
+                                    setSearchQuery(e.target.value)
+                                  }
+                                  className="relative w-full h-10 text-sm rounded-lg border-2 border-slate-200 bg-white/95 backdrop-blur-sm text-slate-900 placeholder:text-slate-400 placeholder:font-normal pl-10 pr-4 shadow-sm transition-all duration-200 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-indigo-300 focus:bg-white focus:shadow-md hover:border-slate-300"
+                                />
+                                {searchQuery && (
+                                  <button
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded-md hover:bg-slate-100 transition-colors"
+                                  >
+                                    <X className="h-3 w-3 text-slate-400 hover:text-slate-600" />
+                                  </button>
+                                )}
+                              </div>
+                              <Button
+                                variant="outline"
+                                onClick={() => setShowFilters(!showFilters)}
+                                size="sm"
+                                className={`cursor-pointer rounded-lg px-4 py-2 h-10 backdrop-blur-xl shadow-sm transition-all duration-200 text-sm font-medium border-2
+                                  ${
+                                    hasActiveFilters()
+                                      ? "bg-linear-to-r from-indigo-600 to-purple-600 text-white border-indigo-500 shadow-lg shadow-indigo-500/50 hover:from-indigo-700 hover:to-purple-700 hover:shadow-indigo-500/60 scale-105"
+                                      : "bg-white/95 text-slate-700 border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-400 hover:shadow-md"
+                                  }`}
                               >
-                                <div className="flex items-center gap-2">
-                                  Name
-                                  <SortIcon columnKey="name" />
+                                <Filter
+                                  className={`h-4 w-4 mr-2 transition-colors ${
+                                    hasActiveFilters()
+                                      ? "text-white"
+                                      : "text-slate-600"
+                                  }`}
+                                />
+                                <span>Filters</span>
+                                {hasActiveFilters() && (
+                                  <span className="ml-2 px-2.5 py-0.5 rounded-full bg-white/25 backdrop-blur-sm text-white text-xs font-bold border border-white/40 shadow-sm">
+                                    {
+                                      [
+                                        filters.name,
+                                        filters.email,
+                                        filters.experience_min ||
+                                          filters.experience_max,
+                                        filters.date_from || filters.date_to,
+                                        searchQuery,
+                                      ].filter((v) => v && v !== "").length
+                                    }
+                                  </span>
+                                )}
+                              </Button>
+                            </div>
+                          </th>
+                        </tr>
+                        {/* Column Headers */}
+                        <tr className="border-b border-white/70 bg-white/60 backdrop-blur">
+                          <th
+                            className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[20%]"
+                            onClick={() => handleSort("name")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Name
+                              <SortIcon columnKey="name" />
+                            </div>
+                          </th>
+                          <th className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[20%]">
+                            <div className="flex items-center gap-2">Role</div>
+                          </th>
+                          <th
+                            className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[20%]"
+                            onClick={() => handleSort("email")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Email
+                              <SortIcon columnKey="email" />
+                            </div>
+                          </th>
+                          <th
+                            className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[15%]"
+                            onClick={() => handleSort("experience")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Experience
+                              <SortIcon columnKey="experience" />
+                            </div>
+                          </th>
+                          <th
+                            className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[25%]"
+                            onClick={() => handleSort("createdAt")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Created At
+                              <SortIcon columnKey="createdAt" />
+                            </div>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="relative">
+                        {loadingCandidates && (
+                          <tr>
+                            <td colSpan={5} className="p-8">
+                              <div className="flex items-center justify-center">
+                                <Loading size="md" />
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        {!loadingCandidates && sortedCandidates.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="p-12">
+                              <div className="flex flex-col items-center justify-center">
+                                <div className="p-4 rounded-full bg-linear-to-br from-cyan-400/20 to-blue-500/20 mb-4">
+                                  <Users className="h-12 w-12 text-cyan-600 dark:text-cyan-400" />
                                 </div>
-                              </th>
-                              <th
-                                className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-1/4"
-                                onClick={() => handleSort("email")}
-                              >
-                                <div className="flex items-center gap-2">
-                                  Email
-                                  <SortIcon columnKey="email" />
-                                </div>
-                              </th>
-                              <th
-                                className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-1/4"
-                                onClick={() => handleSort("experience")}
-                              >
-                                <div className="flex items-center gap-2">
-                                  Experience
-                                  <SortIcon columnKey="experience" />
-                                </div>
-                              </th>
-                              <th
-                                className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-1/4"
-                                onClick={() => handleSort("createdAt")}
-                              >
-                                <div className="flex items-center gap-2">
-                                  Created At
-                                  <SortIcon columnKey="createdAt" />
-                                </div>
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {paginatedCandidates.map((candidate) => (
-                              <tr
-                                key={candidate._id || candidate.id}
-                                onClick={() => handleRowClick(candidate)}
-                                className="border-b border-white/60 bg-white/70 backdrop-blur hover:bg-white/90 transition-colors duration-150 cursor-pointer"
-                              >
-                                <td className="p-4 w-1/4">
-                                  <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 shrink-0">
-                                      <span className="text-sm font-bold text-slate-700">
-                                        {candidate.name?.charAt(0).toUpperCase()}
-                                      </span>
-                                    </div>
-                                    <span className="font-medium text-slate-800 truncate">
-                                      {candidate.name}
+                                <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">
+                                  No candidates found
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          !loadingCandidates &&
+                          paginatedCandidates.map((candidate) => (
+                            <tr
+                              key={candidate._id || candidate.id}
+                              onClick={() => handleRowClick(candidate)}
+                              className="border-b border-white/60 bg-white/70 backdrop-blur hover:bg-white/90 transition-colors duration-150 cursor-pointer"
+                            >
+                              <td className="p-4 w-[20%]">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 shrink-0">
+                                    <span className="text-sm font-bold text-slate-700">
+                                      {candidate.name?.charAt(0).toUpperCase()}
                                     </span>
                                   </div>
-                                </td>
-                                <td className="p-4 w-1/4">
-                                  <span className="text-slate-600 truncate block">
-                                    {candidate.email || "-"}
+                                  <span className="font-medium text-slate-800 truncate">
+                                    {candidate.name}
                                   </span>
-                                </td>
-                                <td className="p-4 w-1/4">
-                                  <span className="text-slate-600">
-                                    {candidate.experience !== undefined
-                                      ? `${candidate.experience} years`
-                                      : "-"}
-                                  </span>
-                                </td>
-                                <td className="p-4 w-1/4">
-                                  <span className="text-slate-600">
-                                    {candidate.createdAt
-                                      ? new Date(candidate.createdAt).toLocaleDateString("en-US", {
-                                          year: "numeric",
-                                          month: "short",
-                                          day: "numeric",
-                                        })
-                                      : "-"}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      {/* Pagination Controls */}
-                      {sortedCandidates.length > 0 && (
-                        <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 bg-white/60 border-t border-white/70 backdrop-blur">
-                          <div className="flex items-center gap-4 flex-wrap">
-                            <div className="flex items-center gap-2.5 whitespace-nowrap">
-                              <span className="text-sm font-medium text-slate-700">
-                                Rows per page:
-                              </span>
-                              <Select
-                                value={pagination.rowsPerPage.toString()}
-                                onValueChange={(value) =>
-                                  handleRowsPerPageChange(parseInt(value))
-                                }
-                              >
-                                <SelectTrigger className="w-20 h-8 text-sm bg-white/80">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="10">10</SelectItem>
-                                  <SelectItem value="20">20</SelectItem>
-                                  <SelectItem value="50">50</SelectItem>
-                                  <SelectItem value="100">100</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="h-4 w-px bg-slate-300"></div>
-                            <span className="text-sm text-slate-600 font-medium whitespace-nowrap">
-                              Showing{" "}
-                              <span className="text-slate-900 font-semibold">
-                                {startIndex + 1}
-                              </span>{" "}
-                              to{" "}
-                              <span className="text-slate-900 font-semibold">
-                                {Math.min(endIndex, sortedCandidates.length)}
-                              </span>{" "}
-                              of{" "}
-                              <span className="text-slate-900 font-semibold">
-                                {sortedCandidates.length}
-                              </span>{" "}
-                              entries
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handlePageChange(pagination.page - 1)}
-                              disabled={pagination.page === 1}
-                              className="h-8 bg-white/80"
-                            >
-                              <ChevronLeft className="h-4 w-4" />
-                            </Button>
-
-                            <div className="flex items-center gap-1">
-                              {(() => {
-                                const totalPages = Math.ceil(
-                                  sortedCandidates.length / pagination.rowsPerPage
-                                );
-                                const pages = [];
-                                const maxVisible = 5;
-
-                                if (totalPages <= maxVisible) {
-                                  for (let i = 1; i <= totalPages; i++) {
-                                    pages.push(i);
-                                  }
-                                } else {
-                                  if (pagination.page <= 3) {
-                                    for (let i = 1; i <= 4; i++) pages.push(i);
-                                    pages.push("...");
-                                    pages.push(totalPages);
-                                  } else if (pagination.page >= totalPages - 2) {
-                                    pages.push(1);
-                                    pages.push("...");
-                                    for (
-                                      let i = totalPages - 3;
-                                      i <= totalPages;
-                                      i++
-                                    )
-                                      pages.push(i);
-                                  } else {
-                                    pages.push(1);
-                                    pages.push("...");
-                                    for (
-                                      let i = pagination.page - 1;
-                                      i <= pagination.page + 1;
-                                      i++
-                                    )
-                                      pages.push(i);
-                                    pages.push("...");
-                                    pages.push(totalPages);
-                                  }
-                                }
-
-                                return pages.map((page, index) =>
-                                  page === "..." ? (
-                                    <span
-                                      key={`ellipsis-${index}`}
-                                      className="px-2 text-slate-400"
-                                    >
-                                      ...
-                                    </span>
+                                </div>
+                              </td>
+                              <td className="p-4 w-[20%]">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {candidate.role &&
+                                  candidate.role.length > 0 ? (
+                                    <div className="relative inline-block group">
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200 cursor-default"
+                                      >
+                                        {candidate.role[0]}
+                                        {candidate.role.length > 1 && (
+                                          <span className="ml-1 font-medium">
+                                            +{candidate.role.length - 1}
+                                          </span>
+                                        )}
+                                      </Badge>
+                                      {candidate.role.length > 1 && (
+                                        <div className="absolute left-0 bottom-full mb-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
+                                          <div className="bg-slate-900 text-white text-xs rounded-lg py-2 px-3 shadow-xl min-w-[150px] max-w-[250px]">
+                                            <div className="font-semibold mb-1.5 pb-1.5 border-b border-slate-700 text-white">
+                                              All Roles:
+                                            </div>
+                                            <div className="flex flex-col gap-1.5 pt-1">
+                                              {candidate.role.map(
+                                                (role, index) => (
+                                                  <span
+                                                    key={index}
+                                                    className="text-slate-200"
+                                                  >
+                                                    • {role}
+                                                  </span>
+                                                )
+                                              )}
+                                            </div>
+                                            <div className="absolute -bottom-1 left-4 w-2 h-2 bg-slate-900 rotate-45"></div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
                                   ) : (
-                                    <Button
-                                      key={page}
-                                      variant={
-                                        pagination.page === page
-                                          ? "default"
-                                          : "outline"
-                                      }
-                                      size="sm"
-                                      onClick={() => handlePageChange(page)}
-                                      className={`h-8 min-w-8 bg-white/80 ${
-                                        pagination.page === page
-                                          ? "bg-indigo-600 text-white"
-                                          : ""
-                                      }`}
-                                    >
-                                      {page}
-                                    </Button>
-                                  )
-                                );
-                              })()}
-                            </div>
-
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handlePageChange(pagination.page + 1)}
-                              disabled={
-                                pagination.page >=
-                                Math.ceil(
-                                  sortedCandidates.length / pagination.rowsPerPage
-                                )
-                              }
-                              className="h-8 bg-white/80"
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </div>
+                                    <span className="text-slate-400 text-sm">
+                                      -
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-4 w-[20%]">
+                                <span className="text-slate-600 truncate block">
+                                  {candidate.email || "-"}
+                                </span>
+                              </td>
+                              <td className="p-4 w-[15%]">
+                                <span className="text-slate-600">
+                                  {candidate.experience !== undefined
+                                    ? `${candidate.experience} years`
+                                    : "-"}
+                                </span>
+                              </td>
+                              <td className="p-4 w-[25%]">
+                                <span className="text-slate-600">
+                                  {candidate.createdAt
+                                    ? new Date(
+                                        candidate.createdAt
+                                      ).toLocaleDateString("en-US", {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                      })
+                                    : "-"}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Pagination Controls */}
+                  {!loadingCandidates && sortedCandidates.length > 0 && (
+                    <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 bg-white/60 border-t border-white/70 backdrop-blur">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-2.5 whitespace-nowrap">
+                          <span className="text-sm font-medium text-slate-700">
+                            Rows per page:
+                          </span>
+                          <Select
+                            value={pagination.rowsPerPage.toString()}
+                            onValueChange={(value) =>
+                              handleRowsPerPageChange(parseInt(value))
+                            }
+                          >
+                            <SelectTrigger className="w-20 h-8 text-sm bg-white/80">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="20">20</SelectItem>
+                              <SelectItem value="30">30</SelectItem>
+                              <SelectItem value="50">50</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                      )}
-                    </>
+                        <div className="h-4 w-px bg-slate-300"></div>
+                        <span className="text-sm text-slate-600 font-medium whitespace-nowrap">
+                          Showing{" "}
+                          <span className="text-slate-900 font-semibold">
+                            {startIndex + 1}
+                          </span>{" "}
+                          to{" "}
+                          <span className="text-slate-900 font-semibold">
+                            {Math.min(endIndex, sortedCandidates.length)}
+                          </span>{" "}
+                          of{" "}
+                          <span className="text-slate-900 font-semibold">
+                            {sortedCandidates.length}
+                          </span>{" "}
+                          candidates
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pagination.page - 1)}
+                          disabled={pagination.page === 1}
+                          className="h-8 bg-white/80"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+
+                        <div className="flex items-center gap-1">
+                          {(() => {
+                            const totalPages = Math.ceil(
+                              sortedCandidates.length / pagination.rowsPerPage
+                            );
+                            const pages = [];
+                            const maxVisible = 5;
+
+                            if (totalPages <= maxVisible) {
+                              for (let i = 1; i <= totalPages; i++) {
+                                pages.push(i);
+                              }
+                            } else {
+                              if (pagination.page <= 3) {
+                                for (let i = 1; i <= 4; i++) pages.push(i);
+                                pages.push("...");
+                                pages.push(totalPages);
+                              } else if (pagination.page >= totalPages - 2) {
+                                pages.push(1);
+                                pages.push("...");
+                                for (
+                                  let i = totalPages - 3;
+                                  i <= totalPages;
+                                  i++
+                                )
+                                  pages.push(i);
+                              } else {
+                                pages.push(1);
+                                pages.push("...");
+                                for (
+                                  let i = pagination.page - 1;
+                                  i <= pagination.page + 1;
+                                  i++
+                                )
+                                  pages.push(i);
+                                pages.push("...");
+                                pages.push(totalPages);
+                              }
+                            }
+
+                            return pages.map((page, index) =>
+                              page === "..." ? (
+                                <span
+                                  key={`ellipsis-${index}`}
+                                  className="px-2 text-slate-400"
+                                >
+                                  ...
+                                </span>
+                              ) : (
+                                <Button
+                                  key={page}
+                                  variant={
+                                    pagination.page === page
+                                      ? "default"
+                                      : "outline"
+                                  }
+                                  size="sm"
+                                  onClick={() => handlePageChange(page)}
+                                  className={`h-8 min-w-8 bg-white/80 ${
+                                    pagination.page === page
+                                      ? "bg-indigo-600 text-white"
+                                      : ""
+                                  }`}
+                                >
+                                  {page}
+                                </Button>
+                              )
+                            );
+                          })()}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pagination.page + 1)}
+                          disabled={
+                            pagination.page >=
+                            Math.ceil(
+                              sortedCandidates.length / pagination.rowsPerPage
+                            )
+                          }
+                          className="h-8 bg-white/80"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </>
               )}
