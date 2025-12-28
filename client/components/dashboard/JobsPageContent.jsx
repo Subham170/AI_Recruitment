@@ -48,15 +48,19 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 
 export default function JobsPageContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  // Separate search queries for each table
+  const [tableSearchQueries, setTableSearchQueries] = useState({
+    myJobs: "",
+    secondaryJobs: "",
+    remainingJobs: "",
+  });
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [jobPostings, setJobPostings] = useState({
@@ -161,21 +165,13 @@ export default function JobsPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]); // Removed router from dependencies to prevent re-renders
 
-  // Debounce search query
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 500); // 500ms debounce
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
-
-  // Fetch jobs when filters or debounced search change
+  // Fetch jobs when filters change (search is now client-side)
   useEffect(() => {
     if (user && !loading) {
       fetchJobPostings();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearchQuery, filters, user, loading]);
+  }, [filters, user, loading]);
 
   // Initialize tempFilters when sidebar opens
   useEffect(() => {
@@ -235,7 +231,6 @@ export default function JobsPageContent() {
       const roleFilterArray = parseRoleFilter(filters.role);
 
       const filterParams = {
-        ...(debouncedSearchQuery && { search: debouncedSearchQuery }),
         ...(filters.job_type && { job_type: filters.job_type }),
         ...(roleFilterArray.length > 0 && { role: roleFilterArray }),
         ...(filters.min_exp && { min_exp: filters.min_exp }),
@@ -283,7 +278,7 @@ export default function JobsPageContent() {
     } finally {
       setLoadingJobs(false);
     }
-  }, [debouncedSearchQuery, filters, user]);
+  }, [filters, user]);
 
   const handleCreateJob = async () => {
     try {
@@ -479,8 +474,11 @@ export default function JobsPageContent() {
     };
     setTempFilters(emptyFilters);
     setFilters(emptyFilters);
-    setSearchQuery("");
-    setDebouncedSearchQuery("");
+    setTableSearchQueries({
+      myJobs: "",
+      secondaryJobs: "",
+      remainingJobs: "",
+    });
     setShowFilters(false);
     // Reset pagination when filters are cleared
     setPagination({
@@ -508,8 +506,7 @@ export default function JobsPageContent() {
       filters.company ||
       filters.skills.length > 0 ||
       filters.date_from ||
-      filters.date_to ||
-      searchQuery
+      filters.date_to
     );
   };
 
@@ -681,7 +678,7 @@ export default function JobsPageContent() {
       <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 bg-slate-50/80 border-t border-slate-200">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2.5 whitespace-nowrap">
-            <span className="text-sm font-medium text-slate-700">
+            <span className="text-[10px] font-medium text-slate-700">
               Rows per page:
             </span>
             <Select
@@ -700,7 +697,7 @@ export default function JobsPageContent() {
             </Select>
           </div>
           <div className="h-4 w-px bg-slate-300"></div>
-          <span className="text-sm text-slate-600 font-medium whitespace-nowrap">
+          <span className="text-[10px] text-slate-600 font-medium whitespace-nowrap">
             Showing{" "}
             <span className="text-slate-900 font-semibold">
               {startIndex + 1}
@@ -765,13 +762,80 @@ export default function JobsPageContent() {
     showEdit = false,
     section = "myJobs",
     totalCount = 0,
+    searchQuery = "",
+    onSearchChange,
   }) => {
+    // Use local state to maintain focus
+    const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+    const inputRef = useRef(null);
+    const isTypingRef = useRef(false);
+    const prevSearchQueryRef = useRef(searchQuery);
+    const timeoutRef = useRef(null);
+    
+    // Sync local state with prop when prop changes externally (e.g., when filters are cleared)
+    // Only sync if we're not currently typing and the prop actually changed
+    useEffect(() => {
+      // Clear any pending timeouts
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Only sync if we're not currently typing
+      if (!isTypingRef.current) {
+        if (prevSearchQueryRef.current !== searchQuery) {
+          setLocalSearchQuery(searchQuery);
+          prevSearchQueryRef.current = searchQuery;
+        }
+      } else {
+        // If we're typing, queue the sync for after typing stops
+        timeoutRef.current = setTimeout(() => {
+          if (prevSearchQueryRef.current !== searchQuery) {
+            setLocalSearchQuery(searchQuery);
+            prevSearchQueryRef.current = searchQuery;
+          }
+        }, 500);
+      }
+      
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+      };
+    }, [searchQuery]);
+
     if (!jobs || jobs.length === 0) {
       return null;
     }
 
+    // Filter jobs based on search query
+    const filterJobsBySearch = (jobsList, query) => {
+      if (!query.trim()) return jobsList;
+      
+      const searchLower = query.toLowerCase();
+      return jobsList.filter((job) => {
+        const title = (job.title || "").toLowerCase();
+        const company = typeof job.company === "string" 
+          ? job.company.toLowerCase() 
+          : (job.company?.name || "").toLowerCase();
+        const jobType = (job.job_type || "").toLowerCase();
+        const role = Array.isArray(job.role) 
+          ? job.role.join(" ").toLowerCase() 
+          : (job.role || "").toLowerCase();
+        
+        return (
+          title.includes(searchLower) ||
+          company.includes(searchLower) ||
+          jobType.includes(searchLower) ||
+          role.includes(searchLower)
+        );
+      });
+    };
+
+    // Filter jobs by search query (use local state for filtering)
+    const filteredJobs = filterJobsBySearch(jobs, localSearchQuery);
+
     // Sort jobs before displaying
-    const sortedJobs = sortJobs(jobs);
+    const sortedJobs = sortJobs(filteredJobs);
 
     // Get pagination config for this section
     const paginationConfig = pagination[section] || {
@@ -785,54 +849,103 @@ export default function JobsPageContent() {
     const endIndex = startIndex + rowsPerPage;
     const paginatedJobs = sortedJobs.slice(startIndex, endIndex);
 
+    // Handle search input change
+    const handleSearchChange = (value) => {
+      isTypingRef.current = true;
+      setLocalSearchQuery(value);
+      prevSearchQueryRef.current = value;
+      
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Debounce the parent update to prevent focus loss
+      timeoutRef.current = setTimeout(() => {
+        onSearchChange?.(value);
+        // Reset typing flag after parent update
+        setTimeout(() => {
+          isTypingRef.current = false;
+        }, 50);
+      }, 150);
+    };
+
+    // Handle focus events
+    const handleFocus = () => {
+      isTypingRef.current = true;
+    };
+
+    const handleBlur = () => {
+      // Small delay to allow any pending updates to complete
+      setTimeout(() => {
+        isTypingRef.current = false;
+      }, 300);
+    };
+
     return (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-md overflow-hidden">
+        {/* Search box at top-right */}
+        <div className="flex justify-end p-4 border-b border-slate-200 bg-slate-50/50">
+          <div className="relative w-[22.5%] group">
+            <Search className="pointer-events-none absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors z-10" />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Search..."
+              value={localSearchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200/80 focus:border-indigo-400 transition-all"
+            />
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-100/80">
                 <th
-                  className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                  className="text-left p-2 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
                   onClick={() => handleSort("title")}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     Job Role
                     <SortIcon columnKey="title" />
                   </div>
                 </th>
                 <th
-                  className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                  className="text-left p-2 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
                   onClick={() => handleSort("company")}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     Company Name
                     <SortIcon columnKey="company" />
                   </div>
                 </th>
                 <th
-                  className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                  className="text-left p-2 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
                   onClick={() => handleSort("job_type")}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     Job Type
                     <SortIcon columnKey="job_type" />
                   </div>
                 </th>
                 <th
-                  className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                  className="text-left p-2 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
                   onClick={() => handleSort("ctc")}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     Salary Range
                     <SortIcon columnKey="ctc" />
                   </div>
                 </th>
                 {isRecruiter && (
-                  <th className="text-left p-4 font-semibold text-slate-800">
+                  <th className="text-left p-2 text-xs font-semibold text-slate-800">
                     Your Role
                   </th>
                 )}
-                <th className="text-right p-4 font-semibold text-slate-800">
+                <th className="text-right p-2 text-xs font-semibold text-slate-800">
                   Actions
                 </th>
               </tr>
@@ -854,37 +967,37 @@ export default function JobsPageContent() {
                       !isLastRow ? "border-b border-slate-200" : ""
                     }`}
                   >
-                    <td className="p-4">
+                    <td className="p-2">
                       <div>
-                        <div className="font-semibold text-slate-900">
+                        <div className="font-semibold text-xs text-slate-900">
                           {job.title}
                         </div>
                         {job.createdAt && (
-                          <div className="text-xs text-slate-500 mt-1">
+                          <div className="text-[10px] text-slate-500 mt-0.5">
                             {new Date(job.createdAt).toLocaleDateString()}
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="p-4">
-                      <span className="text-slate-700">
+                    <td className="p-2">
+                      <span className="text-xs text-slate-700">
                         {typeof job.company === "string"
                           ? job.company
                           : job.company?.name || "N/A"}
                       </span>
                     </td>
-                    <td className="p-4">
-                      <span className="px-2 py-1 text-xs rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                    <td className="p-2">
+                      <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                         {job.job_type || "Full time"}
                       </span>
                     </td>
-                    <td className="p-4">
-                      <span className="text-slate-700">
+                    <td className="p-2">
+                      <span className="text-xs text-slate-700">
                         {formatCtcDisplay(job.ctc)}
                       </span>
                     </td>
                     {isRecruiter && (
-                      <td className="p-4">
+                      <td className="p-2">
                         {(() => {
                           const userId = user.id?.toString();
                           const primaryRecruiterId =
@@ -899,28 +1012,28 @@ export default function JobsPageContent() {
 
                           if (userId === primaryRecruiterId) {
                             return (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full bg-linear-to-r from-cyan-500 to-blue-600 text-white border border-cyan-600">
-                                <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full bg-linear-to-r from-cyan-500 to-blue-600 text-white border border-cyan-600">
+                                <span className="w-1 h-1 bg-white rounded-full"></span>
                                 Primary
                               </span>
                             );
                           } else if (secondaryRecruiterIds.includes(userId)) {
                             return (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-300">
-                                <span className="w-1.5 h-1.5 bg-slate-500 rounded-full"></span>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+                                <span className="w-1 h-1 bg-slate-500 rounded-full"></span>
                                 Secondary
                               </span>
                             );
                           }
                           return (
-                            <span className="text-xs text-slate-400 italic">
+                            <span className="text-[10px] text-slate-400 italic">
                               Not assigned
                             </span>
                           );
                         })()}
                       </td>
                     )}
-                    <td className="p-4">
+                    <td className="p-2">
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="outline"
@@ -958,7 +1071,7 @@ export default function JobsPageContent() {
         </div>
         <PaginationControls
           section={section}
-          totalItems={totalCount || sortedJobs.length}
+          totalItems={sortedJobs.length}
           currentPage={page}
           rowsPerPage={rowsPerPage}
           onPageChange={(newPage) => handlePageChange(section, newPage)}
@@ -1001,14 +1114,58 @@ export default function JobsPageContent() {
             </div>
           ) : (
             <>
-              {/* Header */}
+              {/* Header with aligned buttons */}
               <div className="mb-6">
-                <h1 className="text-2xl font-bold text-slate-900 mb-1.5">
-                  Manage Jobs
-                </h1>
-                <p className="text-sm text-slate-600">
-                  Create, edit, and manage your job postings
-                </p>
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+                  <div>
+                    <h1 className="text-lg font-bold text-slate-900 mb-1.5">
+                      Manage Jobs
+                    </h1>
+                    <p className="text-[10px] text-slate-600">
+                      Create, edit, and manage your job postings
+                    </p>
+                  </div>
+                  <div className="flex gap-3 items-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowFilters(!showFilters)}
+                      className={`cursor-pointer rounded-md px-4 py-2.5 backdrop-blur-xl shadow-sm transition-all
+                        hover:bg-indigo-600 hover:text-white hover:border-indigo-500 hover:shadow-indigo-500/40
+                        ${
+                          hasActiveFilters()
+                            ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-500/40"
+                            : "bg-white/80 text-slate-700 border-white/70"
+                        }`}
+                    >
+                      <Filter className="h-4 w-4 mr-2 text-slate-700" />
+                      <span className="text-slate-700">Filters</span>
+                      {hasActiveFilters() && (
+                        <span className="ml-2 px-2 py-0.5 rounded-full bg-indigo-500 text-white text-xs font-medium">
+                          {
+                            [
+                              filters.job_type,
+                              filters.role,
+                              filters.min_exp || filters.max_exp,
+                              filters.min_ctc || filters.max_ctc,
+                              filters.company,
+                              filters.skills.length,
+                              filters.date_from || filters.date_to,
+                            ].filter((v) => v && v !== "" && v !== 0).length
+                          }
+                        </span>
+                      )}
+                    </Button>
+                    {canCreate && (
+                      <Button
+                        className="cursor-pointer bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
+                        onClick={openCreateDialog}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Job Posting
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {canCreate && (
@@ -1031,70 +1188,16 @@ export default function JobsPageContent() {
                 </div>
               )}
 
-              <div className="mb-6 space-y-4">
-                <div className="flex gap-3 items-center">
-                  <div className="relative flex-1 group">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-cyan-500 transition-colors z-10" />
-                    <input
-                      type="text"
-                      placeholder="Search job postings..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 border border-white/70 rounded-lg bg-white/70 backdrop-blur-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200/80 focus:border-indigo-400 transition-all shadow-inner shadow-white/40 hover:shadow-md"
-                    />
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className={`cursor-pointer rounded-md px-4 py-2.5 backdrop-blur-xl shadow-sm transition-all
-                      hover:bg-indigo-600 hover:text-white hover:border-indigo-500 hover:shadow-indigo-500/40
-                      ${
-                        hasActiveFilters()
-                          ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-500/40"
-                          : "bg-white/80 text-slate-700 border-white/70"
-                      }`}
-                  >
-                    <Filter className="h-4 w-4 mr-2 text-slate-700" />
-                    <span className="text-slate-700">Filters</span>
-                    {hasActiveFilters() && (
-                      <span className="ml-2 px-2 py-0.5 rounded-full bg-indigo-500 text-white text-xs font-medium">
-                        {
-                          [
-                            filters.job_type,
-                            filters.role,
-                            filters.min_exp || filters.max_exp,
-                            filters.min_ctc || filters.max_ctc,
-                            filters.company,
-                            filters.skills.length,
-                            filters.date_from || filters.date_to,
-                          ].filter((v) => v && v !== "" && v !== 0).length
-                        }
-                      </span>
-                    )}
-                  </Button>
-                  {canCreate && (
-                    <div className="hidden lg:block">
-                      <Button
-                        className="cursor-pointer bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300"
-                        onClick={openCreateDialog}
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Job Posting
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Filter Sidebar */}
+              {/* Filter Sidebar */}
                 <Sheet open={showFilters} onOpenChange={setShowFilters}>
                   <SheetContent
                     side="right"
                     className="w-full sm:w-[400px] overflow-y-auto bg-white/80 backdrop-blur-2xl p-0 border-l border-white/60"
                   >
                     <SheetHeader className="border-b border-white/60 pb-4 px-6 pt-6">
-                      <SheetTitle className="flex items-center gap-3 text-xl font-bold text-slate-900">
+                      <SheetTitle className="flex items-center gap-3 text-lg font-bold text-slate-900">
                         <div className="p-2 rounded-lg bg-indigo-50">
-                          <Filter className="h-5 w-5 text-indigo-600" />
+                          <Filter className="h-4 w-4 text-indigo-600" />
                         </div>
                         Filter Jobs
                       </SheetTitle>
@@ -1362,7 +1465,6 @@ export default function JobsPageContent() {
                     </SheetFooter>
                   </SheetContent>
                 </Sheet>
-              </div>
 
               {/* Table Content with Loading State */}
               <div className="relative">
@@ -1389,6 +1491,18 @@ export default function JobsPageContent() {
                           totalCount={
                             filterJobs(jobPostings.myJobPostings).length
                           }
+                          searchQuery={tableSearchQueries.myJobs}
+                          onSearchChange={(value) => {
+                            setTableSearchQueries((prev) => ({
+                              ...prev,
+                              myJobs: value,
+                            }));
+                            // Reset pagination when search changes
+                            setPagination((prev) => ({
+                              ...prev,
+                              myJobs: { ...prev.myJobs, page: 1 },
+                            }));
+                          }}
                         />
                       ) : (
                         <div className="bg-slate-50/90 backdrop-blur-sm border border-dashed border-slate-300 rounded-xl p-8 text-center">
@@ -1416,6 +1530,18 @@ export default function JobsPageContent() {
                           totalCount={
                             filterJobs(jobPostings.secondaryJobPostings).length
                           }
+                          searchQuery={tableSearchQueries.secondaryJobs}
+                          onSearchChange={(value) => {
+                            setTableSearchQueries((prev) => ({
+                              ...prev,
+                              secondaryJobs: value,
+                            }));
+                            // Reset pagination when search changes
+                            setPagination((prev) => ({
+                              ...prev,
+                              secondaryJobs: { ...prev.secondaryJobs, page: 1 },
+                            }));
+                          }}
                         />
                       ) : (
                         <div className="bg-slate-50/90 backdrop-blur-sm border border-dashed border-slate-300 rounded-xl p-8 text-center">
@@ -1429,10 +1555,10 @@ export default function JobsPageContent() {
                     </div>
 
                     <div className="mb-8">
-                      <h2 className="text-2xl font-semibold mb-2 text-black drop-shadow-[0_1px_1px_rgba(0,0,0,0.32)]">
+                      <h2 className="text-sm font-semibold mb-2 text-black drop-shadow-[0_1px_1px_rgba(0,0,0,0.32)]">
                         All Other Roles
                       </h2>
-                      <p className="text-sm text-slate-700 mb-2">
+                      <p className="text-[10px] text-slate-700 mb-2">
                         Open roles in the system you are not assigned to.
                       </p>
                       {filterJobs(jobPostings.remainingJobPostings).length >
@@ -1444,6 +1570,18 @@ export default function JobsPageContent() {
                           totalCount={
                             filterJobs(jobPostings.remainingJobPostings).length
                           }
+                          searchQuery={tableSearchQueries.remainingJobs}
+                          onSearchChange={(value) => {
+                            setTableSearchQueries((prev) => ({
+                              ...prev,
+                              remainingJobs: value,
+                            }));
+                            // Reset pagination when search changes
+                            setPagination((prev) => ({
+                              ...prev,
+                              remainingJobs: { ...prev.remainingJobs, page: 1 },
+                            }));
+                          }}
                         />
                       ) : (
                         <div className="bg-slate-50/90 backdrop-blur-sm border border-dashed border-slate-300 rounded-xl p-8 text-center">
@@ -1495,14 +1633,14 @@ export default function JobsPageContent() {
           >
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white/90 backdrop-blur-2xl border border-white/70">
               <DialogHeader className="pb-4 border-b border-white/60">
-                <DialogTitle className="text-2xl font-bold text-slate-900">
-                  {editingJob ? "Edit Job Posting" : "Create New Job Posting"}
-                </DialogTitle>
-                <DialogDescription className="text-slate-600 mt-1">
-                  {editingJob
-                    ? "Update the job posting details below."
-                    : "Fill in the details to create a new job posting."}
-                </DialogDescription>
+              <DialogTitle className="text-xl font-bold text-slate-900">
+                {editingJob ? "Edit Job Posting" : "Create New Job Posting"}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-slate-600 mt-1">
+                {editingJob
+                  ? "Update the job posting details below."
+                  : "Fill in the details to create a new job posting."}
+              </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">

@@ -69,7 +69,7 @@ export default function CandidatesPage() {
 
   // Sorting state
   const [sortConfig, setSortConfig] = useState({
-    key: null, // 'name', 'email', 'experience', 'createdAt'
+    key: null, // 'name', 'email', 'experience', 'createdAt', 'lastInterviewDate'
     direction: "asc", // 'asc' or 'desc'
   });
 
@@ -406,6 +406,10 @@ export default function CandidatesPage() {
           aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           break;
+        case "lastInterviewDate":
+          aValue = a.lastInterviewDate ? new Date(a.lastInterviewDate).getTime() : 0;
+          bValue = b.lastInterviewDate ? new Date(b.lastInterviewDate).getTime() : 0;
+          break;
         default:
           return 0;
       }
@@ -605,10 +609,10 @@ export default function CandidatesPage() {
             {/* Header */}
             <div className="mb-6">
               <div className="mb-4">
-                <h1 className="text-2xl font-bold text-slate-900 mb-1.5">
+                <h1 className="text-xl font-bold text-slate-900 mb-1.5">
                   All Candidates
                 </h1>
-                <p className="text-sm text-slate-600">
+                <p className="text-xs text-slate-600">
                   View and manage all candidates in your database
                 </p>
               </div>
@@ -648,16 +652,16 @@ export default function CandidatesPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full table-fixed">
                       <thead>
-                        {/* Search and Filter Row - Top Left */}
+                        {/* Search and Filter Row - Top Right */}
                         <tr className="border-b border-white/70 bg-white/60 backdrop-blur">
-                          <th colSpan={5} className="p-4">
-                            <div className="flex items-center justify-start gap-3">
-                              <div className="relative flex-1 max-w-md group">
+                          <th colSpan={6} className="p-4">
+                            <div className="flex items-center justify-end gap-3">
+                              <div className="relative w-64 group">
                                 <div className="absolute inset-0 bg-linear-to-r from-indigo-500/10 to-purple-500/10 rounded-lg blur-sm opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
                                 <Search className="pointer-events-none absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors duration-200 z-10" />
                                 <Input
                                   type="text"
-                                  placeholder="Search candidates by name, email, or skills..."
+                                  placeholder="Search candidates..."
                                   value={searchQuery}
                                   onChange={(e) =>
                                     setSearchQuery(e.target.value)
@@ -713,40 +717,49 @@ export default function CandidatesPage() {
                         {/* Column Headers */}
                         <tr className="border-b border-white/70 bg-white/60 backdrop-blur">
                           <th
-                            className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[20%]"
+                            className="text-left p-2 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[18%]"
                             onClick={() => handleSort("name")}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               Name
                               <SortIcon columnKey="name" />
                             </div>
                           </th>
-                          <th className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[20%]">
-                            <div className="flex items-center gap-2">Role</div>
+                          <th className="text-left p-2 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[15%]">
+                            <div className="flex items-center gap-1.5">Role</div>
                           </th>
                           <th
-                            className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[20%]"
+                            className="text-left p-2 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[18%]"
                             onClick={() => handleSort("email")}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               Email
                               <SortIcon columnKey="email" />
                             </div>
                           </th>
                           <th
-                            className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[15%]"
+                            className="text-left p-2 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[12%]"
                             onClick={() => handleSort("experience")}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               Experience
                               <SortIcon columnKey="experience" />
                             </div>
                           </th>
                           <th
-                            className="text-left p-4 font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[25%]"
+                            className="text-left p-2 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[20%]"
+                            onClick={() => handleSort("lastInterviewDate")}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              Last Interview Date
+                              <SortIcon columnKey="lastInterviewDate" />
+                            </div>
+                          </th>
+                          <th
+                            className="text-left p-2 text-xs font-semibold text-slate-800 cursor-pointer hover:bg-white/80 transition-colors select-none w-[17%]"
                             onClick={() => handleSort("createdAt")}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               Created At
                               <SortIcon columnKey="createdAt" />
                             </div>
@@ -756,7 +769,7 @@ export default function CandidatesPage() {
                       <tbody className="relative">
                         {loadingCandidates && (
                           <tr>
-                            <td colSpan={5} className="p-8">
+                            <td colSpan={6} className="p-8">
                               <div className="flex items-center justify-center">
                                 <Loading size="md" />
                               </div>
@@ -765,7 +778,7 @@ export default function CandidatesPage() {
                         )}
                         {!loadingCandidates && sortedCandidates.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="p-12">
+                            <td colSpan={6} className="p-12">
                               <div className="flex flex-col items-center justify-center">
                                 <div className="p-4 rounded-full bg-linear-to-br from-cyan-400/20 to-blue-500/20 mb-4">
                                   <Users className="h-12 w-12 text-cyan-600 dark:text-cyan-400" />
@@ -784,41 +797,41 @@ export default function CandidatesPage() {
                               onClick={() => handleRowClick(candidate)}
                               className="border-b border-white/60 bg-white/70 backdrop-blur hover:bg-white/90 transition-colors duration-150 cursor-pointer"
                             >
-                              <td className="p-4 w-[20%]">
-                                <div className="flex items-center gap-3">
-                                  <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 shrink-0">
-                                    <span className="text-sm font-bold text-slate-700">
+                              <td className="p-2 w-[18%]">
+                                <div className="flex items-center gap-2">
+                                  <div className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 shrink-0">
+                                    <span className="text-[10px] font-bold text-slate-700">
                                       {candidate.name?.charAt(0).toUpperCase()}
                                     </span>
                                   </div>
-                                  <span className="font-medium text-slate-800 truncate">
+                                  <span className="font-medium text-xs text-slate-800 truncate">
                                     {candidate.name}
                                   </span>
                                 </div>
                               </td>
-                              <td className="p-4 w-[20%]">
-                                <div className="flex flex-wrap gap-1.5">
+                              <td className="p-2 w-[15%]">
+                                <div className="flex flex-wrap gap-1">
                                   {candidate.role &&
                                   candidate.role.length > 0 ? (
                                     <div className="relative inline-block group">
                                       <Badge
                                         variant="secondary"
-                                        className="text-xs bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200 cursor-default"
+                                        className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-indigo-200 cursor-default"
                                       >
                                         {candidate.role[0]}
                                         {candidate.role.length > 1 && (
-                                          <span className="ml-1 font-medium">
+                                          <span className="ml-0.5 font-medium">
                                             +{candidate.role.length - 1}
                                           </span>
                                         )}
                                       </Badge>
                                       {candidate.role.length > 1 && (
                                         <div className="absolute left-0 bottom-full mb-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
-                                          <div className="bg-slate-900 text-white text-xs rounded-lg py-2 px-3 shadow-xl min-w-[150px] max-w-[250px]">
-                                            <div className="font-semibold mb-1.5 pb-1.5 border-b border-slate-700 text-white">
+                                          <div className="bg-slate-900 text-white text-[10px] rounded-lg py-1.5 px-2 shadow-xl min-w-[120px] max-w-[200px]">
+                                            <div className="font-semibold mb-1 pb-1 border-b border-slate-700 text-white">
                                               All Roles:
                                             </div>
-                                            <div className="flex flex-col gap-1.5 pt-1">
+                                            <div className="flex flex-col gap-1 pt-0.5">
                                               {candidate.role.map(
                                                 (role, index) => (
                                                   <span
@@ -830,32 +843,45 @@ export default function CandidatesPage() {
                                                 )
                                               )}
                                             </div>
-                                            <div className="absolute -bottom-1 left-4 w-2 h-2 bg-slate-900 rotate-45"></div>
+                                            <div className="absolute -bottom-1 left-3 w-1.5 h-1.5 bg-slate-900 rotate-45"></div>
                                           </div>
                                         </div>
                                       )}
                                     </div>
                                   ) : (
-                                    <span className="text-slate-400 text-sm">
+                                    <span className="text-slate-400 text-[10px]">
                                       -
                                     </span>
                                   )}
                                 </div>
                               </td>
-                              <td className="p-4 w-[20%]">
-                                <span className="text-slate-600 truncate block">
+                              <td className="p-2 w-[18%]">
+                                <span className="text-xs text-slate-600 truncate block">
                                   {candidate.email || "-"}
                                 </span>
                               </td>
-                              <td className="p-4 w-[15%]">
-                                <span className="text-slate-600">
+                              <td className="p-2 w-[12%]">
+                                <span className="text-xs text-slate-600">
                                   {candidate.experience !== undefined
                                     ? `${candidate.experience} years`
                                     : "-"}
                                 </span>
                               </td>
-                              <td className="p-4 w-[25%]">
-                                <span className="text-slate-600">
+                              <td className="p-2 w-[20%]">
+                                <span className="text-xs text-slate-600">
+                                  {candidate.lastInterviewDate
+                                    ? new Date(
+                                        candidate.lastInterviewDate
+                                      ).toLocaleDateString("en-US", {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                      })
+                                    : "-"}
+                                </span>
+                              </td>
+                              <td className="p-2 w-[17%]">
+                                <span className="text-xs text-slate-600">
                                   {candidate.createdAt
                                     ? new Date(
                                         candidate.createdAt
@@ -878,7 +904,7 @@ export default function CandidatesPage() {
                     <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 bg-white/60 border-t border-white/70 backdrop-blur">
                       <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex items-center gap-2.5 whitespace-nowrap">
-                          <span className="text-sm font-medium text-slate-700">
+                          <span className="text-xs font-medium text-slate-700">
                             Rows per page:
                           </span>
                           <Select
@@ -899,7 +925,7 @@ export default function CandidatesPage() {
                           </Select>
                         </div>
                         <div className="h-4 w-px bg-slate-300"></div>
-                        <span className="text-sm text-slate-600 font-medium whitespace-nowrap">
+                        <span className="text-xs text-slate-600 font-medium whitespace-nowrap">
                           Showing{" "}
                           <span className="text-slate-900 font-semibold">
                             {startIndex + 1}
@@ -1030,9 +1056,9 @@ export default function CandidatesPage() {
         >
           <SheetTitle className="sr-only">Filter Candidates</SheetTitle>
           <div className="border-b border-white/60 pb-4 px-6 pt-6">
-            <h2 className="flex items-center gap-3 text-xl font-bold text-slate-900">
+            <h2 className="flex items-center gap-3 text-lg font-bold text-slate-900">
               <div className="p-2 rounded-lg bg-indigo-50">
-                <Filter className="h-5 w-5 text-indigo-600" />
+                <Filter className="h-4 w-4 text-indigo-600" />
               </div>
               Filter Candidates
             </h2>
@@ -1160,13 +1186,13 @@ export default function CandidatesPage() {
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-slate-200 shadow-2xl">
           <DialogHeader className="pb-4 border-b border-slate-200">
-            <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
+            <DialogTitle className="flex items-center gap-3 text-xl text-slate-900">
               <div className="p-2 rounded-lg bg-linear-to-br from-cyan-400/20 to-blue-500/20">
-                <UserPlus className="h-6 w-6 text-cyan-600" />
+                <UserPlus className="h-5 w-5 text-cyan-600" />
               </div>
               Add New Candidate
             </DialogTitle>
-            <DialogDescription className="text-slate-600 mt-2">
+            <DialogDescription className="text-sm text-slate-600 mt-2">
               Fill in the details to create a new candidate profile
             </DialogDescription>
           </DialogHeader>
@@ -1344,13 +1370,13 @@ export default function CandidatesPage() {
       >
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white border-slate-200 shadow-2xl">
           <DialogHeader className="pb-4 border-b border-slate-200 shrink-0">
-            <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
+            <DialogTitle className="flex items-center gap-3 text-xl text-slate-900">
               <div className="p-2 rounded-lg bg-linear-to-br from-cyan-400/20 to-blue-500/20">
-                <FileText className="h-6 w-6 text-cyan-600" />
+                <FileText className="h-5 w-5 text-cyan-600" />
               </div>
               Parse Resume
             </DialogTitle>
-            <DialogDescription className="text-slate-600 mt-2">
+            <DialogDescription className="text-sm text-slate-600 mt-2">
               Upload a resume file to automatically extract candidate
               information
             </DialogDescription>

@@ -1,6 +1,7 @@
 import { generateCandidateEmbedding } from "../services/embeddingService.js";
 import { updateCandidateMatches } from "../services/matchingService.js";
 import Candidate from "./model.js";
+import RecruiterTask from "../recruiter_tasks/model.js";
 
 // Helper function to create candidate (used by both API and seed function)
 export const createCandidateData = async (candidateData) => {
@@ -145,9 +146,43 @@ export const getCandidates = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
+    // Get last interview date for each candidate from RecruiterTask
+    const candidateIds = candidates.map((c) => c._id);
+    
+    // Aggregate to get the most recent interview_time for each candidate
+    const lastInterviewDates = await RecruiterTask.aggregate([
+      {
+        $match: {
+          candidate_id: { $in: candidateIds },
+          status: { $in: ["scheduled", "completed"] }, // Only count scheduled or completed interviews
+        },
+      },
+      {
+        $sort: { interview_time: -1 }, // Sort by interview_time descending
+      },
+      {
+        $group: {
+          _id: "$candidate_id",
+          lastInterviewDate: { $first: "$interview_time" },
+        },
+      },
+    ]);
+
+    // Create a map of candidate_id to lastInterviewDate
+    const lastInterviewMap = {};
+    lastInterviewDates.forEach((item) => {
+      lastInterviewMap[item._id.toString()] = item.lastInterviewDate;
+    });
+
+    // Add lastInterviewDate to each candidate
+    const candidatesWithLastInterview = candidates.map((candidate) => ({
+      ...candidate,
+      lastInterviewDate: lastInterviewMap[candidate._id.toString()] || null,
+    }));
+
     res.status(200).json({
-      count: candidates.length,
-      candidates,
+      count: candidatesWithLastInterview.length,
+      candidates: candidatesWithLastInterview,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
