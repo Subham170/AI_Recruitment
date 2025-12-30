@@ -196,6 +196,16 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     const parsedData = await parseResumeFromFile(fileBuffer, fileName);
     const formattedData = formatParsedResumeData(parsedData);
 
+    // Upload file to Cloudinary
+    let resumeUrl = "";
+    try {
+      const { uploadToCloudinary } = await import("../services/cloudinaryService.js");
+      resumeUrl = await uploadToCloudinary(fileBuffer, fileName, "resumes");
+    } catch (uploadError) {
+      console.error("Error uploading resume to Cloudinary:", uploadError);
+      // Continue without resume URL - parsing can still succeed
+    }
+
     // Validate required fields
     if (!formattedData.name || !formattedData.email) {
       return res.status(400).json({
@@ -205,6 +215,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         data: {
           raw: parsedData,
           formatted: formattedData,
+          resume_url: resumeUrl,
           missingFields: {
             name: !formattedData.name,
             email: !formattedData.email,
@@ -222,7 +233,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
           phone_no: formattedData.phone_no,
           skills: formattedData.skills,
           experience: formattedData.experience,
-          resume_url: "", // Would need file upload service
+          resume_url: resumeUrl,
           bio: formattedData.bio,
         });
       } catch (dbError) {
@@ -252,6 +263,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       data: {
         raw: parsedData,
         formatted: formattedData,
+        resume_url: resumeUrl,
         candidate: candidate,
       },
     });
@@ -302,6 +314,16 @@ router.post(
         req.headers["x-save-to-database"] === "true" ||
         req.query.saveToDatabase === "true";
 
+      // Upload file to Cloudinary
+      let resumeUrl = "";
+      try {
+        const { uploadToCloudinary } = await import("../services/cloudinaryService.js");
+        resumeUrl = await uploadToCloudinary(fileBuffer, fileName, "resumes");
+      } catch (uploadError) {
+        console.error("Error uploading resume to Cloudinary:", uploadError);
+        // Continue without resume URL
+      }
+
       // Validate required fields
       if (!formattedData.name || !formattedData.email) {
         return res.status(400).json({
@@ -311,6 +333,7 @@ router.post(
           data: {
             raw: parsedData,
             formatted: formattedData,
+            resume_url: resumeUrl,
             missingFields: {
               name: !formattedData.name,
               email: !formattedData.email,
@@ -328,7 +351,7 @@ router.post(
             phone_no: formattedData.phone_no,
             skills: formattedData.skills,
             experience: formattedData.experience,
-            resume_url: "", // Would need file upload service
+            resume_url: resumeUrl,
             bio: formattedData.bio,
           });
         } catch (dbError) {
@@ -358,6 +381,7 @@ router.post(
         data: {
           raw: parsedData,
           formatted: formattedData,
+          resume_url: resumeUrl,
           candidate: candidate,
         },
       });

@@ -66,6 +66,7 @@ export default function CandidatesPage() {
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [parsedResumeData, setParsedResumeData] = useState(null);
+  const [parsedResumeUrl, setParsedResumeUrl] = useState(null);
 
   // Sorting state
   const [sortConfig, setSortConfig] = useState({
@@ -109,7 +110,9 @@ export default function CandidatesPage() {
     experience: "",
     role: "",
     bio: "",
+    resume_url: "",
   });
+  const [resumeFile, setResumeFile] = useState(null);
 
   useEffect(() => {
     if (loading) return;
@@ -242,6 +245,7 @@ export default function CandidatesPage() {
       if (response.success) {
         // Use formatted data for display
         setParsedResumeData(response.data.formatted);
+        setParsedResumeUrl(response.data.resume_url || null);
         setSuccess(response.message || "Resume parsed successfully!");
 
         // If saved to database, refresh candidates list
@@ -274,6 +278,7 @@ export default function CandidatesPage() {
   const resetParseResumeModal = () => {
     setParseResumeFile(null);
     setParsedResumeData(null);
+    setParsedResumeUrl(null);
     setError("");
     setSuccess("");
     setDragActive(false);
@@ -309,24 +314,68 @@ export default function CandidatesPage() {
     setIsSubmitting(true);
 
     try {
-      const candidateData = {
-        name: formData.name,
-        email: formData.email,
-        phone_no: formData.phone_no || undefined,
-        skills: formData.skills
-          ? formData.skills.split(",").map((s) => s.trim())
-          : [],
-        experience: formData.experience ? parseInt(formData.experience) : 0,
-        role: formData.role
-          ? formData.role
-              .split(",")
-              .map((r) => r.trim())
-              .filter((r) => r)
-          : [],
-        bio: formData.bio || undefined,
-      };
+      // Create FormData if resume file is present (file upload takes priority over resume_url)
+      let response;
+      if (resumeFile) {
+        const formDataObj = new FormData();
+        formDataObj.append("name", formData.name);
+        formDataObj.append("email", formData.email);
+        if (formData.phone_no) formDataObj.append("phone_no", formData.phone_no);
+        if (formData.skills) {
+          // Append each skill separately or as comma-separated string (backend will parse)
+          formDataObj.append("skills", formData.skills);
+        }
+        if (formData.experience) formDataObj.append("experience", formData.experience);
+        if (formData.role) {
+          // Append role as comma-separated string (backend will parse)
+          formDataObj.append("role", formData.role);
+        }
+        if (formData.bio) formDataObj.append("bio", formData.bio);
+        formDataObj.append("resume", resumeFile);
+        // If resume_url exists, include it as fallback (but file upload will override it)
+        if (formData.resume_url) {
+          formDataObj.append("resume_url", formData.resume_url);
+        }
 
-      const response = await candidateAPI.createCandidate(candidateData);
+        // Use fetch directly for FormData
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        const fetchResponse = await fetch(`${API_BASE_URL}/candidates`, {
+          method: "POST",
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+            // Don't set Content-Type - browser will set it with boundary for multipart/form-data
+          },
+          body: formDataObj,
+        });
+
+        const data = await fetchResponse.json();
+        if (!fetchResponse.ok) {
+          throw new Error(data.message || "Failed to create candidate");
+        }
+        response = data;
+      } else {
+        // No file, use regular API call (may include resume_url if from parsed data)
+        const candidateData = {
+          name: formData.name,
+          email: formData.email,
+          phone_no: formData.phone_no || undefined,
+          skills: formData.skills
+            ? formData.skills.split(",").map((s) => s.trim())
+            : [],
+          experience: formData.experience ? parseInt(formData.experience) : 0,
+          role: formData.role
+            ? formData.role
+                .split(",")
+                .map((r) => r.trim())
+                .filter((r) => r)
+            : [],
+          bio: formData.bio || undefined,
+          resume_url: formData.resume_url || undefined, // Include resume_url if available
+        };
+
+        response = await candidateAPI.createCandidate(candidateData);
+      }
       setSuccess(
         `Candidate created successfully! ${response.candidate.name} has been added.`
       );
@@ -351,7 +400,9 @@ export default function CandidatesPage() {
       experience: "",
       role: "",
       bio: "",
+      resume_url: "",
     });
+    setResumeFile(null);
     setError("");
     setSuccess("");
   };
@@ -1334,6 +1385,126 @@ export default function CandidatesPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label className="text-slate-900 font-medium">
+                Resume Upload
+              </Label>
+              
+              {/* Hidden file input */}
+              <input
+                id="resume"
+                name="resume"
+                type="file"
+                accept=".pdf,.doc,.docx"
+                disabled={!resumeFile && !!formData.resume_url}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 5 * 1024 * 1024) {
+                      setError("File size must be less than 5MB");
+                      return;
+                    }
+                    setResumeFile(file);
+                    // Clear resume_url when a new file is selected (will upload new one)
+                    setFormData((prev) => ({ ...prev, resume_url: "" }));
+                    setError("");
+                  }
+                }}
+                className="hidden"
+              />
+
+              {/* Custom Upload UI */}
+              {!resumeFile && !formData.resume_url ? (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (!(!resumeFile && !!formData.resume_url)) {
+                        document.getElementById("resume")?.click();
+                      }
+                    }}
+                    disabled={!resumeFile && !!formData.resume_url}
+                    className="w-full h-12 bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Resume (PDF, DOC, DOCX)
+                  </Button>
+                  <p className="text-xs text-slate-500">
+                    Maximum file size: 5MB. Supported formats: PDF, DOC, DOCX
+                  </p>
+                </div>
+              ) : resumeFile ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                    <div className="p-2 bg-cyan-100 rounded-lg">
+                      <FileText className="h-5 w-5 text-cyan-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-700 truncate">
+                        {resumeFile.name}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {(resumeFile.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResumeFile(null);
+                        // Reset file input
+                        const fileInput = document.getElementById("resume");
+                        if (fileInput) {
+                          fileInput.value = "";
+                        }
+                      }}
+                      className="p-1 hover:bg-slate-200 rounded transition-colors"
+                      aria-label="Remove file"
+                    >
+                      <X className="h-4 w-4 text-slate-600" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Maximum file size: 5MB. Supported formats: PDF, DOC, DOCX
+                  </p>
+                </div>
+              ) : formData.resume_url ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <FileText className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-green-800 mb-1">
+                        Resume already uploaded from parsing
+                      </p>
+                      <a
+                        href={formData.resume_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-green-600 hover:text-green-700 hover:underline break-all"
+                      >
+                        {formData.resume_url}
+                      </a>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, resume_url: "" }));
+                      }}
+                      className="p-1 hover:bg-green-200 rounded transition-colors"
+                      aria-label="Remove resume URL"
+                    >
+                      <X className="h-4 w-4 text-green-700" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Maximum file size: 5MB. Supported formats: PDF, DOC, DOCX
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
             <DialogFooter className="pt-4 border-t border-slate-200">
               <Button
                 type="button"
@@ -1500,6 +1671,21 @@ export default function CandidatesPage() {
                               {parsedResumeData.bio}
                             </p>
                           )}
+                          {parsedResumeUrl && (
+                            <div className="mt-3 pt-3 border-t border-slate-200">
+                              <p className="text-sm font-semibold text-slate-700 mb-1">
+                                Resume URL:
+                              </p>
+                              <a
+                                href={parsedResumeUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-cyan-600 hover:text-cyan-700 hover:underline break-all"
+                              >
+                                {parsedResumeUrl}
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
                       {(!parsedResumeData.name || !parsedResumeData.email) && (
@@ -1637,10 +1823,16 @@ export default function CandidatesPage() {
                         parsedResumeData.experience?.toString() ||
                         prev.experience,
                       bio: parsedResumeData.bio || prev.bio,
+                      resume_url: parsedResumeUrl || prev.resume_url, // Preserve resume URL from parsing
                     }));
+                    // Don't set resumeFile - we already have resume_url from Cloudinary
+                    // User can upload a different file if needed, which will override resume_url
                     setParseResumeModalOpen(false);
                     setFormOpen(true);
-                    resetParseResumeModal();
+                    // Reset the modal after form opens
+                    setTimeout(() => {
+                      resetParseResumeModal();
+                    }, 100);
                   }}
                   className="bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
                 >

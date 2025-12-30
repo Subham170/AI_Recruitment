@@ -91,16 +91,47 @@ export const createCandidate = async (req, res) => {
       });
     }
 
+    let finalResumeUrl = resume_url;
+
+    // If a file was uploaded, upload it to Cloudinary
+    if (req.file) {
+      try {
+        const { uploadToCloudinary } = await import("../services/cloudinaryService.js");
+        finalResumeUrl = await uploadToCloudinary(
+          req.file.buffer,
+          req.file.originalname,
+          "resumes"
+        );
+      } catch (uploadError) {
+        console.error("Error uploading resume to Cloudinary:", uploadError);
+        return res.status(500).json({
+          message: `Failed to upload resume: ${uploadError.message}`,
+        });
+      }
+    }
+
+    // Parse skills and role if they are strings
+    let parsedSkills = skills;
+    let parsedRole = role;
+
+    if (typeof skills === "string") {
+      parsedSkills = skills.split(",").map((s) => s.trim()).filter(Boolean);
+    }
+
+    if (typeof role === "string") {
+      parsedRole = role.split(",").map((r) => r.trim()).filter(Boolean);
+    }
+
     // Use helper function to create candidate
     const candidate = await createCandidateData({
       name,
       email,
       phone_no,
       image,
-      skills,
-      experience,
-      resume_url,
-      role,
+      skills: parsedSkills,
+      experience: experience ? parseInt(experience) : undefined,
+      resume_url: finalResumeUrl,
+      role: parsedRole,
       bio,
       is_active,
       social_links,
