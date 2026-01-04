@@ -11,6 +11,73 @@ const MIN_MATCH_SCORE = 0.3; // Minimum similarity score to consider a match
 const MAX_MATCHES_TO_STORE = 20; // Maximum matches to store per job/candidate (for AI Match tab)
 
 /**
+ * Calculate cosine similarity between two vectors using MongoDB aggregation
+ * This works with self-hosted MongoDB (not just Atlas)
+ * Formula: cosine_similarity = dotProduct(A, B) / (magnitude(A) * magnitude(B))
+ */
+function buildCosineSimilarityPipeline(queryVector, vectorField = "vector") {
+  // Calculate magnitude of query vector (constant)
+  const queryMagnitude = Math.sqrt(
+    queryVector.reduce((sum, val) => sum + val * val, 0)
+  );
+
+  // Build the dot product calculation by creating an array of products
+  // and summing them: sum(vector[i] * queryVector[i] for all i)
+  const productExpressions = queryVector.map((val, idx) => ({
+    $multiply: [{ $arrayElemAt: [`$${vectorField}`, idx] }, val],
+  }));
+
+  return [
+    {
+      $match: {
+        [vectorField]: { $exists: true, $ne: null, $type: "array" },
+        $expr: { $eq: [{ $size: `$${vectorField}` }, queryVector.length] },
+      },
+    },
+    {
+      $addFields: {
+        // Calculate dot product by summing element-wise products
+        dotProduct: {
+          $sum: productExpressions,
+        },
+        // Calculate magnitude of document vector
+        docMagnitude: {
+          $sqrt: {
+            $reduce: {
+              input: `$${vectorField}`,
+              initialValue: 0,
+              in: { $add: ["$$value", { $multiply: ["$$this", "$$this"] }] },
+            },
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        // Calculate cosine similarity
+        score: {
+          $cond: {
+            if: { $gt: ["$docMagnitude", 0] },
+            then: {
+              $divide: ["$dotProduct", { $multiply: [queryMagnitude, "$docMagnitude"] }],
+            },
+            else: 0,
+          },
+        },
+      },
+    },
+    {
+      $match: {
+        score: { $gte: MIN_MATCH_SCORE },
+      },
+    },
+    {
+      $sort: { score: -1 },
+    },
+  ];
+}
+
+/**
  * Find matching candidates for a job posting using vector search
  * @param {string} jobPostingId - MongoDB ObjectId of the job posting
  * @param {Object} filters - Optional filters (experience, role, etc.)
@@ -48,32 +115,26 @@ export async function findMatchingCandidates(jobPostingId, filters = {}) {
       matchFilter.is_active = filters.is_active;
     }
 
-    // Perform vector search
-    const results = await candidatesCollection
-      .aggregate([
-        {
-          $vectorSearch: {
-            index: VECTOR_SEARCH_INDEX_CANDIDATE,
-            path: "vector",
-            queryVector: jobPosting.vector,
-            numCandidates: VECTOR_SEARCH_LIMIT,
-            limit: VECTOR_SEARCH_LIMIT,
-          },
+    // Build cosine similarity pipeline (works with self-hosted MongoDB)
+    const pipeline = [
+      ...buildCosineSimilarityPipeline(jobPosting.vector, "vector"),
+      // Apply additional filters
+      {
+        $match: matchFilter,
+      },
+      {
+        $project: {
+          _id: 1,
+          score: 1,
         },
-        {
-          $match: matchFilter,
-        },
-        {
-          $project: {
-            _id: 1,
-            score: { $meta: "vectorSearchScore" },
-          },
-        },
-        {
-          $limit: VECTOR_SEARCH_LIMIT,
-        },
-      ])
-      .toArray();
+      },
+      {
+        $limit: VECTOR_SEARCH_LIMIT,
+      },
+    ];
+
+    // Perform vector search using cosine similarity
+    const results = await candidatesCollection.aggregate(pipeline).toArray();
 
     // Format results and limit to top 10
     return results
@@ -123,32 +184,26 @@ export async function findMatchingJobs(candidateId, filters = {}) {
       matchFilter.role = { $in: filters.role };
     }
 
-    // Perform vector search
-    const results = await jobPostingsCollection
-      .aggregate([
-        {
-          $vectorSearch: {
-            index: VECTOR_SEARCH_INDEX_JOB,
-            path: "vector",
-            queryVector: candidate.vector,
-            numCandidates: VECTOR_SEARCH_LIMIT,
-            limit: VECTOR_SEARCH_LIMIT,
-          },
+    // Build cosine similarity pipeline (works with self-hosted MongoDB)
+    const pipeline = [
+      ...buildCosineSimilarityPipeline(candidate.vector, "vector"),
+      // Apply additional filters
+      {
+        $match: matchFilter,
+      },
+      {
+        $project: {
+          _id: 1,
+          score: 1,
         },
-        {
-          $match: matchFilter,
-        },
-        {
-          $project: {
-            _id: 1,
-            score: { $meta: "vectorSearchScore" },
-          },
-        },
-        {
-          $limit: VECTOR_SEARCH_LIMIT,
-        },
-      ])
-      .toArray();
+      },
+      {
+        $limit: VECTOR_SEARCH_LIMIT,
+      },
+    ];
+
+    // Perform vector search using cosine similarity
+    const results = await jobPostingsCollection.aggregate(pipeline).toArray();
 
     // Format results and limit to top 10
     return results

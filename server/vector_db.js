@@ -41,6 +41,72 @@ async function embedAllCandidates() {
 
 // embedAllCandidates();
 
+/**
+ * Calculate cosine similarity between two vectors
+ * This works with self-hosted MongoDB (not just Atlas)
+ */
+function buildCosineSimilarityPipeline(queryVector, vectorField = "vector") {
+  // Calculate magnitude of query vector (constant)
+  const queryMagnitude = Math.sqrt(
+    queryVector.reduce((sum, val) => sum + val * val, 0)
+  );
+
+  // Build the dot product calculation by creating an array of products
+  // and summing them: sum(vector[i] * queryVector[i] for all i)
+  const productExpressions = queryVector.map((val, idx) => ({
+    $multiply: [{ $arrayElemAt: [`$${vectorField}`, idx] }, val],
+  }));
+
+  return [
+    {
+      $match: {
+        [vectorField]: { $exists: true, $ne: null, $type: "array" },
+        $expr: { $eq: [{ $size: `$${vectorField}` }, queryVector.length] },
+      },
+    },
+    {
+      $addFields: {
+        // Calculate dot product by summing element-wise products
+        dotProduct: {
+          $sum: productExpressions,
+        },
+        // Calculate magnitude of document vector
+        docMagnitude: {
+          $sqrt: {
+            $reduce: {
+              input: `$${vectorField}`,
+              initialValue: 0,
+              in: { $add: ["$$value", { $multiply: ["$$this", "$$this"] }] },
+            },
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        // Calculate cosine similarity
+        score: {
+          $cond: {
+            if: { $gt: ["$docMagnitude", 0] },
+            then: {
+              $divide: ["$dotProduct", { $multiply: [queryMagnitude, "$docMagnitude"] }],
+            },
+            else: 0,
+          },
+        },
+      },
+    },
+    {
+      $match: {
+        score: { $gte: 0.3 }, // Minimum similarity score
+      },
+    },
+    {
+      $sort: { score: -1 },
+    },
+  ];
+}
+
 async function searchCandidates(jobDescription) {
   await client.connect();
   const db = client.db("AI-Recruitment");
@@ -49,26 +115,18 @@ async function searchCandidates(jobDescription) {
   // 1. Create embedding for JD
   const jdEmbedding = await getEmbedding(jobDescription);
 
-  // 2. Perform vector search + filters
-  const results = await collection
-    .aggregate([
-      {
-        $vectorSearch: {
-          index: "candidate_job_posting_index",
-          path: "vector",
-          queryVector: jdEmbedding,
-          numCandidates: 10,
-          limit: 10, // Get more candidates for filtering
-        },
+  // 2. Perform vector search using cosine similarity (works with self-hosted MongoDB)
+  const pipeline = [
+    ...buildCosineSimilarityPipeline(jdEmbedding, "vector"),
+    {
+      $match: {
+        experience: { $gte: 5 },
       },
-      {
-        $match: {
-          experience: { $gte: 5 },
-        },
-      },
-      { $limit: 5 },
-    ])
-    .toArray();
+    },
+    { $limit: 5 },
+  ];
+
+  const results = await collection.aggregate(pipeline).toArray();
 
  results.forEach(result => {
     console.log("id: ", result._id);
@@ -76,6 +134,7 @@ async function searchCandidates(jobDescription) {
   console.log(`Bio: ${result.bio}`);
   console.log(`Skills: ${result.skills?.join(", ") ?? ""}`);
   console.log(`Experience: ${result.experience} years`);
+  console.log(`Score: ${result.score}`);
   console.log("-------------------");
  });
 }
