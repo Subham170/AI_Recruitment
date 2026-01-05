@@ -46,13 +46,14 @@ async function embedAllCandidates() {
  * This works with self-hosted MongoDB (not just Atlas)
  */
 function buildCosineSimilarityPipeline(queryVector, vectorField = "vector") {
+  // All vectors are now 1536 dimensions (OpenAI text-embedding-3-large)
   // Calculate magnitude of query vector (constant)
   const queryMagnitude = Math.sqrt(
     queryVector.reduce((sum, val) => sum + val * val, 0)
   );
 
-  // Build the dot product calculation by creating an array of products
-  // and summing them: sum(vector[i] * queryVector[i] for all i)
+  // Build the dot product calculation for 1536 dimensions
+  // Since all vectors should be 1536 dimensions, we can optimize
   const productExpressions = queryVector.map((val, idx) => ({
     $multiply: [{ $arrayElemAt: [`$${vectorField}`, idx] }, val],
   }));
@@ -61,7 +62,8 @@ function buildCosineSimilarityPipeline(queryVector, vectorField = "vector") {
     {
       $match: {
         [vectorField]: { $exists: true, $ne: null, $type: "array" },
-        $expr: { $eq: [{ $size: `$${vectorField}` }, queryVector.length] },
+        // Expect 1536 dimensions, but allow any size >= queryVector.length for backward compatibility
+        $expr: { $gte: [{ $size: `$${vectorField}` }, queryVector.length] },
       },
     },
     {

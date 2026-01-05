@@ -2665,7 +2665,7 @@ export default function RecruiterJobDetailPage() {
                             </div>
                           </TableHead>
                           <TableHead
-                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none w-[250px]"
                             onClick={() => handleSort("aiMatch", "role")}
                           >
                             <div className="flex items-center gap-2">
@@ -2774,8 +2774,18 @@ export default function RecruiterJobDetailPage() {
                                   </div>
                                 </div>
                               </TableCell>
-                              <TableCell>
-                                {candidate.role?.join(", ") || "N/A"}
+                              <TableCell className="w-[250px] max-w-[250px]">
+                                <div className="relative group/tooltip">
+                                  <div className="truncate text-sm" title={candidate.role?.join(", ") || "N/A"}>
+                                    {candidate.role?.join(", ") || "N/A"}
+                                  </div>
+                                  {candidate.role && candidate.role.length > 0 && (
+                                    <div className="absolute left-0 top-full mt-1 z-50 invisible group-hover/tooltip:visible bg-slate-900 text-white text-xs rounded-md px-3 py-2 shadow-lg max-w-[300px] break-words whitespace-normal pointer-events-none">
+                                      {candidate.role.join(", ")}
+                                      <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-900 rotate-45"></div>
+                                    </div>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <div
@@ -3018,8 +3028,18 @@ export default function RecruiterJobDetailPage() {
                                   </div>
                                 </div>
                               </TableCell>
-                              <TableCell>
-                                {candidate.role?.join(", ") || "N/A"}
+                              <TableCell className="w-[250px] max-w-[250px]">
+                                <div className="relative group/tooltip">
+                                  <div className="truncate text-sm" title={candidate.role?.join(", ") || "N/A"}>
+                                    {candidate.role?.join(", ") || "N/A"}
+                                  </div>
+                                  {candidate.role && candidate.role.length > 0 && (
+                                    <div className="absolute left-0 top-full mt-1 z-50 invisible group-hover/tooltip:visible bg-slate-900 text-white text-xs rounded-md px-3 py-2 shadow-lg max-w-[300px] break-words whitespace-normal pointer-events-none">
+                                      {candidate.role.join(", ")}
+                                      <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-900 rotate-45"></div>
+                                    </div>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <div

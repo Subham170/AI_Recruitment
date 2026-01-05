@@ -52,7 +52,7 @@ const candidateSchema = new mongoose.Schema(
       },
     },
     vector: {
-      type: [Number], // Array of 384 numbers (embedding vector)
+      type: [Number], // Array of 1536 numbers (embedding vector)
       default: null,
       select: false, // Don't return in default queries (large data)
     },
