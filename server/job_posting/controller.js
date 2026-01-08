@@ -88,11 +88,11 @@ export const createJobPosting = async (req, res) => {
 
     // Generate embedding and update job posting
     try {
-      const embedding = await generateJobEmbedding(jobPosting);
+      const vector = await generateJobEmbedding(jobPosting);
       // Use findByIdAndUpdate to ensure status is preserved when updating vector
       await JobPosting.findByIdAndUpdate(
         jobPosting._id,
-        { $set: { vector: embedding } },
+        { $set: { vector } },
         { new: false }
       );
 
@@ -531,11 +531,11 @@ export const updateJobPosting = async (req, res) => {
       skills !== undefined
     ) {
       try {
-        const embedding = await generateJobEmbedding(updatedJobPosting);
+        const vector = await generateJobEmbedding(updatedJobPosting);
         // Update vector without affecting status
         await JobPosting.findByIdAndUpdate(
           id,
-          { $set: { vector: embedding } },
+          { $set: { vector } },
           { new: false }
         );
 

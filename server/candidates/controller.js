@@ -49,8 +49,8 @@ export const createCandidateData = async (candidateData) => {
 
   // Generate embedding and update candidate
   try {
-    const embedding = await generateCandidateEmbedding(candidate);
-    candidate.vector = embedding;
+    const vector = await generateCandidateEmbedding(candidate);
+    candidate.vector = vector;
     await candidate.save();
 
     // Trigger matching process asynchronously (don't wait for it)
@@ -155,12 +155,18 @@ export const createCandidate = async (req, res) => {
 // Import seed function from separate file
 export { seedCandidates } from "./seedCandidates.js";
 
-// Get all candidates
+// Get all candidates with pagination
 export const getCandidates = async (req, res) => {
   try {
+    // Pagination parameters - parse at the start
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20; // Default 20 per page
+    const skip = (page - 1) * limit;
+
+    // Search parameter
     const { search } = req.query;
 
-    // Build filter query - only handle search on backend
+    // Build filter query
     const filterQuery = { is_active: { $ne: false } };
 
     // Search filter (name, email, skills) - general search
@@ -172,38 +178,46 @@ export const getCandidates = async (req, res) => {
       ];
     }
 
-    // Get all candidates (filtering, sorting, and pagination handled on frontend)
+    // Get total count for pagination metadata (before pagination)
+    const totalCount = await Candidate.countDocuments(filterQuery);
+
+    // Get paginated candidates
     const candidates = await Candidate.find(filterQuery)
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .lean();
 
-    // Get last interview date for each candidate from RecruiterTask
+    // Get last interview date for each candidate from RecruiterTask (only for current page)
     const candidateIds = candidates.map((c) => c._id);
     
-    // Aggregate to get the most recent interview_time for each candidate
-    const lastInterviewDates = await RecruiterTask.aggregate([
-      {
-        $match: {
-          candidate_id: { $in: candidateIds },
-          status: { $in: ["scheduled", "completed"] }, // Only count scheduled or completed interviews
+    // Only aggregate if we have candidates in this page
+    let lastInterviewMap = {};
+    if (candidateIds.length > 0) {
+      // Aggregate to get the most recent interview_time for each candidate
+      const lastInterviewDates = await RecruiterTask.aggregate([
+        {
+          $match: {
+            candidate_id: { $in: candidateIds },
+            status: { $in: ["scheduled", "completed"] }, // Only count scheduled or completed interviews
+          },
         },
-      },
-      {
-        $sort: { interview_time: -1 }, // Sort by interview_time descending
-      },
-      {
-        $group: {
-          _id: "$candidate_id",
-          lastInterviewDate: { $first: "$interview_time" },
+        {
+          $sort: { interview_time: -1 }, // Sort by interview_time descending
         },
-      },
-    ]);
+        {
+          $group: {
+            _id: "$candidate_id",
+            lastInterviewDate: { $first: "$interview_time" },
+          },
+        },
+      ]);
 
-    // Create a map of candidate_id to lastInterviewDate
-    const lastInterviewMap = {};
-    lastInterviewDates.forEach((item) => {
-      lastInterviewMap[item._id.toString()] = item.lastInterviewDate;
-    });
+      // Create a map of candidate_id to lastInterviewDate
+      lastInterviewDates.forEach((item) => {
+        lastInterviewMap[item._id.toString()] = item.lastInterviewDate;
+      });
+    }
 
     // Add lastInterviewDate to each candidate
     const candidatesWithLastInterview = candidates.map((candidate) => ({
@@ -211,9 +225,21 @@ export const getCandidates = async (req, res) => {
       lastInterviewDate: lastInterviewMap[candidate._id.toString()] || null,
     }));
 
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
     res.status(200).json({
-      count: candidatesWithLastInterview.length,
       candidates: candidatesWithLastInterview,
+      pagination: {
+        currentPage: page,
+        limit: limit,
+        totalCount: totalCount,
+        totalPages: totalPages,
+        hasNextPage: hasNextPage,
+        hasPrevPage: hasPrevPage,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -340,8 +366,8 @@ export const updateCandidate = async (req, res) => {
 
     if (hasEmbeddingRelevantChanges) {
       try {
-        const embedding = await generateCandidateEmbedding(candidate);
-        candidate.vector = embedding;
+        const vector = await generateCandidateEmbedding(candidate);
+        candidate.vector = vector;
         await candidate.save();
 
         // Trigger matching process asynchronously

@@ -4,124 +4,15 @@ import JobPosting from "../job_posting/model.js";
 import { CandidateMatches, JobMatches } from "../matching/model.js";
 
 // Configuration for vector search
-const VECTOR_SEARCH_INDEX_CANDIDATE = "candidate_job_posting_index";
-const VECTOR_SEARCH_INDEX_JOB = "vector_index";
+const VECTOR_SEARCH_INDEX_CANDIDATE = "candidate_vector_index"; // Atlas vector search index name for candidates
+const VECTOR_SEARCH_INDEX_JOB = "jobposting_vector_index"; // Atlas vector search index name for job postings
 const VECTOR_SEARCH_LIMIT = 20; // Get top 20 matches for AI Match tab
-const MIN_MATCH_SCORE = 0.002; // Minimum similarity score to consider a match (using absolute value for filtering)
-// Note: Cosine similarity ranges from -1 (opposite) to 1 (identical)
-// Negative scores indicate vectors pointing in opposite directions (very different content)
-// We use absolute value for threshold comparison, so both positive and negative scores
-// above the threshold (in absolute terms) are included
+const MIN_MATCH_SCORE = 0.5; // Minimum similarity score (Atlas returns scores 0-1)
 const MAX_MATCHES_TO_STORE = 20; // Maximum matches to store per job/candidate (for AI Match tab)
+const NUM_CANDIDATES = 150; // Number of candidates to consider in vector search (tune based on dataset)
 
 /**
- * Calculate cosine similarity between two vectors using MongoDB aggregation
- * This works with self-hosted MongoDB (not just Atlas)
- * Formula: cosine_similarity = dotProduct(A, B) / (magnitude(A) * magnitude(B))
- */
-function buildCosineSimilarityPipeline(queryVector, vectorField = "vector") {
-  // All vectors are now 1536 dimensions (OpenAI text-embedding-3-large)
-  // Calculate magnitude of query vector (constant) - should be 1536 dimensions
-  const queryMagnitude = Math.sqrt(
-    queryVector.reduce((sum, val) => sum + val * val, 0)
-  );
-
-  // Build the dot product calculation
-  // Split into smaller chunks to avoid MongoDB expression/complexity limits
-  // This prevents the aggregation from failing or only processing the first document
-  const CHUNK_SIZE = 50; // Smaller chunks for better compatibility
-  const chunks = [];
-  for (let i = 0; i < queryVector.length; i += CHUNK_SIZE) {
-    const chunk = [];
-    for (let j = i; j < Math.min(i + CHUNK_SIZE, queryVector.length); j++) {
-      chunk.push({
-        $multiply: [
-          { $arrayElemAt: [`$${vectorField}`, j] },
-          queryVector[j], // Embed the actual value
-        ],
-      });
-    }
-    chunks.push({ $sum: chunk });
-  }
-
-  return [
-    {
-      $match: {
-        [vectorField]: { $exists: true, $ne: null, $type: "array" },
-        // Require vectors to have at least 1536 dimensions (queryVector.length)
-        // This ensures we can safely access all indices in the dot product calculation
-        $expr: { $gte: [{ $size: `$${vectorField}` }, queryVector.length] },
-      },
-    },
-    {
-      $addFields: {
-        // Calculate dot product by summing chunks (more efficient than 1536 expressions)
-        dotProduct: {
-          $sum: chunks,
-        },
-        // Calculate magnitude of document vector
-        docMagnitude: {
-          $sqrt: {
-            $reduce: {
-              input: `$${vectorField}`,
-              initialValue: 0,
-              in: { $add: ["$$value", { $multiply: ["$$this", "$$this"] }] },
-            },
-          },
-        },
-      },
-    },
-    {
-      $addFields: {
-        // Calculate cosine similarity
-        // Cosine similarity ranges from -1 (opposite) to 1 (identical)
-        // Negative values indicate vectors pointing in opposite directions
-        rawScore: {
-          $cond: {
-            if: { $gt: ["$docMagnitude", 0] },
-            then: {
-              $divide: ["$dotProduct", { $multiply: [queryMagnitude, "$docMagnitude"] }],
-            },
-            else: 0,
-          },
-        },
-      },
-    },
-    {
-      $addFields: {
-        // For embeddings, negative scores typically indicate very different content
-        // Strategy: Use absolute value for threshold comparison, but prefer positive scores
-        // This allows us to catch near-orthogonal vectors (small negatives close to 0)
-        // while still filtering out strongly negative scores (very different content)
-        absScore: { $abs: "$rawScore" },
-        // Keep the original score for display
-        // For display purposes, we can clamp negatives to 0 if desired, but keeping raw score
-        // allows users to see the true similarity (negative = opposite direction)
-        score: "$rawScore",
-      },
-    },
-    {
-      $match: {
-        // Filter using absolute value for threshold comparison
-        // This includes both:
-        // - Positive scores >= MIN_MATCH_SCORE (similar content, pointing in same direction)
-        // - Negative scores with abs >= MIN_MATCH_SCORE (near-orthogonal, might be somewhat relevant)
-        // 
-        // Note: For embeddings, negative scores typically indicate very different content.
-        // A score of -0.0045 (abs = 0.0045) is very close to 0 (orthogonal/unrelated).
-        // If you want to include such small negatives, lower MIN_MATCH_SCORE (e.g., to 0.005).
-        // Alternatively, you can filter out all negatives by changing this to: { score: { $gte: MIN_MATCH_SCORE } }
-        absScore: { $gte: MIN_MATCH_SCORE },
-      },
-    },
-    {
-      $sort: { score: -1 },
-    },
-  ];
-}
-
-/**
- * Find matching candidates for a job posting using vector search
+ * Find matching candidates for a job posting using Atlas vector search
  * @param {string} jobPostingId - MongoDB ObjectId of the job posting
  * @param {Object} filters - Optional filters (experience, role, etc.)
  * @returns {Promise<Array>} - Array of { candidateId, matchScore } objects
@@ -129,9 +20,7 @@ function buildCosineSimilarityPipeline(queryVector, vectorField = "vector") {
 export async function findMatchingCandidates(jobPostingId, filters = {}) {
   try {
     // Get job posting with vector
-    const jobPosting = await JobPosting.findById(jobPostingId).select(
-      "+vector"
-    );
+    const jobPosting = await JobPosting.findById(jobPostingId).select("+vector");
 
     if (!jobPosting) {
       throw new Error("Job posting not found");
@@ -144,7 +33,9 @@ export async function findMatchingCandidates(jobPostingId, filters = {}) {
         const { generateJobEmbedding } = await import("../services/embeddingService.js");
         const embedding = await generateJobEmbedding(jobPosting);
         jobPosting.vector = embedding;
-        await JobPosting.findByIdAndUpdate(jobPostingId, { $set: { vector: embedding } });
+        await JobPosting.findByIdAndUpdate(jobPostingId, { 
+          $set: { vector: embedding } 
+        });
         console.log(`[findMatchingCandidates] Generated vector for job ${jobPostingId} (${embedding.length} dimensions)`);
       } catch (embedError) {
         console.error(`[findMatchingCandidates] Failed to generate vector for job ${jobPostingId}:`, embedError);
@@ -156,147 +47,74 @@ export async function findMatchingCandidates(jobPostingId, filters = {}) {
     const db = mongoose.connection.db;
     const candidatesCollection = db.collection("candidates");
 
-    // Check and regenerate candidate vectors that don't have 1536 dimensions
-    const EXPECTED_VECTOR_DIMENSION = 1536;
-    const candidatesWithWrongDimensions = await candidatesCollection.find({
-      vector: { $exists: true, $ne: null, $type: "array" },
-      $expr: { $ne: [{ $size: "$vector" }, EXPECTED_VECTOR_DIMENSION] },
-    }).limit(10).toArray(); // Limit to 10 at a time to avoid performance issues
-    
-    if (candidatesWithWrongDimensions.length > 0) {
-      console.log(`[findMatchingCandidates] Found ${candidatesWithWrongDimensions.length} candidates with incorrect vector dimensions. Regenerating...`);
-      const { generateCandidateEmbedding } = await import("../services/embeddingService.js");
-      
-      for (const candidate of candidatesWithWrongDimensions) {
-        try {
-          const candidateDoc = await Candidate.findById(candidate._id);
-          if (candidateDoc) {
-            const embedding = await generateCandidateEmbedding(candidateDoc);
-            await Candidate.findByIdAndUpdate(candidate._id, { $set: { vector: embedding } });
-            console.log(`[findMatchingCandidates] Regenerated vector for candidate ${candidate._id} (${embedding.length} dimensions)`);
-          }
-        } catch (embedError) {
-          console.error(`[findMatchingCandidates] Failed to regenerate vector for candidate ${candidate._id}:`, embedError);
-        }
-      }
-    }
-
-    // Check how many candidates have vectors
-    const totalCandidates = await candidatesCollection.countDocuments({});
-    const candidatesWithVectors = await candidatesCollection.countDocuments({
-      vector: { $exists: true, $ne: null, $type: "array" },
-    });
-    console.log(`[findMatchingCandidates] Total candidates: ${totalCandidates}, With vectors: ${candidatesWithVectors}`);
-
-    // Build match filter
-    const matchFilter = {};
+    // Build filter object for Atlas vector search
+    const filter = {};
     if (filters.experience) {
-      matchFilter.experience = { $gte: filters.experience };
+      filter.experience = { $gte: filters.experience };
     }
     if (filters.role && filters.role.length > 0) {
-      matchFilter.role = { $in: filters.role };
+      filter.role = { $in: filters.role };
     }
     if (filters.is_active !== undefined) {
-      matchFilter.is_active = filters.is_active;
+      filter.is_active = filters.is_active;
     }
 
-    // Debug: Test each stage of the pipeline
-    console.log(`[findMatchingCandidates] Testing pipeline stages...`);
-    
-    // Stage 1: Check if candidates pass the initial $match (vector exists and has correct size)
-    const stage1Results = await candidatesCollection.aggregate([
+    // Build $vectorSearch stage - only include filter if it has values
+    const vectorSearchStage = {
+      index: VECTOR_SEARCH_INDEX_CANDIDATE,
+      path: "vector",
+      queryVector: jobPosting.vector,
+      numCandidates: NUM_CANDIDATES,
+      limit: VECTOR_SEARCH_LIMIT * 2, // Get more results before filtering
+    };
+
+    // Only add filter if it has properties
+    if (Object.keys(filter).length > 0) {
+      vectorSearchStage.filter = filter;
+    }
+
+    // Build Atlas vector search pipeline
+    const pipeline = [
+      {
+        $vectorSearch: vectorSearchStage,
+      },
+      {
+        $addFields: {
+          matchScore: { $meta: "vectorSearchScore" },
+        },
+      },
       {
         $match: {
-          vector: { $exists: true, $ne: null, $type: "array" },
-          $expr: { $gte: [{ $size: "$vector" }, jobPosting.vector.length] },
+          matchScore: { $gte: MIN_MATCH_SCORE },
         },
-      },
-      { $project: { _id: 1, name: 1, vectorSize: { $size: "$vector" } } },
-      { $limit: 10 },
-    ]).toArray();
-    console.log(`[findMatchingCandidates] Stage 1 (size check): ${stage1Results.length} candidates passed`);
-    if (stage1Results.length > 0) {
-      console.log(`[findMatchingCandidates] Sample candidate vector sizes:`, stage1Results.map(r => ({ id: r._id, name: r.name, size: r.vectorSize })));
-    }
-
-    // Build cosine similarity pipeline (works with self-hosted MongoDB)
-    const basePipeline = buildCosineSimilarityPipeline(jobPosting.vector, "vector");
-    
-    // Create a debug pipeline without score filtering to see all calculated scores
-    const debugPipeline = [
-      ...basePipeline.slice(0, -2), // Remove the score filter and sort (last 2 stages)
-      {
-        $sort: { score: -1 },
       },
       {
         $project: {
           _id: 1,
-          name: 1,
-          score: 1,
-          dotProduct: 1,
-          docMagnitude: 1,
-        },
-      },
-      { $limit: 10 },
-    ];
-    
-    // Run debug pipeline first to see all scores
-    console.log(`[findMatchingCandidates] Running debug pipeline (without score filter)...`);
-    const debugResults = await candidatesCollection.aggregate(debugPipeline).toArray();
-    console.log(`[findMatchingCandidates] DEBUG - All scores (before threshold):`, debugResults.map(r => ({ 
-      id: r._id, 
-      name: r.name,
-      score: r.score,
-      dotProduct: r.dotProduct,
-      docMagnitude: r.docMagnitude 
-    })));
-
-    // Now run the actual pipeline with score filter
-    const pipeline = [
-      ...buildCosineSimilarityPipeline(jobPosting.vector, "vector"),
-      // Apply additional filters
-      {
-        $match: matchFilter,
-      },
-      {
-        $project: {
-          _id: 1,
-          score: 1,
+          matchScore: 1,
         },
       },
       {
-        $limit: VECTOR_SEARCH_LIMIT * 2, // Get more results before final filtering
+        $limit: VECTOR_SEARCH_LIMIT,
       },
     ];
 
-    // Debug: Check pipeline stages
-    console.log(`[findMatchingCandidates] Pipeline stages: ${pipeline.length}`);
-    console.log(`[findMatchingCandidates] Match filter:`, JSON.stringify(matchFilter));
+    console.log(`[findMatchingCandidates] Using Atlas vector search with index: ${VECTOR_SEARCH_INDEX_CANDIDATE}`);
+    console.log(`[findMatchingCandidates] Filters:`, JSON.stringify(filter));
     console.log(`[findMatchingCandidates] MIN_MATCH_SCORE: ${MIN_MATCH_SCORE}`);
 
-    // Perform vector search using cosine similarity
+    // Perform vector search using Atlas
     const results = await candidatesCollection.aggregate(pipeline).toArray();
 
-    console.log(`[findMatchingCandidates] Found ${results.length} candidates with vectors for job ${jobPostingId}`);
-    console.log(`[findMatchingCandidates] Query vector dimension: ${jobPosting.vector.length}`);
+    console.log(`[findMatchingCandidates] Found ${results.length} matching candidates for job ${jobPostingId}`);
     
-    // Debug: Log all results with scores (even if below threshold)
-    if (results.length > 0) {
-      console.log(`[findMatchingCandidates] Raw results with scores:`, results.map(r => ({ id: r._id, score: r.score })));
-    } else {
-      console.log(`[findMatchingCandidates] WARNING: No results found after pipeline. Check debug pipeline results above.`);
-    }
+    // Format results
+    const formattedResults = results.map((result) => ({
+      candidateId: result._id,
+      matchScore: result.matchScore,
+    }));
 
-    // Format results and limit to top matches
-    const formattedResults = results
-      .filter((result) => result.score >= MIN_MATCH_SCORE)
-      .slice(0, VECTOR_SEARCH_LIMIT)
-      .map((result) => ({
-        candidateId: result._id,
-        matchScore: result.score,
-      }));
-
-    console.log(`[findMatchingCandidates] Returning ${formattedResults.length} matches after filtering (min score: ${MIN_MATCH_SCORE})`);
+    console.log(`[findMatchingCandidates] Returning ${formattedResults.length} matches`);
     return formattedResults;
   } catch (error) {
     console.error("Error finding matching candidates:", error);
@@ -305,7 +123,7 @@ export async function findMatchingCandidates(jobPostingId, filters = {}) {
 }
 
 /**
- * Find matching jobs for a candidate using vector search
+ * Find matching jobs for a candidate using Atlas vector search
  * @param {string} candidateId - MongoDB ObjectId of the candidate
  * @param {Object} filters - Optional filters (exp_req, role, etc.)
  * @returns {Promise<Array>} - Array of { jobId, matchScore } objects
@@ -326,7 +144,9 @@ export async function findMatchingJobs(candidateId, filters = {}) {
         const { generateCandidateEmbedding } = await import("../services/embeddingService.js");
         const embedding = await generateCandidateEmbedding(candidate);
         candidate.vector = embedding;
-        await Candidate.findByIdAndUpdate(candidateId, { $set: { vector: embedding } });
+        await Candidate.findByIdAndUpdate(candidateId, { 
+          $set: { vector: embedding } 
+        });
         console.log(`[findMatchingJobs] Generated vector for candidate ${candidateId} (${embedding.length} dimensions)`);
       } catch (embedError) {
         console.error(`[findMatchingJobs] Failed to generate vector for candidate ${candidateId}:`, embedError);
@@ -335,174 +155,77 @@ export async function findMatchingJobs(candidateId, filters = {}) {
     }
 
     // Get native MongoDB collection for vector search
-    // Use the model's collection name to ensure consistency
     const db = mongoose.connection.db;
     const jobPostingsCollection = db.collection(JobPosting.collection.name);
 
-    // Check how many jobs have vectors
-    const totalJobs = await jobPostingsCollection.countDocuments({});
-    const jobsWithVectors = await jobPostingsCollection.countDocuments({
-      vector: { $exists: true, $ne: null, $type: "array" },
-    });
-    console.log(`[findMatchingJobs] Total jobs: ${totalJobs}, With vectors: ${jobsWithVectors}`);
-
-    // Build match filter
-    const matchFilter = {};
+    // Build filter object for Atlas vector search
+    const filter = {};
     if (filters.exp_req !== undefined) {
-      matchFilter.exp_req = { $lte: candidate.experience || 0 };
+      filter.exp_req = { $lte: candidate.experience || 0 };
     }
     if (filters.role && filters.role.length > 0) {
-      matchFilter.role = { $in: filters.role };
+      filter.role = { $in: filters.role };
+    }
+    if (filters.status !== undefined) {
+      filter.status = filters.status;
     }
 
-    // Check and regenerate job vectors that don't have 1536 dimensions
-    const EXPECTED_VECTOR_DIMENSION = 1536;
-    const jobsWithWrongDimensions = await jobPostingsCollection.find({
-      vector: { $exists: true, $ne: null, $type: "array" },
-      $expr: { $ne: [{ $size: "$vector" }, EXPECTED_VECTOR_DIMENSION] },
-    }).toArray();
-    
-    if (jobsWithWrongDimensions.length > 0) {
-      console.log(`[findMatchingJobs] Found ${jobsWithWrongDimensions.length} jobs with incorrect vector dimensions. Regenerating...`);
-      const { generateJobEmbedding } = await import("../services/embeddingService.js");
-      
-      for (const job of jobsWithWrongDimensions) {
-        try {
-          const jobDoc = await JobPosting.findById(job._id);
-          if (jobDoc) {
-            const embedding = await generateJobEmbedding(jobDoc);
-            await JobPosting.findByIdAndUpdate(job._id, { $set: { vector: embedding } });
-            console.log(`[findMatchingJobs] Regenerated vector for job ${job._id} (${embedding.length} dimensions)`);
-          }
-        } catch (embedError) {
-          console.error(`[findMatchingJobs] Failed to regenerate vector for job ${job._id}:`, embedError);
-        }
-      }
+    // Build $vectorSearch stage - only include filter if it has values
+    const vectorSearchStage = {
+      index: VECTOR_SEARCH_INDEX_JOB,
+      path: "vector",
+      queryVector: candidate.vector,
+      numCandidates: NUM_CANDIDATES,
+      limit: VECTOR_SEARCH_LIMIT * 2, // Get more results before filtering
+    };
+
+    // Only add filter if it has properties
+    if (Object.keys(filter).length > 0) {
+      vectorSearchStage.filter = filter;
     }
 
-    // Debug: Check job vector dimensions before aggregation
-    const sampleJob = await jobPostingsCollection.findOne({ vector: { $exists: true, $ne: null, $type: "array" } });
-    if (sampleJob) {
-      console.log(`[findMatchingJobs] Sample job vector dimension: ${sampleJob.vector?.length || 'N/A'}`);
-      console.log(`[findMatchingJobs] Candidate vector dimension: ${candidate.vector.length}`);
-    }
-
-    // Debug: Test each stage of the pipeline
-    console.log(`[findMatchingJobs] Testing pipeline stages...`);
-    
-    // Stage 1: Check if jobs pass the initial $match (vector exists and has correct size)
-    const stage1Results = await jobPostingsCollection.aggregate([
+    // Build Atlas vector search pipeline
+    const pipeline = [
+      {
+        $vectorSearch: vectorSearchStage,
+      },
+      {
+        $addFields: {
+          matchScore: { $meta: "vectorSearchScore" },
+        },
+      },
       {
         $match: {
-          vector: { $exists: true, $ne: null, $type: "array" },
-          $expr: { $gte: [{ $size: "$vector" }, candidate.vector.length] },
+          matchScore: { $gte: MIN_MATCH_SCORE },
         },
-      },
-      { $project: { _id: 1, vectorSize: { $size: "$vector" } } },
-      { $limit: 5 },
-    ]).toArray();
-    console.log(`[findMatchingJobs] Stage 1 (size check): ${stage1Results.length} jobs passed`);
-    if (stage1Results.length > 0) {
-      console.log(`[findMatchingJobs] Sample job vector sizes:`, stage1Results.map(r => ({ id: r._id, size: r.vectorSize })));
-    }
-
-    // Build cosine similarity pipeline (works with self-hosted MongoDB)
-    const basePipeline = buildCosineSimilarityPipeline(candidate.vector, "vector");
-    
-    // Create a debug pipeline without score filtering to see all calculated scores
-    const debugPipeline = [
-      ...basePipeline.slice(0, -2), // Remove the score filter and sort (last 2 stages)
-      {
-        $sort: { score: -1 },
       },
       {
         $project: {
           _id: 1,
-          score: 1,
-          dotProduct: 1,
-          docMagnitude: 1,
-        },
-      },
-      { $limit: 5 },
-    ];
-    
-    // Run debug pipeline first to see all scores
-    console.log(`[findMatchingJobs] Running debug pipeline (without score filter)...`);
-    const debugResults = await jobPostingsCollection.aggregate(debugPipeline).toArray();
-    console.log(`[findMatchingJobs] DEBUG - All scores (before threshold):`, debugResults.map(r => ({ 
-      id: r._id, 
-      score: r.score,
-      dotProduct: r.dotProduct,
-      docMagnitude: r.docMagnitude 
-    })));
-
-    // Now run the actual pipeline with score filter
-    const pipeline = [
-      ...buildCosineSimilarityPipeline(candidate.vector, "vector"),
-      // Apply additional filters
-      {
-        $match: matchFilter,
-      },
-      {
-        $project: {
-          _id: 1,
-          score: 1,
+          matchScore: 1,
         },
       },
       {
-        $limit: VECTOR_SEARCH_LIMIT * 2, // Get more results before final filtering
+        $limit: VECTOR_SEARCH_LIMIT,
       },
     ];
 
-    // Debug: Check pipeline stages
-    console.log(`[findMatchingJobs] Pipeline stages: ${pipeline.length}`);
-    console.log(`[findMatchingJobs] Match filter:`, JSON.stringify(matchFilter));
+    console.log(`[findMatchingJobs] Using Atlas vector search with index: ${VECTOR_SEARCH_INDEX_JOB}`);
+    console.log(`[findMatchingJobs] Filters:`, JSON.stringify(filter));
     console.log(`[findMatchingJobs] MIN_MATCH_SCORE: ${MIN_MATCH_SCORE}`);
 
-    // Perform vector search using cosine similarity
+    // Perform vector search using Atlas
     const results = await jobPostingsCollection.aggregate(pipeline).toArray();
 
-    console.log(`[findMatchingJobs] Found ${results.length} jobs with vectors for candidate ${candidateId}`);
-    console.log(`[findMatchingJobs] Query vector dimension: ${candidate.vector.length}`);
+    console.log(`[findMatchingJobs] Found ${results.length} matching jobs for candidate ${candidateId}`);
     
-    // Debug: Log all results with scores (even if below threshold)
-    if (results.length > 0) {
-      console.log(`[findMatchingJobs] Raw results with scores:`, results.map(r => ({ id: r._id, score: r.score })));
-    } else {
-      // If no results, check what's happening in the pipeline
-      // Try a simpler pipeline to see if vectors exist and match size requirement
-      const debugPipeline = [
-        {
-          $match: {
-            vector: { $exists: true, $ne: null, $type: "array" },
-          },
-        },
-        {
-          $project: {
-            _id: 1,
-            vectorSize: { $size: "$vector" },
-            vector: 1,
-          },
-        },
-        { $limit: 1 },
-      ];
-      const debugResults = await jobPostingsCollection.aggregate(debugPipeline).toArray();
-      if (debugResults.length > 0) {
-        console.log(`[findMatchingJobs] DEBUG - Job vector size: ${debugResults[0].vectorSize}, Required: ${candidate.vector.length}`);
-        console.log(`[findMatchingJobs] DEBUG - Size match: ${debugResults[0].vectorSize >= candidate.vector.length}`);
-      }
-    }
+    // Format results
+    const formattedResults = results.map((result) => ({
+      jobId: result._id,
+      matchScore: result.matchScore,
+    }));
 
-    // Format results and limit to top matches
-    const formattedResults = results
-      .filter((result) => result.score >= MIN_MATCH_SCORE)
-      .slice(0, VECTOR_SEARCH_LIMIT)
-      .map((result) => ({
-        jobId: result._id,
-        matchScore: result.score,
-      }));
-
-    console.log(`[findMatchingJobs] Returning ${formattedResults.length} matches after filtering (min score: ${MIN_MATCH_SCORE})`);
+    console.log(`[findMatchingJobs] Returning ${formattedResults.length} matches`);
     return formattedResults;
   } catch (error) {
     console.error("Error finding matching jobs:", error);
