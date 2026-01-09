@@ -77,7 +77,17 @@ export default function CandidatesPage() {
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
-    rowsPerPage: 10,
+    rowsPerPage: 20, // Default 20 to match backend
+  });
+  
+  // Server-side pagination metadata
+  const [paginationMeta, setPaginationMeta] = useState({
+    currentPage: 1,
+    limit: 20,
+    totalCount: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPrevPage: false,
   });
 
   // Filtering state
@@ -135,6 +145,14 @@ export default function CandidatesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]);
 
+  // Reset pagination when search query changes (before debounce)
+  useEffect(() => {
+    if (searchQuery !== debouncedSearchQuery) {
+      setPagination((prev) => ({ ...prev, page: 1 }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
   // Debounce search query
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -143,19 +161,35 @@ export default function CandidatesPage() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  // Fetch candidates when debounced search changes
+  // Fetch candidates when debounced search or pagination changes
   useEffect(() => {
     if (user && !initialLoading) {
       fetchCandidates();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearchQuery, user, initialLoading]);
+  }, [debouncedSearchQuery, pagination.page, pagination.rowsPerPage, user, initialLoading]);
 
   const fetchCandidates = async () => {
     try {
       setLoadingCandidates(true);
-      const response = await candidateAPI.getCandidates(debouncedSearchQuery);
+      const response = await candidateAPI.getCandidates(
+        debouncedSearchQuery,
+        pagination.page,
+        pagination.rowsPerPage
+      );
       setCandidates(response.candidates || []);
+      
+      // Update pagination metadata from server response
+      if (response.pagination) {
+        setPaginationMeta({
+          currentPage: response.pagination.currentPage || pagination.page,
+          limit: response.pagination.limit || pagination.rowsPerPage,
+          totalCount: response.pagination.totalCount || 0,
+          totalPages: response.pagination.totalPages || 0,
+          hasNextPage: response.pagination.hasNextPage || false,
+          hasPrevPage: response.pagination.hasPrevPage || false,
+        });
+      }
     } catch (err) {
       setError(err.message || "Failed to fetch candidates");
     } finally {
@@ -429,8 +463,8 @@ export default function CandidatesPage() {
       direction = "desc";
     }
     setSortConfig({ key, direction });
-    // Reset pagination to page 1 when sorting changes
-    setPagination((prev) => ({ ...prev, page: 1 }));
+    // Note: Sorting is still done client-side on paginated results
+    // If you want server-side sorting, update fetchCandidates to include sort params
   };
 
   // Sort candidates based on sortConfig
@@ -558,7 +592,7 @@ export default function CandidatesPage() {
     setSearchQuery("");
     setDebouncedSearchQuery("");
     setShowFilters(false);
-    // Reset pagination when filters are cleared
+    // Reset pagination when filters are cleared (search triggers new API call)
     setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
@@ -577,10 +611,12 @@ export default function CandidatesPage() {
   // Pagination handlers
   const handlePageChange = (newPage) => {
     setPagination((prev) => ({ ...prev, page: newPage }));
+    // Fetch will be triggered by useEffect watching pagination.page
   };
 
   const handleRowsPerPageChange = (newRowsPerPage) => {
-    setPagination((prev) => ({ page: 1, rowsPerPage: newRowsPerPage }));
+    setPagination({ page: 1, rowsPerPage: newRowsPerPage });
+    // Fetch will be triggered by useEffect watching pagination.rowsPerPage
   };
 
   // Initialize tempFilters when sidebar opens
@@ -591,14 +627,12 @@ export default function CandidatesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showFilters]);
 
-  // Filter and sort candidates on frontend
+  // Filter and sort candidates on frontend (on paginated results from server)
   const filteredCandidates = filterCandidates(candidates);
   const sortedCandidates = sortCandidates(filteredCandidates);
-
-  // Paginate candidates on frontend
-  const startIndex = (pagination.page - 1) * pagination.rowsPerPage;
-  const endIndex = startIndex + pagination.rowsPerPage;
-  const paginatedCandidates = sortedCandidates.slice(startIndex, endIndex);
+  
+  // Candidates are already paginated from server, just filter and sort them
+  const paginatedCandidates = sortedCandidates;
 
   const validRoles = [
     "SDET",
@@ -951,7 +985,7 @@ export default function CandidatesPage() {
                     </table>
                   </div>
                   {/* Pagination Controls */}
-                  {!loadingCandidates && sortedCandidates.length > 0 && (
+                  {!loadingCandidates && paginationMeta.totalCount > 0 && (
                     <div className="flex flex-row items-center justify-between gap-4 px-6 py-4 bg-white/60 border-t border-white/70 backdrop-blur">
                       <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex items-center gap-2.5 whitespace-nowrap">
@@ -979,15 +1013,20 @@ export default function CandidatesPage() {
                         <span className="text-xs text-slate-600 font-medium whitespace-nowrap">
                           Showing{" "}
                           <span className="text-slate-900 font-semibold">
-                            {startIndex + 1}
+                            {paginationMeta.totalCount > 0 
+                              ? ((paginationMeta.currentPage - 1) * paginationMeta.limit) + 1 
+                              : 0}
                           </span>{" "}
                           to{" "}
                           <span className="text-slate-900 font-semibold">
-                            {Math.min(endIndex, sortedCandidates.length)}
+                            {Math.min(
+                              paginationMeta.currentPage * paginationMeta.limit,
+                              paginationMeta.totalCount
+                            )}
                           </span>{" "}
                           of{" "}
                           <span className="text-slate-900 font-semibold">
-                            {sortedCandidates.length}
+                            {paginationMeta.totalCount}
                           </span>{" "}
                           candidates
                         </span>
@@ -998,7 +1037,7 @@ export default function CandidatesPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handlePageChange(pagination.page - 1)}
-                          disabled={pagination.page === 1}
+                          disabled={!paginationMeta.hasPrevPage}
                           className="h-8 bg-white/80"
                         >
                           <ChevronLeft className="h-4 w-4" />
@@ -1006,9 +1045,7 @@ export default function CandidatesPage() {
 
                         <div className="flex items-center gap-1">
                           {(() => {
-                            const totalPages = Math.ceil(
-                              sortedCandidates.length / pagination.rowsPerPage
-                            );
+                            const totalPages = paginationMeta.totalPages || 1;
                             const pages = [];
                             const maxVisible = 5;
 
@@ -1079,12 +1116,7 @@ export default function CandidatesPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handlePageChange(pagination.page + 1)}
-                          disabled={
-                            pagination.page >=
-                            Math.ceil(
-                              sortedCandidates.length / pagination.rowsPerPage
-                            )
-                          }
+                          disabled={!paginationMeta.hasNextPage}
                           className="h-8 bg-white/80"
                         >
                           <ChevronRight className="h-4 w-4" />

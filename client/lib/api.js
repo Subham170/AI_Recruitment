@@ -226,11 +226,13 @@ export const candidateAPI = {
     });
   },
 
-  getCandidates: async (search = "") => {
-    const url = search
-      ? `/candidates?search=${encodeURIComponent(search)}`
-      : "/candidates";
-    return apiRequest(url, {
+  getCandidates: async (search = "", page = 1, limit = 20) => {
+    const params = new URLSearchParams();
+    if (search) params.append("search", search);
+    params.append("page", page.toString());
+    params.append("limit", limit.toString());
+    
+    return apiRequest(`/candidates?${params.toString()}`, {
       method: "GET",
     });
   },
