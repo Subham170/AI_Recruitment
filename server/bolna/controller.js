@@ -213,6 +213,85 @@ export const triggerScreening = async (req, res) => {
   }
 };
 
+// Extract candidate information from transcript using LLM
+async function extractCandidateInfoFromTranscript(transcript) {
+  if (!llmClient) {
+    console.warn("OPENAI_API_KEY is not configured, skipping candidate info extraction");
+    return null;
+  }
+
+  try {
+    const systemMessage = `You are an expert interviewer extracting and structuring candidate information from a phone screening interview transcript.
+
+Your task is to extract, reframe, and structure the candidate information in a professional and consistent format.
+
+Return ONLY valid JSON with these exact keys:
+- currentCTC (string or null): Current CTC. Reframe into a clean, consistent format like "10 LPA" or "₹10 LPA". If mentioned in different formats (e.g., "10 lakhs", "10L", "ten lakhs per annum"), convert to standard "X LPA" format. If not mentioned, use null.
+- expectedCTC (string or null): Expected CTC. Reframe into a clean, consistent format like "15 LPA" or "₹15 LPA". If mentioned in different formats, convert to standard "X LPA" format. If not mentioned, use null.
+- location (string or null): Current location/city. Reframe to a clean city name format (e.g., "Mumbai", "Bangalore", "Delhi"). Remove unnecessary details like "I am from" or "currently living in". Capitalize properly. If not mentioned, use null.
+- lookingForJobChange (string or null): Answer to "Are you looking for any job change?" question. Reframe the answer into a clear, concise statement (e.g., "Yes, actively looking", "Yes, open to opportunities", "No, not currently looking", "Considering opportunities"). If not mentioned, use null.
+- availabilityForInterview (string or null): Answer to "What's your availability to join for Interview Call?" question. Reframe into a clear, structured response (e.g., "Available weekdays 2-5 PM", "Flexible, can adjust schedule", "Prefer mornings"). If not mentioned, use null.
+- joinDate (string or null): Answer to "How soon can you able to join?" question. Reframe into a clear, structured response (e.g., "Immediate joiner", "2 weeks notice period", "1 month notice", "Can join within 15 days"). If not mentioned, use null.
+- overallNote (string): ALWAYS generate a comprehensive summary note about the candidate based on the entire transcript. This should be a well-structured paragraph (2-4 sentences) that includes:
+  * Key highlights about the candidate's background, experience, or skills mentioned
+  * Their interest level and motivation for the role
+  * Notable strengths or positive attributes discussed
+  * Any concerns or areas that need attention
+  * Overall impression and fit assessment
+  If the transcript is very brief or lacks detail, create a concise note summarizing what was discussed. This field should NEVER be null - always provide a meaningful summary.
+
+IMPORTANT:
+- Reframe all extracted data into professional, consistent formats - do NOT copy verbatim from transcript
+- Always generate an overallNote - it should be a thoughtful summary, not just extracted text
+- Use null only for fields where information is genuinely not available in the transcript
+- Ensure all string values are properly formatted and professional
+
+Do NOT include markdown, explanations, or extra text. Return ONLY the JSON object.`;
+
+    const userMessageTemplate = `Interview Transcript:
+"""
+{transcript}
+"""
+
+Extract and reframe the candidate information from the transcript. Structure all data professionally and generate a comprehensive overallNote summarizing the candidate. Return the information as a JSON object with the keys specified above.`;
+
+    const prompt = ChatPromptTemplate.fromMessages([
+      ["system", systemMessage],
+      ["user", userMessageTemplate],
+    ]);
+
+    const chain = prompt.pipe(llmClient).pipe(new StringOutputParser());
+
+    let content = await chain.invoke({
+      transcript: transcript,
+    });
+
+    // Clean LLM output
+    content = content
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
+      .replace(/^\uFEFF/, "")
+      .trim();
+
+    const parsed = JSON.parse(content);
+    
+    // Return object with null values for missing fields
+    return {
+      currentCTC: parsed.currentCTC || null,
+      expectedCTC: parsed.expectedCTC || null,
+      location: parsed.location || null,
+      lookingForJobChange: parsed.lookingForJobChange || null,
+      availabilityForInterview: parsed.availabilityForInterview || null,
+      joinDate: parsed.joinDate || null,
+      overallNote: parsed.overallNote || null,
+    };
+  } catch (error) {
+    console.error("Error extracting candidate info from transcript:", error);
+    // Return null if extraction fails - don't block the screening process
+    return null;
+  }
+}
+
 // Analyze transcript and calculate screening score using LLM
 export async function screeningTranscript(executionId) {
   try {
@@ -279,6 +358,29 @@ export async function screeningTranscript(executionId) {
     bolnaCall.screeningStatus = "completed";
     bolnaCall.screeningAnalyzedAt = new Date();
     await bolnaCall.save();
+
+    // Extract candidate information from transcript and update candidate record
+    try {
+      const candidateInfo = await extractCandidateInfoFromTranscript(transcript);
+      if (candidateInfo) {
+        const candidate = await Candidate.findById(bolnaCall.candidateId);
+        if (candidate) {
+          // Update candidate fields with extracted information (only update if not null)
+          if (candidateInfo.currentCTC !== null) candidate.currentCTC = candidateInfo.currentCTC;
+          if (candidateInfo.expectedCTC !== null) candidate.expectedCTC = candidateInfo.expectedCTC;
+          if (candidateInfo.location !== null) candidate.location = candidateInfo.location;
+          if (candidateInfo.lookingForJobChange !== null) candidate.lookingForJobChange = candidateInfo.lookingForJobChange;
+          if (candidateInfo.availabilityForInterview !== null) candidate.availabilityForInterview = candidateInfo.availabilityForInterview;
+          if (candidateInfo.joinDate !== null) candidate.joinDate = candidateInfo.joinDate;
+          if (candidateInfo.overallNote !== null) candidate.overallNote = candidateInfo.overallNote;
+          await candidate.save();
+          console.log(`✅ Candidate information extracted and updated for candidate ${bolnaCall.candidateId}`);
+        }
+      }
+    } catch (infoError) {
+      console.error("Error extracting/updating candidate info:", infoError);
+      // Don't fail the screening process if info extraction fails
+    }
 
     // Update candidate progress - mark screening as completed
     await updateProgressFromBolnaCall(

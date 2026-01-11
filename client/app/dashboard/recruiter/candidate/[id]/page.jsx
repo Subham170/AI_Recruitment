@@ -81,6 +81,13 @@ export default function CandidateDetailPage() {
     skills: "",
     experience: "",
     role: "",
+    currentCTC: "",
+    expectedCTC: "",
+    location: "",
+    lookingForJobChange: "",
+    availabilityForInterview: "",
+    joinDate: "",
+    overallNote: "",
   });
 
   useEffect(() => {
@@ -175,6 +182,13 @@ export default function CandidateDetailPage() {
         skills: candidate.skills?.join(", ") || "",
         experience: candidate.experience?.toString() || "",
         role: candidate.role?.join(", ") || "",
+        currentCTC: candidate.currentCTC || "",
+        expectedCTC: candidate.expectedCTC || "",
+        location: candidate.location || "",
+        lookingForJobChange: candidate.lookingForJobChange || "",
+        availabilityForInterview: candidate.availabilityForInterview || "",
+        joinDate: candidate.joinDate || "",
+        overallNote: candidate.overallNote || "",
       });
       setError(null);
       setEditModalOpen(true);
@@ -206,6 +220,13 @@ export default function CandidateDetailPage() {
               .map((r) => r.trim())
               .filter((r) => r)
           : [],
+        currentCTC: formData.currentCTC || undefined,
+        expectedCTC: formData.expectedCTC || undefined,
+        location: formData.location || undefined,
+        lookingForJobChange: formData.lookingForJobChange || undefined,
+        availabilityForInterview: formData.availabilityForInterview || undefined,
+        joinDate: formData.joinDate || undefined,
+        overallNote: formData.overallNote || undefined,
       };
 
       await candidateAPI.updateCandidate(candidateId, candidateData);
@@ -577,7 +598,7 @@ export default function CandidateDetailPage() {
                     {candidate.phone_no || "N/A"}
                   </p>
                 </div>
-                <div>
+                {/* <div>
                   <p className="text-xs text-slate-500 uppercase mb-1">
                     Expected CTC
                   </p>
@@ -586,7 +607,7 @@ export default function CandidateDetailPage() {
                       ? `₹${candidate.expected_ctc} LPA`
                       : "N/A"}
                   </p>
-                </div>
+                </div> */}
               </div>
             </div>
 
@@ -806,6 +827,73 @@ export default function CandidateDetailPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Additional Candidate Information */}
+                  <div className="border-t border-slate-200 pt-6 mt-6">
+                    <h3 className="text-sm font-semibold text-slate-900 uppercase mb-4">
+                      Additional Information
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase mb-1">
+                          Current CTC
+                        </p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {candidate.currentCTC || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase mb-1">
+                          Expected CTC
+                        </p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {candidate.expectedCTC || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase mb-1">
+                          Location
+                        </p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {candidate.location || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase mb-1">
+                          Looking for Job Change
+                        </p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {candidate.lookingForJobChange || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase mb-1">
+                          Availability for Interview
+                        </p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {candidate.availabilityForInterview || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase mb-1">
+                          Join Date
+                        </p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {candidate.joinDate || "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                    {candidate.overallNote && (
+                      <div className="mt-4">
+                        <p className="text-xs text-slate-500 uppercase mb-2">
+                          Overall Note
+                        </p>
+                        <p className="text-slate-900 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                          {candidate.overallNote}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -1491,6 +1579,132 @@ export default function CandidateDetailPage() {
               <p className="text-xs text-slate-500">
                 Separate multiple skills with commas
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-currentCTC"
+                className="text-slate-900 font-medium"
+              >
+                Current CTC
+              </Label>
+              <Input
+                id="edit-currentCTC"
+                name="currentCTC"
+                type="text"
+                value={formData.currentCTC}
+                onChange={handleFormChange}
+                placeholder="e.g., 10 LPA or ₹10 LPA"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-expectedCTC"
+                className="text-slate-900 font-medium"
+              >
+                Expected CTC
+              </Label>
+              <Input
+                id="edit-expectedCTC"
+                name="expectedCTC"
+                type="text"
+                value={formData.expectedCTC}
+                onChange={handleFormChange}
+                placeholder="e.g., 15 LPA or ₹15 LPA"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-location"
+                className="text-slate-900 font-medium"
+              >
+                Location
+              </Label>
+              <Input
+                id="edit-location"
+                name="location"
+                type="text"
+                value={formData.location}
+                onChange={handleFormChange}
+                placeholder="Enter current location"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-lookingForJobChange"
+                className="text-slate-900 font-medium"
+              >
+                Looking for Job Change
+              </Label>
+              <Input
+                id="edit-lookingForJobChange"
+                name="lookingForJobChange"
+                type="text"
+                value={formData.lookingForJobChange}
+                onChange={handleFormChange}
+                placeholder="Are you looking for any job change?"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-availabilityForInterview"
+                className="text-slate-900 font-medium"
+              >
+                Availability for Interview
+              </Label>
+              <Input
+                id="edit-availabilityForInterview"
+                name="availabilityForInterview"
+                type="text"
+                value={formData.availabilityForInterview}
+                onChange={handleFormChange}
+                placeholder="What's your availability to join for Interview Call?"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-joinDate"
+                className="text-slate-900 font-medium"
+              >
+                Join Date
+              </Label>
+              <Input
+                id="edit-joinDate"
+                name="joinDate"
+                type="text"
+                value={formData.joinDate}
+                onChange={handleFormChange}
+                placeholder="How soon can you able to join?"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-overallNote"
+                className="text-slate-900 font-medium"
+              >
+                Overall Note
+              </Label>
+              <Textarea
+                id="edit-overallNote"
+                name="overallNote"
+                value={formData.overallNote}
+                onChange={handleFormChange}
+                placeholder="Any additional notes about the candidate"
+                rows={4}
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
             </div>
 
             <DialogFooter className="pt-4 border-t border-slate-200">

@@ -315,6 +315,13 @@ export const updateCandidate = async (req, res) => {
       bio,
       is_active,
       social_links,
+      currentCTC,
+      expectedCTC,
+      location,
+      lookingForJobChange,
+      availabilityForInterview,
+      joinDate,
+      overallNote,
     } = req.body;
 
     // Find the candidate
@@ -347,6 +354,13 @@ export const updateCandidate = async (req, res) => {
     if (bio !== undefined) candidate.bio = bio;
     if (is_active !== undefined) candidate.is_active = is_active;
     if (social_links !== undefined) candidate.social_links = social_links;
+    if (currentCTC !== undefined) candidate.currentCTC = currentCTC;
+    if (expectedCTC !== undefined) candidate.expectedCTC = expectedCTC;
+    if (location !== undefined) candidate.location = location;
+    if (lookingForJobChange !== undefined) candidate.lookingForJobChange = lookingForJobChange;
+    if (availabilityForInterview !== undefined) candidate.availabilityForInterview = availabilityForInterview;
+    if (joinDate !== undefined) candidate.joinDate = joinDate;
+    if (overallNote !== undefined) candidate.overallNote = overallNote;
 
     // Save the updated candidate
     await candidate.save();

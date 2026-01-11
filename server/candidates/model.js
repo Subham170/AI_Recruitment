@@ -56,6 +56,34 @@ const candidateSchema = new mongoose.Schema(
       default: null,
       select: false, // Don't return in default queries (large data)
     },
+    currentCTC: {
+      type: String, // Current CTC in LPA (Lakhs Per Annum)
+      default: null,
+    },
+    expectedCTC: {
+      type: String, // Expected CTC in LPA (Lakhs Per Annum)
+      default: null,
+    },
+    location: {
+      type: String, // Current location
+      default: null,
+    },
+    lookingForJobChange: {
+      type: String, // Are you Looking for any Job Change
+      default: null,
+    },
+    availabilityForInterview: {
+      type: String, // What's your availability to join for Interview Call?
+      default: null,
+    },
+    joinDate: {
+      type: String, // How Soon can you able to join
+      default: null,
+    },
+    overallNote: {
+      type: String, // Overall Note
+      default: null,
+    },
   },
   {
     timestamps: true, // Automatically adds created_at and updated_at fields

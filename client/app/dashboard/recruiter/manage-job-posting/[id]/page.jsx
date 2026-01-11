@@ -66,6 +66,7 @@ import {
   Eye,
   FileText,
   Globe,
+  Info,
   Loader2,
   Mail,
   Phone,
@@ -259,6 +260,18 @@ export default function RecruiterJobDetailPage() {
   const [slotsModalOpen, setSlotsModalOpen] = useState(false);
   const [slotsData, setSlotsData] = useState({ available: [], booked: [] });
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [moreInfoDialogOpen, setMoreInfoDialogOpen] = useState(false);
+  const [selectedCandidateForMoreInfo, setSelectedCandidateForMoreInfo] = useState(null);
+  const [moreInfoFormData, setMoreInfoFormData] = useState({
+    currentCTC: "",
+    expectedCTC: "",
+    location: "",
+    lookingForJobChange: "",
+    availabilityForInterview: "",
+    joinDate: "",
+    overallNote: "",
+  });
+  const [isUpdatingMoreInfo, setIsUpdatingMoreInfo] = useState(false);
   const [jobForm, setJobForm] = useState({
     title: "",
     description: "",
@@ -1788,6 +1801,71 @@ export default function RecruiterJobDetailPage() {
         screeningData.assignRecruiter._id?.toString() ||
         screeningData.assignRecruiter.toString();
       await handleRecruiterChange(recruiterId);
+    }
+  };
+
+  const handleOpenMoreInfo = async (candidate) => {
+    try {
+      setSelectedCandidateForMoreInfo(candidate);
+      setMoreInfoDialogOpen(true);
+      
+      // Fetch full candidate data to get the latest info
+      const candidateId = candidate._id?.toString() || candidate.toString();
+      const candidateData = await candidateAPI.getCandidateById(candidateId);
+      
+      setMoreInfoFormData({
+        currentCTC: candidateData.currentCTC || "",
+        expectedCTC: candidateData.expectedCTC || "",
+        location: candidateData.location || "",
+        lookingForJobChange: candidateData.lookingForJobChange || "",
+        availabilityForInterview: candidateData.availabilityForInterview || "",
+        joinDate: candidateData.joinDate || "",
+        overallNote: candidateData.overallNote || "",
+      });
+    } catch (err) {
+      console.error("Error fetching candidate data:", err);
+      toast.error("Failed to load candidate information");
+    }
+  };
+
+  const handleMoreInfoChange = (e) => {
+    const { name, value } = e.target;
+    setMoreInfoFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleUpdateMoreInfo = async (e) => {
+    e.preventDefault();
+    if (!selectedCandidateForMoreInfo) return;
+
+    try {
+      setIsUpdatingMoreInfo(true);
+      const candidateId = selectedCandidateForMoreInfo._id?.toString() || selectedCandidateForMoreInfo.toString();
+      
+      await candidateAPI.updateCandidate(candidateId, {
+        currentCTC: moreInfoFormData.currentCTC || undefined,
+        expectedCTC: moreInfoFormData.expectedCTC || undefined,
+        location: moreInfoFormData.location || undefined,
+        lookingForJobChange: moreInfoFormData.lookingForJobChange || undefined,
+        availabilityForInterview: moreInfoFormData.availabilityForInterview || undefined,
+        joinDate: moreInfoFormData.joinDate || undefined,
+        overallNote: moreInfoFormData.overallNote || undefined,
+      });
+
+      toast.success("Candidate information updated successfully!");
+      setMoreInfoDialogOpen(false);
+      
+      // Refresh screenings to show updated data
+      if (activeTab === "screenings") {
+        fetchScreenings();
+      }
+    } catch (err) {
+      console.error("Error updating candidate info:", err);
+      toast.error(err.message || "Failed to update candidate information");
+    } finally {
+      setIsUpdatingMoreInfo(false);
     }
   };
 
@@ -3479,6 +3557,20 @@ export default function RecruiterJobDetailPage() {
                                     }
                                   >
                                     <Calendar className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenMoreInfo(candidate);
+                                    }}
+                                    className="bg-slate-700 text-black border-0 transition-all duration-200 hover:scale-110"
+                                    title="View and edit additional candidate information"
+                                  >
+                                    <Info className="h-4 w-4" />
                                   </Button>
                                 </TableCell>
                               </TableRow>
@@ -6346,6 +6438,196 @@ export default function RecruiterJobDetailPage() {
               <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* More Info Dialog */}
+      <Dialog
+        open={moreInfoDialogOpen}
+        onOpenChange={(open) => {
+          setMoreInfoDialogOpen(open);
+          if (!open) {
+            setSelectedCandidateForMoreInfo(null);
+            setMoreInfoFormData({
+              currentCTC: "",
+              expectedCTC: "",
+              location: "",
+              lookingForJobChange: "",
+              availabilityForInterview: "",
+              joinDate: "",
+              overallNote: "",
+            });
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-slate-200 shadow-2xl">
+          <DialogHeader className="pb-4 border-b border-slate-200">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-slate-900">
+              <div className="p-2 rounded-lg bg-slate-100">
+                <Info className="h-6 w-6 text-slate-600" />
+              </div>
+              Candidate Additional Information
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 mt-2">
+              View and edit additional candidate information from screening
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdateMoreInfo} className="space-y-6 mt-6">
+            <div className="space-y-2">
+              <Label
+                htmlFor="more-info-currentCTC"
+                className="text-slate-900 font-medium"
+              >
+                Current CTC
+              </Label>
+              <Input
+                id="more-info-currentCTC"
+                name="currentCTC"
+                type="text"
+                value={moreInfoFormData.currentCTC}
+                onChange={handleMoreInfoChange}
+                placeholder="e.g., 10 LPA or ₹10 LPA"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="more-info-expectedCTC"
+                className="text-slate-900 font-medium"
+              >
+                Expected CTC
+              </Label>
+              <Input
+                id="more-info-expectedCTC"
+                name="expectedCTC"
+                type="text"
+                value={moreInfoFormData.expectedCTC}
+                onChange={handleMoreInfoChange}
+                placeholder="e.g., 15 LPA or ₹15 LPA"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="more-info-location"
+                className="text-slate-900 font-medium"
+              >
+                Current Location
+              </Label>
+              <Input
+                id="more-info-location"
+                name="location"
+                type="text"
+                value={moreInfoFormData.location}
+                onChange={handleMoreInfoChange}
+                placeholder="Enter current location"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="more-info-lookingForJobChange"
+                className="text-slate-900 font-medium"
+              >
+                Looking for Job Change
+              </Label>
+              <Input
+                id="more-info-lookingForJobChange"
+                name="lookingForJobChange"
+                type="text"
+                value={moreInfoFormData.lookingForJobChange}
+                onChange={handleMoreInfoChange}
+                placeholder="Are you looking for any job change?"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="more-info-availabilityForInterview"
+                className="text-slate-900 font-medium"
+              >
+                Availability for Interview
+              </Label>
+              <Input
+                id="more-info-availabilityForInterview"
+                name="availabilityForInterview"
+                type="text"
+                value={moreInfoFormData.availabilityForInterview}
+                onChange={handleMoreInfoChange}
+                placeholder="What's your availability to join for Interview Call?"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="more-info-joinDate"
+                className="text-slate-900 font-medium"
+              >
+                Join Date
+              </Label>
+              <Input
+                id="more-info-joinDate"
+                name="joinDate"
+                type="text"
+                value={moreInfoFormData.joinDate}
+                onChange={handleMoreInfoChange}
+                placeholder="How soon can you able to join?"
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="more-info-overallNote"
+                className="text-slate-900 font-medium"
+              >
+                Overall Note
+              </Label>
+              <Textarea
+                id="more-info-overallNote"
+                name="overallNote"
+                value={moreInfoFormData.overallNote}
+                onChange={handleMoreInfoChange}
+                placeholder="Any additional notes about the candidate"
+                rows={4}
+                className="bg-white border-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+              />
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-slate-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setMoreInfoDialogOpen(false);
+                  setSelectedCandidateForMoreInfo(null);
+                }}
+                className="border-slate-200 hover:bg-slate-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isUpdatingMoreInfo}
+                className="bg-slate-600 hover:bg-slate-700 text-white shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                {isUpdatingMoreInfo ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Update Information"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
