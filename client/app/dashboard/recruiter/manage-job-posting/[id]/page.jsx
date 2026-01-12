@@ -3050,6 +3050,7 @@ export default function RecruiterJobDetailPage() {
                             Call Status
                           </TableHead>
                           <TableHead className="text-center">Call</TableHead>
+                          <TableHead className="text-center">Info</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -3239,6 +3240,20 @@ export default function RecruiterJobDetailPage() {
                                     )}
                                   </Button>
                                 </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenMoreInfo(candidate);
+                                  }}
+                                  className="bg-slate-700 text-black border-0 transition-all duration-200 hover:scale-110"
+                                  title="View and edit additional candidate information"
+                                >
+                                  <Info className="h-4 w-4" />
+                                </Button>
                               </TableCell>
                             </TableRow>
                           );
@@ -3557,20 +3572,6 @@ export default function RecruiterJobDetailPage() {
                                     }
                                   >
                                     <Calendar className="h-4 w-4" />
-                                  </Button>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenMoreInfo(candidate);
-                                    }}
-                                    className="bg-slate-700 text-black border-0 transition-all duration-200 hover:scale-110"
-                                    title="View and edit additional candidate information"
-                                  >
-                                    <Info className="h-4 w-4" />
                                   </Button>
                                 </TableCell>
                               </TableRow>
