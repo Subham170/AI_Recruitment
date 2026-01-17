@@ -6,12 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { bolnaAPI, candidateAPI, candidateProgressAPI, jobPostingAPI } from "@/lib/api";
+import {
+  bolnaAPI,
+  candidateAPI,
+  candidateProgressAPI,
+  jobPostingAPI,
+} from "@/lib/api";
 import {
   ArrowLeft,
   Briefcase,
   CheckCircle2,
   Clock,
+  FileText,
   Loader2,
   Mail,
   Phone,
@@ -155,12 +161,16 @@ export default function CandidateProgressPage() {
 
       // Rejected stage - check interview outcome first
       if (stage === "rejected") {
-        return interview?.interviewOutcome === "reject" ? "completed" : "pending";
+        return interview?.interviewOutcome === "reject"
+          ? "completed"
+          : "pending";
       }
 
       // Offer stage - check interview outcome
       if (stage === "offer") {
-        return interview?.interviewOutcome === "offer" ? "completed" : "pending";
+        return interview?.interviewOutcome === "offer"
+          ? "completed"
+          : "pending";
       }
 
       // Interviews stage - candidate appears in interviews tab if emailSent is true
@@ -306,7 +316,9 @@ export default function CandidateProgressPage() {
                       {jobPosting && (
                         <div className="flex items-center gap-2 text-slate-500 text-sm pt-2 border-t border-slate-200">
                           <Briefcase className="h-4 w-4" />
-                          <span className="font-medium">{jobPosting.title || "Untitled Job"}</span>
+                          <span className="font-medium">
+                            {jobPosting.title || "Untitled Job"}
+                          </span>
                           <span>•</span>
                           <span>{jobPosting.company || "Unknown Company"}</span>
                         </div>
@@ -470,6 +482,29 @@ export default function CandidateProgressPage() {
                           <span>{candidateData.phone_no}</span>
                         </div>
                       )}
+
+                      {/* Resume */}
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase mb-2 flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Resume
+                        </p>
+                        {candidateData?.resume_url ? (
+                          <a
+                            href={candidateData.resume_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-cyan-600 hover:text-cyan-700 transition-colors font-medium"
+                          >
+                            <FileText className="h-5 w-5" />
+                            <span>View Resume</span>
+                          </a>
+                        ) : (
+                          <span className="text-slate-400 text-sm">
+                            No resume available
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
