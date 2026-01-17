@@ -56,6 +56,7 @@ import { format } from "date-fns";
 import {
   ArrowDown,
   ArrowLeft,
+  ArrowRight,
   ArrowUp,
   ArrowUpDown,
   Briefcase,
@@ -178,6 +179,7 @@ export default function RecruiterJobDetailPage() {
     }
   }, [activeTab, jobId]);
   const [aiMatches, setAiMatches] = useState([]);
+  const [aiMatchesPage, setAiMatchesPage] = useState(0); // Track which page of 25 we're showing
   const [applicants, setApplicants] = useState([]);
   const [screenings, setScreenings] = useState([]);
   const [interviews, setInterviews] = useState([]);
@@ -261,7 +263,8 @@ export default function RecruiterJobDetailPage() {
   const [slotsData, setSlotsData] = useState({ available: [], booked: [] });
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [moreInfoDialogOpen, setMoreInfoDialogOpen] = useState(false);
-  const [selectedCandidateForMoreInfo, setSelectedCandidateForMoreInfo] = useState(null);
+  const [selectedCandidateForMoreInfo, setSelectedCandidateForMoreInfo] =
+    useState(null);
   const [moreInfoFormData, setMoreInfoFormData] = useState({
     currentCTC: "",
     expectedCTC: "",
@@ -645,7 +648,7 @@ export default function RecruiterJobDetailPage() {
     }
   };
 
-  // Fetch AI matches (top 20) for AI Match tab
+  // Fetch AI matches (top 50) for AI Match tab
   const fetchAiMatches = async () => {
     if (!jobId) return;
 
@@ -658,14 +661,15 @@ export default function RecruiterJobDetailPage() {
       // Refresh matches first
       await matchingAPI.refreshJobMatches(jobId);
 
-      // Get top 20 matches (all statuses)
+      // Get top 50 matches (all statuses)
       const response = await matchingAPI.getJobMatches(jobId);
-      const sortedMatches = (response.matches || [])
-        .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
-        .slice(0, 20);
+      const sortedMatches = (response.matches || []).sort(
+        (a, b) => (b.matchScore || 0) - (a.matchScore || 0)
+      );
 
       console.log("Fetched AI matches:", sortedMatches.length);
       setAiMatches(sortedMatches);
+      setAiMatchesPage(0); // Reset to first page when fetching new matches
     } catch (err) {
       console.error("Error fetching AI matches:", err);
       toast.error(err.message || "Failed to load AI matches");
@@ -1808,11 +1812,11 @@ export default function RecruiterJobDetailPage() {
     try {
       setSelectedCandidateForMoreInfo(candidate);
       setMoreInfoDialogOpen(true);
-      
+
       // Fetch full candidate data to get the latest info
       const candidateId = candidate._id?.toString() || candidate.toString();
       const candidateData = await candidateAPI.getCandidateById(candidateId);
-      
+
       setMoreInfoFormData({
         currentCTC: candidateData.currentCTC || "",
         expectedCTC: candidateData.expectedCTC || "",
@@ -1842,21 +1846,24 @@ export default function RecruiterJobDetailPage() {
 
     try {
       setIsUpdatingMoreInfo(true);
-      const candidateId = selectedCandidateForMoreInfo._id?.toString() || selectedCandidateForMoreInfo.toString();
-      
+      const candidateId =
+        selectedCandidateForMoreInfo._id?.toString() ||
+        selectedCandidateForMoreInfo.toString();
+
       await candidateAPI.updateCandidate(candidateId, {
         currentCTC: moreInfoFormData.currentCTC || undefined,
         expectedCTC: moreInfoFormData.expectedCTC || undefined,
         location: moreInfoFormData.location || undefined,
         lookingForJobChange: moreInfoFormData.lookingForJobChange || undefined,
-        availabilityForInterview: moreInfoFormData.availabilityForInterview || undefined,
+        availabilityForInterview:
+          moreInfoFormData.availabilityForInterview || undefined,
         joinDate: moreInfoFormData.joinDate || undefined,
         overallNote: moreInfoFormData.overallNote || undefined,
       });
 
       toast.success("Candidate information updated successfully!");
       setMoreInfoDialogOpen(false);
-      
+
       // Refresh screenings to show updated data
       if (activeTab === "screenings") {
         fetchScreenings();
@@ -2692,7 +2699,7 @@ export default function RecruiterJobDetailPage() {
               <Card className="border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.3)]">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle>AI Candidate Matches (Top 20)</CardTitle>
+                    <CardTitle>AI Candidate Matches (Top 50)</CardTitle>
                     <div className="flex items-center gap-2">
                       <Button
                         onClick={openAddForm}
@@ -2730,231 +2737,292 @@ export default function RecruiterJobDetailPage() {
                       No AI matches found
                     </p>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead
-                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
-                            onClick={() => handleSort("aiMatch", "name")}
-                          >
-                            <div className="flex items-center gap-2">
-                              Candidate
-                              <SortIcon tab="aiMatch" columnKey="name" />
-                            </div>
-                          </TableHead>
-                          <TableHead
-                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none w-[250px]"
-                            onClick={() => handleSort("aiMatch", "role")}
-                          >
-                            <div className="flex items-center gap-2">
-                              Role
-                              <SortIcon tab="aiMatch" columnKey="role" />
-                            </div>
-                          </TableHead>
-                          <TableHead
-                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none whitespace-nowrap"
-                            onClick={() => handleSort("aiMatch", "matchScore")}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span>Score</span>
-                              <SortIcon tab="aiMatch" columnKey="matchScore" />
-                            </div>
-                          </TableHead>
-                          <TableHead
-                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
-                            onClick={() => handleSort("aiMatch", "email")}
-                          >
-                            <div className="flex items-center gap-2">
-                              Email
-                              <SortIcon tab="aiMatch" columnKey="email" />
-                            </div>
-                          </TableHead>
-                          <TableHead
-                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
-                            onClick={() => handleSort("aiMatch", "phone")}
-                          >
-                            <div className="flex items-center gap-2">
-                              Phone
-                              <SortIcon tab="aiMatch" columnKey="phone" />
-                            </div>
-                          </TableHead>
-                          <TableHead
-                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
-                            onClick={() => handleSort("aiMatch", "experience")}
-                          >
-                            <div className="flex items-center gap-2">
-                              Experience
-                              <SortIcon tab="aiMatch" columnKey="experience" />
-                            </div>
-                          </TableHead>
-                          <TableHead
-                            className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
-                            onClick={() => handleSort("aiMatch", "status")}
-                          >
-                            <div className="flex items-center gap-2">
-                              Status
-                              <SortIcon tab="aiMatch" columnKey="status" />
-                            </div>
-                          </TableHead>
-                          <TableHead className="text-center">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {sortData(aiMatches, "aiMatch", (item, key) =>
-                          getSortValue(item, key, "aiMatch")
-                        ).map((match, index) => {
-                          const candidate = match.candidateId;
-                          if (!candidate) return null;
-
-                          const matchScore = Math.round(
-                            (match.matchScore || 0) * 100
-                          );
-                          const candidateId = candidate._id?.toString();
-                          const isApplied = match.status === "applied";
-                          const isApplying =
-                            applyingCandidateId === candidateId;
-
-                          const handleRowClick = (e) => {
-                            if (
-                              e.target.closest("button") ||
-                              e.target.closest("a") ||
-                              e.target.closest('[role="button"]')
-                            ) {
-                              return;
-                            }
-                            const role = user?.role || "recruiter";
-                            router.push(
-                              `/dashboard/${role}/manage-job-posting/${jobId}/candidate/${candidateId}`
-                            );
-                          };
-
-                          return (
-                            <TableRow
-                              key={candidate._id || index}
-                              onClick={handleRowClick}
-                              className="cursor-pointer hover:bg-slate-50/50 transition-colors"
+                    <>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() => handleSort("aiMatch", "name")}
                             >
-                              <TableCell>
-                                <div className="flex items-center gap-3">
-                                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50 border border-cyan-200">
-                                    <span className="text-sm font-semibold text-cyan-700">
-                                      {candidate.name
-                                        ?.split(" ")
-                                        .map((n) => n[0])
-                                        .join("")
-                                        .toUpperCase() || "N/A"}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-slate-900">
-                                      {candidate.name || "Unknown"}
-                                    </p>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="w-[250px] max-w-[250px]">
-                                <div className="relative group/tooltip">
-                                  <div className="truncate text-sm" title={candidate.role?.join(", ") || "N/A"}>
-                                    {candidate.role?.join(", ") || "N/A"}
-                                  </div>
-                                  {candidate.role && candidate.role.length > 0 && (
-                                    <div className="absolute left-0 top-full mt-1 z-50 invisible group-hover/tooltip:visible bg-slate-900 text-white text-xs rounded-md px-3 py-2 shadow-lg max-w-[300px] break-words whitespace-normal pointer-events-none">
-                                      {candidate.role.join(", ")}
-                                      <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-900 rotate-45"></div>
+                              <div className="flex items-center gap-2">
+                                Candidate
+                                <SortIcon tab="aiMatch" columnKey="name" />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none w-[250px]"
+                              onClick={() => handleSort("aiMatch", "role")}
+                            >
+                              <div className="flex items-center gap-2">
+                                Role
+                                <SortIcon tab="aiMatch" columnKey="role" />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none whitespace-nowrap"
+                              onClick={() =>
+                                handleSort("aiMatch", "matchScore")
+                              }
+                            >
+                              <div className="flex items-center gap-2">
+                                <span>Score</span>
+                                <SortIcon
+                                  tab="aiMatch"
+                                  columnKey="matchScore"
+                                />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() => handleSort("aiMatch", "email")}
+                            >
+                              <div className="flex items-center gap-2">
+                                Email
+                                <SortIcon tab="aiMatch" columnKey="email" />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() => handleSort("aiMatch", "phone")}
+                            >
+                              <div className="flex items-center gap-2">
+                                Phone
+                                <SortIcon tab="aiMatch" columnKey="phone" />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() =>
+                                handleSort("aiMatch", "experience")
+                              }
+                            >
+                              <div className="flex items-center gap-2">
+                                Experience
+                                <SortIcon
+                                  tab="aiMatch"
+                                  columnKey="experience"
+                                />
+                              </div>
+                            </TableHead>
+                            <TableHead
+                              className="cursor-pointer hover:bg-slate-200/50 transition-colors select-none"
+                              onClick={() => handleSort("aiMatch", "status")}
+                            >
+                              <div className="flex items-center gap-2">
+                                Status
+                                <SortIcon tab="aiMatch" columnKey="status" />
+                              </div>
+                            </TableHead>
+                            <TableHead className="text-center">
+                              Action
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sortData(aiMatches, "aiMatch", (item, key) =>
+                            getSortValue(item, key, "aiMatch")
+                          )
+                            .slice(aiMatchesPage * 25, (aiMatchesPage + 1) * 25)
+                            .map((match, index) => {
+                              const candidate = match.candidateId;
+                              if (!candidate) return null;
+
+                              const matchScore = Math.round(
+                                (match.matchScore || 0) * 100
+                              );
+                              const candidateId = candidate._id?.toString();
+                              const isApplied = match.status === "applied";
+                              const isApplying =
+                                applyingCandidateId === candidateId;
+
+                              const handleRowClick = (e) => {
+                                if (
+                                  e.target.closest("button") ||
+                                  e.target.closest("a") ||
+                                  e.target.closest('[role="button"]')
+                                ) {
+                                  return;
+                                }
+                                const role = user?.role || "recruiter";
+                                router.push(
+                                  `/dashboard/${role}/manage-job-posting/${jobId}/candidate/${candidateId}`
+                                );
+                              };
+
+                              return (
+                                <TableRow
+                                  key={candidate._id || index}
+                                  onClick={handleRowClick}
+                                  className="cursor-pointer hover:bg-slate-50/50 transition-colors"
+                                >
+                                  <TableCell>
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-50 border border-cyan-200">
+                                        <span className="text-sm font-semibold text-cyan-700">
+                                          {candidate.name
+                                            ?.split(" ")
+                                            .map((n) => n[0])
+                                            .join("")
+                                            .toUpperCase() || "N/A"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-slate-900">
+                                          {candidate.name || "Unknown"}
+                                        </p>
+                                      </div>
                                     </div>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div
-                                  className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
-                                    match.matchScore || 0
-                                  )}`}
-                                >
-                                  {matchScore}%
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {candidate.email ? (
-                                  <div className="flex items-center gap-2">
-                                    <Mail className="h-4 w-4 text-slate-500" />
-                                    <span className="text-sm">
-                                      {candidate.email}
+                                  </TableCell>
+                                  <TableCell className="w-[250px] max-w-[250px]">
+                                    <div className="relative group/tooltip">
+                                      <div
+                                        className="truncate text-sm"
+                                        title={
+                                          candidate.role?.join(", ") || "N/A"
+                                        }
+                                      >
+                                        {candidate.role?.join(", ") || "N/A"}
+                                      </div>
+                                      {candidate.role &&
+                                        candidate.role.length > 0 && (
+                                          <div className="absolute left-0 top-full mt-1 z-50 invisible group-hover/tooltip:visible bg-slate-900 text-white text-xs rounded-md px-3 py-2 shadow-lg max-w-[300px] break-words whitespace-normal pointer-events-none">
+                                            {candidate.role.join(", ")}
+                                            <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-900 rotate-45"></div>
+                                          </div>
+                                        )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div
+                                      className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-bold ${getScoreColor(
+                                        match.matchScore || 0
+                                      )}`}
+                                    >
+                                      {matchScore}%
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {candidate.email ? (
+                                      <div className="flex items-center gap-2">
+                                        <Mail className="h-4 w-4 text-slate-500" />
+                                        <span className="text-sm">
+                                          {candidate.email}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-slate-600">
+                                        N/A
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {candidate.phone_no ? (
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-4 w-4 text-slate-500" />
+                                        <span className="text-sm">
+                                          {candidate.phone_no}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-slate-600">
+                                        N/A
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {candidate.experience !== undefined ? (
+                                      <span className="text-sm">
+                                        {candidate.experience} years
+                                      </span>
+                                    ) : (
+                                      <span className="text-sm text-slate-600">
+                                        N/A
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <span
+                                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        isApplied
+                                          ? "bg-green-100 text-green-700"
+                                          : "bg-slate-100 text-slate-600"
+                                      }`}
+                                    >
+                                      {isApplied ? "Applied" : "Pending"}
                                     </span>
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-slate-600">
-                                    N/A
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {candidate.phone_no ? (
-                                  <div className="flex items-center gap-2">
-                                    <Phone className="h-4 w-4 text-slate-500" />
-                                    <span className="text-sm">
-                                      {candidate.phone_no}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-slate-600">
-                                    N/A
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {candidate.experience !== undefined ? (
-                                  <span className="text-sm">
-                                    {candidate.experience} years
-                                  </span>
-                                ) : (
-                                  <span className="text-sm text-slate-600">
-                                    N/A
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <span
-                                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    isApplied
-                                      ? "bg-green-100 text-green-700"
-                                      : "bg-slate-100 text-slate-600"
-                                  }`}
-                                >
-                                  {isApplied ? "Applied" : "Pending"}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleApplyCandidate(candidateId);
-                                  }}
-                                  disabled={isApplied || isApplying}
-                                  className={`${
-                                    isApplied
-                                      ? "bg-green-100 text-green-700 hover:bg-green-100 cursor-not-allowed"
-                                      : "bg-indigo-600 hover:bg-indigo-700 text-white"
-                                  }`}
-                                >
-                                  {isApplying ? (
-                                    <>
-                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                      Applying...
-                                    </>
-                                  ) : isApplied ? (
-                                    "Applied"
-                                  ) : (
-                                    "Apply"
-                                  )}
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleApplyCandidate(candidateId);
+                                      }}
+                                      disabled={isApplied || isApplying}
+                                      className={`${
+                                        isApplied
+                                          ? "bg-green-100 text-green-700 hover:bg-green-100 cursor-not-allowed"
+                                          : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                      }`}
+                                    >
+                                      {isApplying ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Applying...
+                                        </>
+                                      ) : isApplied ? (
+                                        "Applied"
+                                      ) : (
+                                        "Apply"
+                                      )}
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                        </TableBody>
+                      </Table>
+                      {/* Pagination Controls */}
+                      {aiMatches.length > 25 && (
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
+                          <div className="text-sm text-slate-600">
+                            Showing {aiMatchesPage * 25 + 1} -{" "}
+                            {Math.min(
+                              (aiMatchesPage + 1) * 25,
+                              aiMatches.length
+                            )}{" "}
+                            of {aiMatches.length} matches
+                          </div>
+                          <div className="flex gap-2">
+                            {aiMatchesPage > 0 && (
+                              <Button
+                                variant="outline"
+                                onClick={() =>
+                                  setAiMatchesPage(aiMatchesPage - 1)
+                                }
+                                className="border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
+                              >
+                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                Previous
+                              </Button>
+                            )}
+                            {(aiMatchesPage + 1) * 25 < aiMatches.length && (
+                              <Button
+                                variant="outline"
+                                onClick={() =>
+                                  setAiMatchesPage(aiMatchesPage + 1)
+                                }
+                                className="border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200"
+                              >
+                                Next
+                                <ArrowRight className="h-4 w-4 ml-2" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -3109,15 +3177,19 @@ export default function RecruiterJobDetailPage() {
                               </TableCell>
                               <TableCell className="w-[250px] max-w-[250px]">
                                 <div className="relative group/tooltip">
-                                  <div className="truncate text-sm" title={candidate.role?.join(", ") || "N/A"}>
+                                  <div
+                                    className="truncate text-sm"
+                                    title={candidate.role?.join(", ") || "N/A"}
+                                  >
                                     {candidate.role?.join(", ") || "N/A"}
                                   </div>
-                                  {candidate.role && candidate.role.length > 0 && (
-                                    <div className="absolute left-0 top-full mt-1 z-50 invisible group-hover/tooltip:visible bg-slate-900 text-white text-xs rounded-md px-3 py-2 shadow-lg max-w-[300px] break-words whitespace-normal pointer-events-none">
-                                      {candidate.role.join(", ")}
-                                      <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-900 rotate-45"></div>
-                                    </div>
-                                  )}
+                                  {candidate.role &&
+                                    candidate.role.length > 0 && (
+                                      <div className="absolute left-0 top-full mt-1 z-50 invisible group-hover/tooltip:visible bg-slate-900 text-white text-xs rounded-md px-3 py-2 shadow-lg max-w-[300px] break-words whitespace-normal pointer-events-none">
+                                        {candidate.role.join(", ")}
+                                        <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-900 rotate-45"></div>
+                                      </div>
+                                    )}
                                 </div>
                               </TableCell>
                               <TableCell>

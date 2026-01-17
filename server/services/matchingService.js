@@ -6,9 +6,9 @@ import { CandidateMatches, JobMatches } from "../matching/model.js";
 // Configuration for vector search
 const VECTOR_SEARCH_INDEX_CANDIDATE = "candidate_vector_index"; // Atlas vector search index name for candidates
 const VECTOR_SEARCH_INDEX_JOB = "jobposting_vector_index"; // Atlas vector search index name for job postings
-const VECTOR_SEARCH_LIMIT = 20; // Get top 20 matches for AI Match tab
+const VECTOR_SEARCH_LIMIT = 50; // Get top 50 matches for AI Match tab
 const MIN_MATCH_SCORE = 0.5; // Minimum similarity score (Atlas returns scores 0-1)
-const MAX_MATCHES_TO_STORE = 20; // Maximum matches to store per job/candidate (for AI Match tab)
+const MAX_MATCHES_TO_STORE = 50; // Maximum matches to store per job/candidate (for AI Match tab)
 const NUM_CANDIDATES = 150; // Number of candidates to consider in vector search (tune based on dataset)
 
 /**
@@ -20,7 +20,9 @@ const NUM_CANDIDATES = 150; // Number of candidates to consider in vector search
 export async function findMatchingCandidates(jobPostingId, filters = {}) {
   try {
     // Get job posting with vector
-    const jobPosting = await JobPosting.findById(jobPostingId).select("+vector");
+    const jobPosting = await JobPosting.findById(jobPostingId).select(
+      "+vector"
+    );
 
     if (!jobPosting) {
       throw new Error("Job posting not found");
@@ -28,17 +30,26 @@ export async function findMatchingCandidates(jobPostingId, filters = {}) {
 
     // Generate vector if missing
     if (!jobPosting.vector || jobPosting.vector.length === 0) {
-      console.log(`[findMatchingCandidates] Job posting ${jobPostingId} has no vector, generating...`);
+      console.log(
+        `[findMatchingCandidates] Job posting ${jobPostingId} has no vector, generating...`
+      );
       try {
-        const { generateJobEmbedding } = await import("../services/embeddingService.js");
+        const { generateJobEmbedding } = await import(
+          "../services/embeddingService.js"
+        );
         const embedding = await generateJobEmbedding(jobPosting);
         jobPosting.vector = embedding;
-        await JobPosting.findByIdAndUpdate(jobPostingId, { 
-          $set: { vector: embedding } 
+        await JobPosting.findByIdAndUpdate(jobPostingId, {
+          $set: { vector: embedding },
         });
-        console.log(`[findMatchingCandidates] Generated vector for job ${jobPostingId} (${embedding.length} dimensions)`);
+        console.log(
+          `[findMatchingCandidates] Generated vector for job ${jobPostingId} (${embedding.length} dimensions)`
+        );
       } catch (embedError) {
-        console.error(`[findMatchingCandidates] Failed to generate vector for job ${jobPostingId}:`, embedError);
+        console.error(
+          `[findMatchingCandidates] Failed to generate vector for job ${jobPostingId}:`,
+          embedError
+        );
         return [];
       }
     }
@@ -99,22 +110,28 @@ export async function findMatchingCandidates(jobPostingId, filters = {}) {
       },
     ];
 
-    console.log(`[findMatchingCandidates] Using Atlas vector search with index: ${VECTOR_SEARCH_INDEX_CANDIDATE}`);
+    console.log(
+      `[findMatchingCandidates] Using Atlas vector search with index: ${VECTOR_SEARCH_INDEX_CANDIDATE}`
+    );
     console.log(`[findMatchingCandidates] Filters:`, JSON.stringify(filter));
     console.log(`[findMatchingCandidates] MIN_MATCH_SCORE: ${MIN_MATCH_SCORE}`);
 
     // Perform vector search using Atlas
     const results = await candidatesCollection.aggregate(pipeline).toArray();
 
-    console.log(`[findMatchingCandidates] Found ${results.length} matching candidates for job ${jobPostingId}`);
-    
+    console.log(
+      `[findMatchingCandidates] Found ${results.length} matching candidates for job ${jobPostingId}`
+    );
+
     // Format results
     const formattedResults = results.map((result) => ({
       candidateId: result._id,
       matchScore: result.matchScore,
     }));
 
-    console.log(`[findMatchingCandidates] Returning ${formattedResults.length} matches`);
+    console.log(
+      `[findMatchingCandidates] Returning ${formattedResults.length} matches`
+    );
     return formattedResults;
   } catch (error) {
     console.error("Error finding matching candidates:", error);
@@ -139,17 +156,26 @@ export async function findMatchingJobs(candidateId, filters = {}) {
 
     // Generate vector if missing
     if (!candidate.vector || candidate.vector.length === 0) {
-      console.log(`[findMatchingJobs] Candidate ${candidateId} has no vector, generating...`);
+      console.log(
+        `[findMatchingJobs] Candidate ${candidateId} has no vector, generating...`
+      );
       try {
-        const { generateCandidateEmbedding } = await import("../services/embeddingService.js");
+        const { generateCandidateEmbedding } = await import(
+          "../services/embeddingService.js"
+        );
         const embedding = await generateCandidateEmbedding(candidate);
         candidate.vector = embedding;
-        await Candidate.findByIdAndUpdate(candidateId, { 
-          $set: { vector: embedding } 
+        await Candidate.findByIdAndUpdate(candidateId, {
+          $set: { vector: embedding },
         });
-        console.log(`[findMatchingJobs] Generated vector for candidate ${candidateId} (${embedding.length} dimensions)`);
+        console.log(
+          `[findMatchingJobs] Generated vector for candidate ${candidateId} (${embedding.length} dimensions)`
+        );
       } catch (embedError) {
-        console.error(`[findMatchingJobs] Failed to generate vector for candidate ${candidateId}:`, embedError);
+        console.error(
+          `[findMatchingJobs] Failed to generate vector for candidate ${candidateId}:`,
+          embedError
+        );
         return [];
       }
     }
@@ -210,22 +236,28 @@ export async function findMatchingJobs(candidateId, filters = {}) {
       },
     ];
 
-    console.log(`[findMatchingJobs] Using Atlas vector search with index: ${VECTOR_SEARCH_INDEX_JOB}`);
+    console.log(
+      `[findMatchingJobs] Using Atlas vector search with index: ${VECTOR_SEARCH_INDEX_JOB}`
+    );
     console.log(`[findMatchingJobs] Filters:`, JSON.stringify(filter));
     console.log(`[findMatchingJobs] MIN_MATCH_SCORE: ${MIN_MATCH_SCORE}`);
 
     // Perform vector search using Atlas
     const results = await jobPostingsCollection.aggregate(pipeline).toArray();
 
-    console.log(`[findMatchingJobs] Found ${results.length} matching jobs for candidate ${candidateId}`);
-    
+    console.log(
+      `[findMatchingJobs] Found ${results.length} matching jobs for candidate ${candidateId}`
+    );
+
     // Format results
     const formattedResults = results.map((result) => ({
       jobId: result._id,
       matchScore: result.matchScore,
     }));
 
-    console.log(`[findMatchingJobs] Returning ${formattedResults.length} matches`);
+    console.log(
+      `[findMatchingJobs] Returning ${formattedResults.length} matches`
+    );
     return formattedResults;
   } catch (error) {
     console.error("Error finding matching jobs:", error);
@@ -258,9 +290,9 @@ export async function updateJobMatches(jobPostingId, filters = {}) {
       });
     }
 
-    // Format matches for storage and limit to top 20 (for AI Match tab)
+    // Format matches for storage and limit to top 50 (for AI Match tab)
     const matchesToStore = matches
-      .slice(0, 20) // Top 20 for AI Match tab
+      .slice(0, 50) // Top 50 for AI Match tab
       .map((match) => {
         const candidateIdStr = match.candidateId.toString();
         const existingStatus = existingStatusMap.get(candidateIdStr);
